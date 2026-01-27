@@ -19,6 +19,9 @@ import (
 	"atlas/shared/protocol"
 )
 
+// Version is the probe build version. It should be injected via -ldflags.
+var Version = "dev"
+
 // Client WebSocket客户端
 type Client struct {
 	config      *config.Config
@@ -149,7 +152,7 @@ func (c *Client) register() error {
 		Location:     c.config.Probe.Location,
 		Region:       c.config.Probe.Region,
 		Capabilities: c.config.Capabilities,
-		Version:      "1.0.0",
+		Version:      Version,
 		AuthToken:    c.config.Server.AuthToken,
 		Metadata:     metadata,
 	}

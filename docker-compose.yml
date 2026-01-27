@@ -9,7 +9,8 @@ services:
     environment:
       - SERVER_PORT=8080
       - DB_PATH=/app/data/atlas.db
-      - SHARED_SECRET=${SHARED_SECRET:-atlas-secret-2026}
+      # 生产环境必须显式设置 SHARED_SECRET（probe 的 AUTH_TOKEN 需与此一致）
+      - SHARED_SECRET=${SHARED_SECRET:?Please set SHARED_SECRET in your environment or .env}
     volumes:
       - atlas-data:/app/data
       - atlas-logs:/app/logs
@@ -23,90 +24,10 @@ services:
       retries: 3
       start_period: 10s
 
-  # 本地测试探针 - 北京
-  probe-beijing:
-    build:
-      context: .
-      dockerfile: deploy/probe/Dockerfile
-    container_name: atlas-probe-beijing
-    environment:
-      - PROBE_NAME=北京测试节点
-      - PROBE_LOCATION=北京, 中国
-      - PROBE_REGION=asia
-      - WEB_SERVER_URL=ws://web:8080/ws
-      - AUTH_TOKEN=${SHARED_SECRET:-atlas-secret-2026}
-      - PROBE_ID_DIR=/app/probe-id
-      - PROBE_ID_FILE=/app/probe-id/probe_id_beijing.txt
-    depends_on:
-      web:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - atlas-network
-    volumes:
-      - atlas-probe-id:/app/probe-id
-    cap_add:
-      - NET_RAW
-      - NET_ADMIN
-
-  # 本地测试探针 - 上海
-  probe-shanghai:
-    build:
-      context: .
-      dockerfile: deploy/probe/Dockerfile
-    container_name: atlas-probe-shanghai
-    environment:
-      - PROBE_NAME=上海测试节点
-      - PROBE_LOCATION=上海, 中国
-      - PROBE_REGION=asia
-      - WEB_SERVER_URL=ws://web:8080/ws
-      - AUTH_TOKEN=${SHARED_SECRET:-atlas-secret-2026}
-      - PROBE_ID_DIR=/app/probe-id
-      - PROBE_ID_FILE=/app/probe-id/probe_id_shanghai.txt
-    depends_on:
-      web:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - atlas-network
-    volumes:
-      - atlas-probe-id:/app/probe-id
-    cap_add:
-      - NET_RAW
-      - NET_ADMIN
-
-  # 本地测试探针 - 广州
-  probe-guangzhou:
-    build:
-      context: .
-      dockerfile: deploy/probe/Dockerfile
-    container_name: atlas-probe-guangzhou
-    environment:
-      - PROBE_NAME=广州测试节点
-      - PROBE_LOCATION=广州, 中国
-      - PROBE_REGION=asia
-      - WEB_SERVER_URL=ws://web:8080/ws
-      - AUTH_TOKEN=${SHARED_SECRET:-atlas-secret-2026}
-      - PROBE_ID_DIR=/app/probe-id
-      - PROBE_ID_FILE=/app/probe-id/probe_id_guangzhou.txt
-    depends_on:
-      web:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - atlas-network
-    volumes:
-      - atlas-probe-id:/app/probe-id
-    cap_add:
-      - NET_RAW
-      - NET_ADMIN
-
 volumes:
   atlas-data:
     driver: local
   atlas-logs:
-    driver: local
-  atlas-probe-id:
     driver: local
 
 networks:

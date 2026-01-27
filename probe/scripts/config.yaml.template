@@ -1,0 +1,27 @@
+probe:
+  name: "atlas-probe"
+  # location/region/lat/lon are auto-detected by probe at runtime.
+
+server:
+  # IMPORTANT: set to your web server WS endpoint
+  url: "ws://YOUR_WEB_HOST:18080/ws"
+
+  # IMPORTANT: must equal Web SHARED_SECRET
+  auth_token: "YOUR_SHARED_SECRET"
+
+  reconnect_interval: 5
+  max_reconnect_attempts: 0
+
+capabilities:
+  - icmp_ping
+  - tcp_ping
+  - mtr
+  - traceroute
+
+executor:
+  max_concurrent_tasks: 5
+  task_timeout: 300
+
+logging:
+  level: info
+  file: /var/log/atlas-probe/probe.log

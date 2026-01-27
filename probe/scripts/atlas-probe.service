@@ -1,0 +1,27 @@
+[Unit]
+Description=Atlas Probe
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=atlas-probe
+Group=atlas-probe
+WorkingDirectory=/var/lib/atlas-probe
+ExecStart=/usr/local/bin/atlas-probe -config /etc/atlas-probe/config.yaml
+Restart=always
+RestartSec=3
+
+# Capabilities for ping/mtr/traceroute
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+NoNewPrivileges=true
+
+# Basic hardening
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/atlas-probe /var/log/atlas-probe /etc/atlas-probe
+
+[Install]
+WantedBy=multi-user.target

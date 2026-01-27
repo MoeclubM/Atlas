@@ -1,0 +1,59 @@
+name: Release Probe
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+      - name: Build artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${GITHUB_REF_NAME}"
+
+          rm -rf dist
+          mkdir -p dist/_build
+
+          : > dist/checksums.txt
+
+          for arch in amd64 arm64; do
+            build_dir="dist/_build/${arch}"
+            mkdir -p "${build_dir}"
+
+            echo "Building linux/${arch}..."
+            GOOS=linux GOARCH="${arch}" CGO_ENABLED=0 \
+              go build -C probe -trimpath -ldflags "-X atlas/probe/internal/client.Version=${version}" \
+              -o "../${build_dir}/atlas-probe" ./cmd/probe
+
+            tar -C "${build_dir}" -czf "dist/atlas-probe_${version}_linux_${arch}.tar.gz" atlas-probe
+            sha256sum "dist/atlas-probe_${version}_linux_${arch}.tar.gz" >> dist/checksums.txt
+          done
+
+          echo "Artifacts:"
+          ls -lah dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/checksums.txt
+          generate_release_notes: true
+          fail_on_unmatched_files: true

@@ -4,15 +4,30 @@
 
 ## 🚀 快速启动
 
-### Docker 模式 (推荐用于生产环境)
+### Web（docker-compose，一键部署，仅包含 web）
 
+1) 复制并编辑环境变量：
+```bash
+cp .env.example .env
+```
+
+2) **必须**设置 `SHARED_SECRET`（生产环境请使用强随机值）：
+- Web 端：`SHARED_SECRET`
+- Probe 端：`AUTH_TOKEN`（必须与 `SHARED_SECRET` 完全一致）
+
+3) 启动：
 ```bash
 docker compose up --build -d
 ```
 
+4) 健康检查：
+```bash
+curl http://localhost:18080/api/health
+```
+
 访问 http://localhost:18080
 
-**注意**: 如遇到 Docker Hub 连接问题，可配置镜像加速器或使用本地镜像源。
+> 注意：本仓库的 docker-compose 仅启动 web；Probe 需要在独立机器上通过脚本安装并通过 systemd 运行。
 
 ### 本地开发模式 (Windows)
 
@@ -138,6 +153,43 @@ Atlas/
 2. 在首页选择测试类型并输入目标（如 `8.8.8.8` / `google.com`）
 3. Ping/TCP 点击“开始监控”启动持续监控；其他类型点击“开始测试”
 4. 查看节点列表、地图与延迟曲线/柱状图
+
+## Probe（脚本安装 + systemd 管理，Ubuntu/Debian）
+
+### 前置说明
+- Probe 通过 WebSocket 连接 Web：`server.url`（示例：`ws://<host>:18080/ws` 或 `wss://<domain>/ws`）
+- 鉴权关系：`AUTH_TOKEN` **必须**与 Web 端 `SHARED_SECRET` 完全一致（校验位置：`web/internal/websocket/handler.go:33`）
+- 能力探测依赖系统命令：`ping` / `mtr` / `traceroute`（Probe 启动时会检测命令是否存在并决定 capabilities，见 `probe/cmd/probe/main.go:17`）
+- 生产建议通过 systemd 赋予最小能力（CAP_NET_RAW 等），避免 probe 以 root 运行
+
+### 安装/升级
+在 Ubuntu/Debian 机器上执行（以 root 运行）：
+
+- 安装 latest：
+```bash
+sudo bash probe/scripts/install.sh
+```
+
+- 安装指定版本（回滚）：
+```bash
+sudo bash probe/scripts/install.sh --version vX.Y.Z
+```
+
+安装后：
+- 二进制：`/usr/local/bin/atlas-probe`
+- 配置：`/etc/atlas-probe/config.yaml`（仅首次创建；请编辑其中的 `server.url` 与 `server.auth_token`）
+- 服务：`atlas-probe.service`
+
+常用命令：
+```bash
+sudo systemctl status atlas-probe
+sudo systemctl restart atlas-probe
+sudo journalctl -u atlas-probe -f
+```
+
+### 校验与安全建议
+- 安装脚本会从 Release 下载 `checksums.txt` 并对 tar.gz 进行 SHA256 校验
+- systemd unit 默认启用 `NoNewPrivileges=true` 等基础加固项，并使用系统用户 `atlas-probe` 运行
 
 ## 📊 地图颜色说明
 
