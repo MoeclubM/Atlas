@@ -1,0 +1,29 @@
+probe:
+  name: "Example Probe"
+  # location 和 region 会自动检测,无需手动配置
+  # 如果自动检测失败或需要自定义,可以手动设置:
+  # location: "Beijing, China"
+  # region: "asia"
+  # latitude: 39.9042
+  # longitude: 116.4074
+
+server:
+  url: "ws://localhost:8080/ws"  # or wss://your-domain.com/ws for production
+  auth_token: "change-this-secret-in-production"
+  reconnect_interval: 5  # seconds
+  max_reconnect_attempts: 0  # 0 = unlimited
+
+capabilities:
+  - icmp_ping
+  - tcp_ping
+  - mtr
+  - traceroute
+  # - bird_route  # Optional, requires bird installation
+
+executor:
+  max_concurrent_tasks: 5
+  task_timeout: 300  # seconds
+
+logging:
+  level: info
+  file: ./logs/probe.log

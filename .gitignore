@@ -1,0 +1,85 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+atlas-server
+atlas-probe
+
+# Local build artifacts
+server.exe
+probe/probe-*
+probe/probe_id*.txt
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# Dependencies
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Database
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Configuration (keep examples)
+.env
+*.local.yaml
+*.local.yml
+
+# Local config (commit examples instead)
+config.yaml
+web/config.yaml
+probe/config.yaml
+
+# Build artifacts
+dist/
+build/
+*.tar.gz
+
+# Node modules (frontend)
+node_modules/
+frontend/dist/
+frontend/.nuxt/
+
+# Frontend env (commit example only)
+frontend/.env.*
+!frontend/.env.example
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+/.playwright-mcp
+
+# Claude Code
+.claude/
+
+# Go workspace
+go.work.sum
+
+# Windows
+NUL
+Thumbs.db
+ehthumbs.db
+Desktop.ini
