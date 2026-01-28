@@ -1,19 +1,19 @@
-# Atlas - 全球网络测试平台
+# Atlas - 轻量化网络测试平台
 
 基于 WebSocket 的分布式网络测试系统，具有自动 IP 地理位置获取和可视化地图展示功能。
 
 ## 🚀 快速启动
 
-### Web（docker-compose，一键部署，仅包含 web）
+### Web端（docker-compose部署）
 
 1) 复制并编辑环境变量：
 ```bash
 cp .env.example .env
 ```
 
-2) **必须**设置 `SHARED_SECRET`（生产环境请使用强随机值）：
+2) **必须**设置 `SHARED_SECRET`：
 - Web 端：`SHARED_SECRET`
-- Probe 端：`AUTH_TOKEN`（必须与 `SHARED_SECRET` 完全一致）
+- Probe 端：`AUTH_TOKEN`（必须与 `SHARED_SECRET` 一致）
 
 3) 启动：
 ```bash
@@ -49,40 +49,6 @@ make dev-logs
 make dev-down
 ```
 
-### 本地开发模式 (Windows)
-
-#### 前置要求
-
-需要安装 GCC 编译器 (SQLite CGO 支持):
-- TDM-GCC: https://jmeubank.github.io/tdm-gcc/
-- MinGW-w64: https://sourceforge.net/projects/mingw-w64/
-
-#### 启动步骤
-
-1. **构建前端**:
-   ```bash
-   cd frontend
-   npm install
-   npm run build
-   ```
-
-2. **启动后端** (新终端):
-   ```bash
-   cd web
-   set CGO_ENABLED=1
-   go run cmd/server/main.go
-   ```
-
-3. **启动探针** (新终端):
-   ```bash
-   cd probe
-   go run cmd/probe/main.go
-   ```
-
-4. 访问 http://localhost:18080
-
-**快捷方式**: 使用提供的批处理脚本
-详细说明：参考 Makefile 与各模块 README（如需补充 Windows/Linux 本地开发脚本，可后续加入）。
 
 ## ✨ 核心特性
 
