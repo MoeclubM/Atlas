@@ -1,4 +1,4 @@
-.PHONY: help build-web build-probe build-frontend build run-web run-probe clean docker-build docker-up docker-down test dev-frontend
+.PHONY: help build-web build-probe build-frontend build run-web run-probe clean docker-build docker-up docker-down docker-logs test dev-frontend dev-up dev-down dev-logs dev-restart-probe
 
 help:
 	@echo "Atlas - Global Network Testing Platform"
@@ -16,6 +16,10 @@ help:
 	@echo "  docker-build    - Build Docker images"
 	@echo "  docker-up       - Start Docker Compose services"
 	@echo "  docker-down     - Stop Docker Compose services"
+	@echo "  dev-up         - Start dev env (web + probe)"
+	@echo "  dev-down       - Stop dev env (web + probe)"
+	@echo "  dev-logs       - Tail logs for dev env"
+	@echo "  dev-restart-probe - Restart dev probe"
 
 build-web:
 	@echo "Building web server..."
@@ -65,6 +69,19 @@ docker-down:
 
 docker-logs:
 	docker compose logs -f
+
+# Dev Docker (web + probe)
+dev-up:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+dev-down:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+
+dev-logs:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f
+
+dev-restart-probe:
+	docker compose -f docker-compose.yml -f docker-compose.dev.yml restart probe
 
 # Development helpers
 dev-web:

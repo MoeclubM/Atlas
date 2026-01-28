@@ -102,7 +102,6 @@ const statusItems = computed(() => [
 const typeItems = computed(() => [
   { title: String($t('taskTable.typeNames.icmp_ping')), value: 'icmp_ping' as TaskType },
   { title: String($t('taskTable.typeNames.tcp_ping')), value: 'tcp_ping' as TaskType },
-  { title: String($t('taskTable.typeNames.mtr')), value: 'mtr' as TaskType },
   { title: String($t('taskTable.typeNames.traceroute')), value: 'traceroute' as TaskType },
 ])
 

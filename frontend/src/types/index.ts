@@ -1,5 +1,5 @@
 // 任务类型
-export type TaskType = 'icmp_ping' | 'tcp_ping' | 'http_test' | 'mtr' | 'traceroute' | 'bird_route'
+export type TaskType = 'icmp_ping' | 'tcp_ping' | 'http_test' | 'traceroute' | 'bird_route'
 
 // 任务模式
 export type TaskMode = 'single' | 'continuous'

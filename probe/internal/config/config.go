@@ -60,7 +60,7 @@ func Load(configPath string) (*Config, error) {
 			ReconnectInterval:    5,
 			MaxReconnectAttempts: 0, // 无限重试
 		},
-		Capabilities: []string{"icmp_ping", "tcp_ping", "mtr", "traceroute", "bird_route"},
+		Capabilities: []string{"icmp_ping", "tcp_ping", "traceroute", "bird_route"},
 		Executor: ExecutorConfig{
 			MaxConcurrentTasks: 5,
 			TaskTimeout:        300,

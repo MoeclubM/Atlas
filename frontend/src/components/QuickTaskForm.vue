@@ -105,10 +105,7 @@
       />
     </div>
 
-    <div
-      v-if="form.task_type === 'traceroute' || form.task_type === 'mtr'"
-      class="row-probe"
-    >
+    <div v-if="form.task_type === 'traceroute'" class="row-probe">
       <v-select
         v-model="selectedProbeIds"
         :items="availableProbeItems"
@@ -136,16 +133,6 @@
         {{ $t('quickTaskForm.startTraceroute') }}
       </v-btn>
 
-      <v-btn
-        v-else-if="form.task_type === 'mtr'"
-        color="primary"
-        :loading="loading"
-        block
-        @click="handleSubmit('continuous')"
-      >
-        <v-icon icon="mdi-flash" start />
-        {{ $t('quickTaskForm.monitorMtr') }}
-      </v-btn>
 
       <v-btn
         v-else-if="form.task_type === 'http_test'"
@@ -253,7 +240,6 @@ const taskTypeItems = computed(() => [
   { title: String($t('taskTable.typeNames.icmp_ping')), value: 'icmp_ping' },
   { title: String($t('taskTable.typeNames.tcp_ping')), value: 'tcp_ping' },
   { title: String($t('quickTaskForm.httpTest')), value: 'http_test' },
-  { title: String($t('taskTable.typeNames.mtr')), value: 'mtr' },
   { title: String($t('taskTable.typeNames.traceroute')), value: 'traceroute' },
 ])
 
@@ -339,13 +325,11 @@ async function fetchGeoInfo(ip: string) {
 
 // 任务类型变化时重置
 function handleTaskTypeChange() {
-  if (form.task_type !== 'traceroute' && form.task_type !== 'mtr') {
+  if (form.task_type !== 'traceroute') {
     selectedProbeIds.value = []
   }
 
-  if (form.task_type === 'mtr') {
-    form.mode = 'continuous'
-  } else if (form.task_type === 'http_test') {
+  if (form.task_type === 'http_test') {
     form.mode = 'single'
     form.count = 1
   } else if (form.task_type === 'traceroute') {
@@ -406,9 +390,7 @@ async function handleSubmit(mode: 'single' | 'continuous') {
         ? 'single'
         : form.task_type === 'traceroute'
           ? 'single'
-          : form.task_type === 'mtr'
-            ? 'continuous'
-            : mode
+          : mode
 
     // 持续 ping/tcp 固定 100 次（调度器 1s 间隔）
     let count = form.count
@@ -435,7 +417,7 @@ async function handleSubmit(mode: 'single' | 'continuous') {
       target: form.target,
       ip_version: form.ip_version,
       parameters,
-      assigned_probes: (form.task_type === 'traceroute' || form.task_type === 'mtr') ? selectedProbeIds.value : [],
+      assigned_probes: form.task_type === 'traceroute' ? selectedProbeIds.value : [],
       priority: 5,
     })
 

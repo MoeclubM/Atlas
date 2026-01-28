@@ -12,7 +12,7 @@ ExecStart=/usr/local/bin/atlas-probe -config /etc/atlas-probe/config.yaml
 Restart=always
 RestartSec=3
 
-# Capabilities for ping/mtr/traceroute
+# Capabilities for ping/traceroute
 AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
 CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
 NoNewPrivileges=true

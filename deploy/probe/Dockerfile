@@ -29,7 +29,6 @@ RUN apk --no-cache add \
     ca-certificates \
     iputils \
     bind-tools \
-    mtr \
     traceroute \
     tcptraceroute \
     busybox-extras \
@@ -59,7 +58,6 @@ server:\n\
 capabilities:\n\
   - icmp_ping\n\
   - tcp_ping\n\
-  - mtr\n\
   - traceroute\n\
 executor:\n\
   max_concurrent_tasks: 5\n\

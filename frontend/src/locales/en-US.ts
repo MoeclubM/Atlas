@@ -67,7 +67,7 @@ export default {
     ipAuto: 'Auto',
     ipV4: 'IPv4',
     ipV6: 'IPv6',
-    continuousHint: 'Continuous mode supports ICMP Ping/TCP Ping/MTR only (1s interval, max 100).',
+    continuousHint: 'Continuous mode supports ICMP Ping/TCP Ping only (1s interval, max 100).',
     tracerouteHint: 'Traceroute supports selecting probes; empty uses default selection.',
     probeLabel: 'Probes',
     startTest: 'Start Test',
@@ -84,14 +84,12 @@ export default {
       icmp_ping: '8.8.8.8 or google.com',
       tcp_ping: '8.8.8.8:22 or google.com:443 (port required)',
       http_test: 'https://example.com',
-      mtr: '8.8.8.8 or google.com',
       traceroute: '8.8.8.8 or google.com',
     },
     typeNames: {
       icmp_ping: 'Ping',
       tcp_ping: 'TCP',
       http_test: 'HTTP',
-      mtr: 'MTR',
       traceroute: 'Traceroute',
     },
     filters: {
@@ -101,6 +99,10 @@ export default {
     },
     route: {
       hop: 'Hop',
+      ip: 'IP',
+      lossPercent: 'Loss%',
+      avg: 'Avg',
+      rtt: 'RTT',
       arrived: 'Arrived',
     },
 
@@ -143,7 +145,6 @@ export default {
       icmp_ping: 'ICMP Ping',
       tcp_ping: 'TCP Ping',
       http_test: 'HTTP',
-      mtr: 'MTR',
       traceroute: 'Traceroute',
       bird_route: 'Bird routes',
     },
@@ -200,7 +201,6 @@ export default {
     dnsServer: 'DNS server',
     httpTest: 'HTTP Test',
     startTraceroute: 'Start Traceroute',
-    monitorMtr: 'Monitor MTR',
     startHttpTest: 'Start HTTP Test',
     validation: {
       selectTestType: 'Select test type',
@@ -257,7 +257,6 @@ export default {
     testHint: 'Controls max runs for continuous tests and route test timeouts.',
     pingMaxRuns: 'Ping max runs',
     tcpPingMaxRuns: 'TCP Ping max runs',
-    mtrTimeoutSeconds: 'MTR timeout (s)',
     tracerouteTimeoutSeconds: 'Traceroute timeout (s)',
     connectAddressHint: 'Probes connect using the URL below',
     copyAddress: 'Copy',
@@ -295,7 +294,6 @@ export default {
     progress: 'Progress',
     status: 'Status',
     chart: 'Chart',
-    mtrDetail: 'MTR details',
     tracerouteDetail: 'Traceroute details',
     noRouteData: 'No route data',
     resolvedIP: 'Resolved IP',
@@ -322,6 +320,14 @@ export default {
     requestFailed: 'Request failed',
   },
 
+  worldMap: {
+    loading: 'Loading map...',
+    nodeCount: '{count} nodes',
+    latency: 'Latency',
+    lossRate: 'Loss',
+    status: 'Status',
+  },
+
   singleResult: {
     worldMap: 'World map',
     probeData: 'Probe results',
@@ -336,6 +342,15 @@ export default {
     max: 'Max',
     stdev: 'Stdev',
   },
+  pingChart: {
+    title: 'ICMP Ping latency',
+    attempt: 'Attempt {n}',
+    latency: 'Latency',
+    xAxis: 'Attempts',
+    yAxis: 'Latency (ms)',
+    seriesLatency: 'Latency',
+  },
+
   login: {
     title: 'Admin',
     password: 'Password',

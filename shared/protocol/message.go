@@ -163,27 +163,6 @@ type TCPPingAttempt struct {
 	Error  string  `json:"error,omitempty"`
 }
 
-// MTRResult MTR测试结果
-type MTRResult struct {
-	Hops      []MTRHop `json:"hops"`
-	Target    string   `json:"target"`
-	TotalHops int      `json:"total_hops"`
-
-	ResolvedIP string `json:"resolved_ip,omitempty"`
-}
-
-// MTRHop MTR单跳信息
-type MTRHop struct {
-	Hop         int     `json:"hop"`
-	IP          string  `json:"ip"`
-	Hostname    string  `json:"hostname"`
-	Sent        int     `json:"sent"`
-	Received    int     `json:"received"`
-	LossPercent float64 `json:"loss_percent"`
-	AvgMs       float64 `json:"avg_ms"`
-	MinMs       float64 `json:"min_ms"`
-	MaxMs       float64 `json:"max_ms"`
-}
 
 // TracerouteResult Traceroute测试结果
 type TracerouteResult struct {

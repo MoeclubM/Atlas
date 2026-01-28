@@ -15,7 +15,6 @@ server:
 capabilities:
   - icmp_ping
   - tcp_ping
-  - mtr
   - traceroute
 
 executor:

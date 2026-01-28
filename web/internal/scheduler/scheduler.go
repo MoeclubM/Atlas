@@ -65,7 +65,22 @@ func (s *Scheduler) scanAndSchedule() {
 		return
 	}
 
+	now := time.Now()
 	for _, task := range tasks {
+		// 兼容历史数据：禁用 mtr 任务，避免一直被扫描/调度
+		if task.TaskType == "mtr" {
+			log.Printf("[Scheduler] Disabling legacy mtr task %s", task.TaskID)
+			if task.CompletedAt == nil {
+				task.CompletedAt = &now
+			}
+			task.NextRunAt = nil
+			task.Status = "failed"
+			if err := s.db.UpdateTask(task); err != nil {
+				log.Printf("[Scheduler] Failed to disable legacy mtr task %s: %v", task.TaskID, err)
+			}
+			continue
+		}
+
 		if err := s.assignTask(task); err != nil {
 			log.Printf("[Scheduler] Failed to assign task %s: %v", task.TaskID, err)
 		}
@@ -79,7 +94,6 @@ func (s *Scheduler) scanAndSchedule() {
 	}
 
 	for _, task := range continuousTasks {
-		s.maybeTriggerContinuousICMPMTR(task)
 		if err := s.assignTask(task); err != nil {
 			log.Printf("[Scheduler] Failed to assign continuous task %s: %v", task.TaskID, err)
 		}
@@ -89,83 +103,6 @@ func (s *Scheduler) scanAndSchedule() {
 	}
 }
 
-func (s *Scheduler) maybeTriggerContinuousICMPMTR(task *model.Task) {
-	if task.Mode != "continuous" || task.TaskType != "icmp_ping" {
-		return
-	}
-
-	// 为 continuous icmp_ping：对每个 probe 只触发一次 mtr
-	type scheduleState struct {
-		RunCount            int      `json:"run_count"`
-		IntervalSeconds     int      `json:"interval_seconds"`
-		MTRTriggeredProbes  []string `json:"mtr_triggered_probes,omitempty"`
-		MTRTriggeredTaskIDs []string `json:"mtr_triggered_task_ids,omitempty"`
-	}
-	state := scheduleState{}
-	if task.Schedule != "" {
-		_ = json.Unmarshal([]byte(task.Schedule), &state)
-	}
-
-	triggered := make(map[string]struct{}, len(state.MTRTriggeredProbes))
-	for _, id := range state.MTRTriggeredProbes {
-		triggered[id] = struct{}{}
-	}
-
-	probes, err := s.selectProbes(task)
-	if err != nil {
-		log.Printf("[Scheduler] Failed to select probes for mtr trigger (task=%s): %v", task.TaskID, err)
-		return
-	}
-	if len(probes) == 0 {
-		return
-	}
-
-	changed := false
-	for _, probe := range probes {
-		// 只给支持 mtr 的探针触发 mtr（且每个 probe 只触发一次）
-		var caps []string
-		_ = json.Unmarshal([]byte(probe.Capabilities), &caps)
-		hasMTR := false
-		for _, c := range caps {
-			if c == "mtr" || c == "all" {
-				hasMTR = true
-				break
-			}
-		}
-		if !hasMTR {
-			continue
-		}
-		if _, ok := triggered[probe.ProbeID]; ok {
-			continue
-		}
-
-		mtrTask := &model.Task{
-			TaskID:         uuid.New().String(),
-			TaskType:       "mtr",
-			Mode:           "single",
-			Target:         task.Target,
-			Parameters:     "{}",
-			AssignedProbes: "[\"" + probe.ProbeID + "\"]",
-			Status:         "pending",
-			Priority:       task.Priority,
-		}
-		if err := s.db.CreateTask(mtrTask); err != nil {
-			log.Printf("[Scheduler] Failed to create mtr task (parent=%s, probe=%s): %v", task.TaskID, probe.ProbeID, err)
-			continue
-		}
-
-		state.MTRTriggeredProbes = append(state.MTRTriggeredProbes, probe.ProbeID)
-		state.MTRTriggeredTaskIDs = append(state.MTRTriggeredTaskIDs, mtrTask.TaskID)
-		triggered[probe.ProbeID] = struct{}{}
-		changed = true
-	}
-
-	if changed {
-		stateBytes, _ := json.Marshal(state)
-		task.Schedule = string(stateBytes)
-		_ = s.db.UpdateTask(task)
-	}
-}
 
 // assignTask 分配任务到探针
 func (s *Scheduler) assignTask(task *model.Task) error {
@@ -205,8 +142,8 @@ func (s *Scheduler) assignTask(task *model.Task) error {
 			parameters = map[string]interface{}{}
 		}
 
-		// continuous ping/tcp/mtr：每次只做 1 次（调度器负责 1s 间隔和最多 N 次）
-		if task.Mode == "continuous" && (task.TaskType == "icmp_ping" || task.TaskType == "tcp_ping" || task.TaskType == "mtr") {
+			// continuous ping/tcp：每次只做 1 次（调度器负责 1s 间隔和最多 N 次）
+		if task.Mode == "continuous" && (task.TaskType == "icmp_ping" || task.TaskType == "tcp_ping") {
 			parameters["count"] = 1
 		}
 
@@ -218,14 +155,7 @@ func (s *Scheduler) assignTask(task *model.Task) error {
 			}
 		}
 
-		// mtr / traceroute 可单独配置超时
-		if task.TaskType == "mtr" {
-			if v, err := s.db.GetConfig("mtr_timeout_seconds"); err == nil {
-				if i, err := strconv.Atoi(strings.TrimSpace(v)); err == nil && i > 0 {
-					timeoutSec = i
-				}
-			}
-		}
+		// traceroute 可单独配置超时
 		if task.TaskType == "traceroute" {
 			if v, err := s.db.GetConfig("traceroute_timeout_seconds"); err == nil {
 				if i, err := strconv.Atoi(strings.TrimSpace(v)); err == nil && i > 0 {
@@ -323,21 +253,19 @@ func (s *Scheduler) selectProbes(task *model.Task) ([]*model.Probe, error) {
 
 // updateNextRun 更新持续任务的下次运行时间
 func (s *Scheduler) updateNextRun(task *model.Task) {
-	// 持续任务：默认 1s 间隔，最多 100 次（仅 ping/tcp_ping/mtr 支持）
-	if task.TaskType != "icmp_ping" && task.TaskType != "tcp_ping" && task.TaskType != "mtr" {
+	// 持续任务：默认 1s 间隔，最多 100 次（仅 ping/tcp_ping 支持）
+	if task.TaskType != "icmp_ping" && task.TaskType != "tcp_ping" {
 		return
 	}
 
 	const defaultIntervalSeconds = 1
 	maxRuns := 100
 
-	// 用 schedule JSON 记录已执行次数与间隔：{"run_count":N,"interval_seconds":1,"max_runs":100,"mtr_triggered_probes":["probe-..."],"mtr_triggered_task_ids":["task-..."]}
+	// 用 schedule JSON 记录已执行次数与间隔：{"run_count":N,"interval_seconds":1,"max_runs":100}
 	type scheduleState struct {
-		RunCount            int      `json:"run_count"`
-		IntervalSeconds     int      `json:"interval_seconds"`
-		MaxRuns             int      `json:"max_runs,omitempty"`
-		MTRTriggeredProbes  []string `json:"mtr_triggered_probes,omitempty"`
-		MTRTriggeredTaskIDs []string `json:"mtr_triggered_task_ids,omitempty"`
+		RunCount        int `json:"run_count"`
+		IntervalSeconds int `json:"interval_seconds"`
+		MaxRuns         int `json:"max_runs,omitempty"`
 	}
 
 	state := scheduleState{RunCount: 0, IntervalSeconds: defaultIntervalSeconds}

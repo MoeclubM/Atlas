@@ -201,7 +201,7 @@ async function loadResults() {
       probe_id: selectedProbeId.value || undefined,
       limit: 100,
     })
-    results.value = response.results || []
+    results.value = (response.results || []).filter((r) => String(r.test_type) !== 'mtr')
   } finally {
     loading.value = false
   }

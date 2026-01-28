@@ -9,13 +9,14 @@
       class="map-loading"
     >
       <v-progress-circular indeterminate size="32" />
-      <span>加载地图中...</span>
+      <span>{{ $t('worldMap.loading') }}</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, watch, onBeforeUnmount, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useTheme } from 'vuetify'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -65,6 +66,8 @@ const loading = ref(true)
 let map: L.Map | null = null
 let tileLayer: L.TileLayer | null = null
 const markers: L.CircleMarker[] = []
+
+const { t: $t, locale } = useI18n()
 
 const theme = useTheme()
 
@@ -182,7 +185,10 @@ function updateMarkers() {
     })
 
     // 创建弹出窗口内容（可展开查看同坐标所有节点）
-    const title = group.probes.length === 1 ? group.probes[0].location : `${group.probes.length} 个节点`
+    const title =
+      group.probes.length === 1
+        ? group.probes[0].location
+        : String($t('worldMap.nodeCount', { count: group.probes.length }))
 
     let popupHtml = `
       <div class="probe-popup">
@@ -192,7 +198,7 @@ function updateMarkers() {
     if (group.latency !== undefined) {
       popupHtml += `
         <p class="probe-info">
-          <strong>延迟:</strong> <span style="color: ${color}; font-weight: bold;">${group.latency.toFixed(2)} ms</span>
+          <strong>${String($t('worldMap.latency'))}:</strong> <span style="color: ${color}; font-weight: bold;">${group.latency.toFixed(2)} ${String($t('common.ms'))}</span>
         </p>
       `
     }
@@ -200,20 +206,21 @@ function updateMarkers() {
     if (group.packetLoss !== undefined) {
       popupHtml += `
         <p class="probe-info">
-          <strong>丢包率:</strong> ${group.packetLoss.toFixed(1)}%
+          <strong>${String($t('worldMap.lossRate'))}:</strong> ${group.packetLoss.toFixed(1)}%
         </p>
       `
     }
 
     if (group.status) {
       const statusText = {
-        success: '成功',
-        failed: '失败',
-        timeout: '超时',
+        success: String($t('common.success')),
+        failed: String($t('common.failed')),
+        timeout: String($t('common.timeout')),
       }[group.status]
+
       popupHtml += `
         <p class="probe-info">
-          <strong>状态:</strong> ${statusText}
+          <strong>${String($t('worldMap.status'))}:</strong> ${statusText}
         </p>
       `
     }
@@ -224,7 +231,7 @@ function updateMarkers() {
           ${group.probes
             .map((p) => {
               const c = getColorByLatency(p.latency, p.status)
-              const latency = p.latency !== undefined ? `${p.latency.toFixed(1)} ms` : '-'
+              const latency = p.latency !== undefined ? `${p.latency.toFixed(1)} ${String($t('common.ms'))}` : '-'
               return `
                 <div class="probe-list-item">
                   <span class="probe-dot" style="background:${c}"></span>
@@ -264,6 +271,11 @@ watch(() => props.probes, updateMarkers, { deep: true })
 // 监听主题变化
 watch(isDark, () => {
   updateTileLayer()
+})
+
+// 语言切换后需要重建 marker popup（popup 内容是 HTML 字符串，不会自动响应式更新）
+watch(locale, () => {
+  updateMarkers()
 })
 
 onMounted(() => {

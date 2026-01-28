@@ -16,7 +16,6 @@ server:
 capabilities:
   - icmp_ping
   - tcp_ping
-  - mtr
   - traceroute
   # - bird_route  # Optional, requires bird installation
 

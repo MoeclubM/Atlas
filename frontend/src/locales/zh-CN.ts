@@ -67,7 +67,7 @@ export default {
     ipAuto: '自动',
     ipV4: 'IPv4',
     ipV6: 'IPv6',
-    continuousHint: '持续监控仅支持 ICMP Ping/TCP Ping/MTR，每 1s 一次，最多 100 次。',
+    continuousHint: '持续监控仅支持 ICMP Ping/TCP Ping，每 1s 一次，最多 100 次。',
     tracerouteHint: 'Traceroute 支持选择测试节点；不选择则按默认规则自动选取。',
     probeLabel: '节点',
     startTest: '开始测试',
@@ -84,14 +84,12 @@ export default {
       icmp_ping: '8.8.8.8 或 google.com',
       tcp_ping: '8.8.8.8:22 或 google.com:443（必须包含端口）',
       http_test: 'https://example.com',
-      mtr: '8.8.8.8 或 google.com',
       traceroute: '8.8.8.8 或 google.com',
     },
     typeNames: {
       icmp_ping: 'Ping',
       tcp_ping: 'TCP',
       http_test: 'HTTP',
-      mtr: 'MTR',
       traceroute: 'Traceroute',
     },
     filters: {
@@ -101,6 +99,10 @@ export default {
     },
     route: {
       hop: '跳',
+      ip: 'IP',
+      lossPercent: '丢包%',
+      avg: '平均',
+      rtt: 'RTT',
       arrived: '到达',
     },
 
@@ -143,7 +145,6 @@ export default {
       icmp_ping: 'ICMP Ping',
       tcp_ping: 'TCP Ping',
       http_test: 'HTTP',
-      mtr: 'MTR',
       traceroute: 'Traceroute',
       bird_route: 'Bird路由',
     },
@@ -201,7 +202,6 @@ export default {
     dnsServer: 'DNS服务器',
     httpTest: 'HTTP 测试',
     startTraceroute: '开始 Traceroute',
-    monitorMtr: '持续监控 MTR',
     startHttpTest: '开始 HTTP 测试',
     validation: {
       selectTestType: '请选择测试类型',
@@ -258,7 +258,6 @@ export default {
     testHint: '用于控制前台持续监控的最大次数以及路由测试超时。',
     pingMaxRuns: 'Ping 最大次数',
     tcpPingMaxRuns: 'TCP Ping 最大次数',
-    mtrTimeoutSeconds: 'MTR 超时(秒)',
     tracerouteTimeoutSeconds: 'Traceroute 超时(秒)',
     connectAddressHint: '节点使用以下地址进行对接',
     copyAddress: '复制',
@@ -296,7 +295,6 @@ export default {
     progress: '进度',
     status: '状态',
     chart: '图',
-    mtrDetail: 'MTR 路由详情',
     tracerouteDetail: 'Traceroute 路由详情',
     noRouteData: '暂无路由数据',
     resolvedIP: '解析IP',
@@ -323,6 +321,14 @@ export default {
     requestFailed: '请求失败',
   },
 
+  worldMap: {
+    loading: '加载地图中...',
+    nodeCount: '{count} 个节点',
+    latency: '延迟',
+    lossRate: '丢包率',
+    status: '状态',
+  },
+
   singleResult: {
     worldMap: '全球节点分布',
     probeData: '节点测试数据',
@@ -337,6 +343,15 @@ export default {
     max: '最大',
     stdev: '标准差',
   },
+  pingChart: {
+    title: 'ICMP Ping 延迟',
+    attempt: '第{n}次',
+    latency: '延迟',
+    xAxis: '发包次数',
+    yAxis: '延迟 (ms)',
+    seriesLatency: '延迟',
+  },
+
   login: {
     title: '后台管理',
     password: '管理密码',

@@ -12,6 +12,8 @@ DEFAULT_STATE_DIR="/var/lib/atlas-probe"
 DEFAULT_SERVICE_NAME="atlas-probe.service"
 DEFAULT_USER="atlas-probe"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 usage() {
   cat <<'EOF'
 Atlas Probe installer (Debian/Ubuntu)
@@ -24,7 +26,7 @@ Options:
   --repo <owner/name>Override GitHub repo. Default: MoeclubM/Atlas
 
 This script:
-  - Installs required packages: iputils-ping, mtr-tiny, traceroute, ca-certificates, curl
+  - Installs required packages: iputils-ping, traceroute, ca-certificates, curl
   - Downloads atlas-probe from GitHub Releases and verifies SHA256 from checksums.txt
   - Creates user atlas-probe and required directories
   - Writes config at /etc/atlas-probe/config.yaml (only if missing)
@@ -48,7 +50,6 @@ apt_install_deps() {
     ca-certificates \
     curl \
     iputils-ping \
-    mtr-tiny \
     traceroute
 }
 
@@ -126,7 +127,10 @@ install_config_if_missing() {
     return
   fi
 
-  cat >"${DEFAULT_CONFIG_PATH}" <<'EOF'
+  if [[ -f "${SCRIPT_DIR}/config.yaml.template" ]]; then
+    install -m 0644 "${SCRIPT_DIR}/config.yaml.template" "${DEFAULT_CONFIG_PATH}"
+  else
+    cat >"${DEFAULT_CONFIG_PATH}" <<'EOF'
 probe:
   name: "atlas-probe"
   # location/region/lat/lon are auto-detected by probe at runtime.
@@ -141,10 +145,8 @@ server:
   reconnect_interval: 5
   max_reconnect_attempts: 0
 
-capabilities:
   - icmp_ping
   - tcp_ping
-  - mtr
   - traceroute
 
 executor:
@@ -155,6 +157,7 @@ logging:
   level: info
   file: /var/log/atlas-probe/probe.log
 EOF
+  fi
 
   mkdir -p /var/log/atlas-probe
   chown -R "${DEFAULT_USER}:${DEFAULT_USER}" /var/log/atlas-probe
@@ -163,7 +166,10 @@ EOF
 install_systemd_unit() {
   local unit_path="/etc/systemd/system/${DEFAULT_SERVICE_NAME}"
 
-  cat >"${unit_path}" <<EOF
+  if [[ -f "${SCRIPT_DIR}/atlas-probe.service" ]]; then
+    install -m 0644 "${SCRIPT_DIR}/atlas-probe.service" "${unit_path}"
+  else
+    cat >"${unit_path}" <<EOF
 [Unit]
 Description=Atlas Probe
 After=network-online.target
@@ -178,7 +184,7 @@ ExecStart=${DEFAULT_INSTALL_DIR}/${DEFAULT_BIN_NAME} -config ${DEFAULT_CONFIG_PA
 Restart=always
 RestartSec=3
 
-# Capabilities for ping/mtr/traceroute
+# Capabilities for ping/traceroute
 AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
 CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
 NoNewPrivileges=true
@@ -192,6 +198,7 @@ ReadWritePaths=${DEFAULT_STATE_DIR} /var/log/atlas-probe ${DEFAULT_CONFIG_DIR}
 [Install]
 WantedBy=multi-user.target
 EOF
+  fi
 
   systemctl daemon-reload
   systemctl enable --now "${DEFAULT_SERVICE_NAME}"

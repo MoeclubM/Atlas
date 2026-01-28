@@ -219,8 +219,8 @@ func (c *Connection) handleTaskResult(msg map[string]interface{}) error {
 		return err
 	}
 
-	// 为 traceroute/mtr 结果富化 hops IP 的 GeoIP/ISP 信息
-	if (task.TaskType == "traceroute" || task.TaskType == "mtr") && c.hub.geoip != nil {
+	// 为 traceroute 结果富化 hops IP 的 GeoIP/ISP 信息
+	if task.TaskType == "traceroute" && c.hub.geoip != nil {
 		enrichHopsWithGeoIP(resultMsg.ResultData, c.hub.geoip)
 	}
 
@@ -365,7 +365,7 @@ func extractResolvedIP(resultData interface{}) string {
 		return ""
 	}
 
-	// ICMP Ping / HTTP / MTR / Traceroute: resolved_ip 字段
+	// ICMP Ping / HTTP / Traceroute: resolved_ip 字段
 	if ip, ok := dataMap["resolved_ip"].(string); ok && ip != "" {
 		return ip
 	}
@@ -396,7 +396,7 @@ func extractResolvedIP(resultData interface{}) string {
 	return ""
 }
 
-// enrichHopsWithGeoIP 为 traceroute/mtr hops 中的 IP 富化 GeoIP/ISP 信息
+// enrichHopsWithGeoIP 为 traceroute hops 中的 IP 富化 GeoIP/ISP 信息
 func enrichHopsWithGeoIP(resultData interface{}, geoipService *geoip.GeoIPService) {
 	dataMap, ok := resultData.(map[string]interface{})
 	if !ok {

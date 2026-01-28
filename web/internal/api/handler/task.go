@@ -201,14 +201,20 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	// traceroute/mtr: 必须指定 probe（否则很容易出现“不可用/没结果”的体验）
-	if (req.TaskType == "traceroute" || req.TaskType == "mtr") && len(req.AssignedProbes) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "assigned_probes required for traceroute/mtr"})
+	// 暂时禁用 mtr
+	if req.TaskType == "mtr" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "mtr is temporarily unavailable"})
 		return
 	}
 
-	// traceroute/mtr: 验证 probe online + capability
-	if req.TaskType == "traceroute" || req.TaskType == "mtr" {
+	// traceroute: 必须指定 probe（否则很容易出现“不可用/没结果”的体验）
+	if req.TaskType == "traceroute" && len(req.AssignedProbes) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "assigned_probes required for traceroute"})
+		return
+	}
+
+	// traceroute: 验证 probe online + capability
+	if req.TaskType == "traceroute" {
 		for _, pid := range req.AssignedProbes {
 			if pid == "" {
 				continue
@@ -254,10 +260,10 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		}
 	}
 
-	// continuous 仅支持 ping/tcp_ping/mtr
+	// continuous 仅支持 ping/tcp_ping
 	if req.Mode == "continuous" {
-		if req.TaskType != "icmp_ping" && req.TaskType != "tcp_ping" && req.TaskType != "mtr" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "continuous mode only supports icmp_ping, tcp_ping, and mtr"})
+		if req.TaskType != "icmp_ping" && req.TaskType != "tcp_ping" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "continuous mode only supports icmp_ping and tcp_ping"})
 			return
 		}
 	}

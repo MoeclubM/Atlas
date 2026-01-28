@@ -84,7 +84,7 @@ const taskStore = useTaskStore()
 const { t: $t } = useI18n()
 
 const displayTasks = computed(() => {
-  const tasks = taskStore.tasks
+  const tasks = taskStore.tasks.filter((t) => String(t.task_type) !== 'mtr')
   if (props.limit) {
     return tasks.slice(0, props.limit)
   }

@@ -85,10 +85,7 @@
           {{ $t('home.tracerouteHint') }}
         </div>
 
-        <div
-          v-if="testType === 'traceroute' || testType === 'mtr'"
-          class="probe-select"
-        >
+        <div v-if="testType === 'traceroute'" class="probe-select">
           <v-select
             v-model="selectedProbeIds"
             :items="availableProbeItems"
@@ -237,45 +234,14 @@
 
                 <tr v-if="expandedProbeIds.includes(r.probe_id)">
                   <td colspan="10" class="detail-cell">
-                    <div v-if="mtrData[r.probe_id]?.hops?.length" class="row-detail">
-                      <h4 class="detail-title">{{ $t('results.mtrDetail') }}</h4>
-                      <v-table density="compact">
-                        <thead>
-                          <tr>
-                            <th style="width: 70px">{{ $t('home.route.hop') }}</th>
-                            <th>IP</th>
-                            <th style="width: 90px">Loss%</th>
-                            <th style="width: 110px">Avg</th>
-                            <th style="width: 110px">{{ $t('results.chart') }}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr v-for="hop in mtrData[r.probe_id].hops" :key="hop.hop">
-                            <td>{{ hop.hop }}</td>
-                            <td>
-                              <div>{{ hop.ip }}</div>
-                              <div v-if="hop.geo" class="hop-geo">
-                                {{ [hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city].filter(Boolean).join(' ') }}
-                              </div>
-                            </td>
-                            <td>{{ hop.loss_percent?.toFixed(1) || '-' }}%</td>
-                            <td>{{ hop.avg_ms?.toFixed(1) || '-' }} {{ $t('common.ms') }}</td>
-                            <td class="mtr-chart-cell">
-                              <canvas :ref="(el) => registerMTRHopCanvas(el, r.probe_id, hop.hop)" class="mtr-hop-canvas" />
-                            </td>
-                          </tr>
-                        </tbody>
-                      </v-table>
-                    </div>
-
                     <div v-if="tracerouteData[r.probe_id]?.hops?.length" class="row-detail">
                       <h4 class="detail-title">{{ $t('results.tracerouteDetail') }}</h4>
                       <v-table density="compact">
                         <thead>
                           <tr>
                             <th style="width: 70px">{{ $t('home.route.hop') }}</th>
-                            <th>IP</th>
-                            <th style="width: 110px">RTT</th>
+                            <th>{{ $t('home.route.ip') }}</th>
+                            <th style="width: 110px">{{ $t('home.route.rtt') }}</th>
                             <th style="width: 90px">{{ $t('results.status') }}</th>
                           </tr>
                         </thead>
@@ -301,7 +267,7 @@
                       </v-table>
                     </div>
 
-                    <div v-if="!mtrData[r.probe_id]?.hops?.length && !tracerouteData[r.probe_id]?.hops?.length" class="row-detail-empty">
+                    <div v-if="!tracerouteData[r.probe_id]?.hops?.length" class="row-detail-empty">
                       <span class="text-muted">{{ $t('results.noRouteData') }}</span>
                     </div>
                   </td>
@@ -403,18 +369,6 @@ type HopGeo = {
   longitude?: number
 }
 
-type MTRHop = {
-  hop: number
-  ip: string
-  geo?: HopGeo
-  loss_percent?: number
-  avg_ms?: number
-}
-
-type MTRResult = {
-  hops?: MTRHop[]
-}
-
 type TracerouteHop = {
   hop: number
   ip: string
@@ -497,7 +451,7 @@ const filteredResults = computed(() => {
 })
 const selectedProbeIds = ref<string[]>([])
 
-// MTR/Traceroute 详情默认全部折叠（v-expansion-panels multiple）
+// Traceroute 详情默认全部折叠（v-expansion-panels multiple）
 const expandedProbeIds = ref<string[]>([])
 
 function toggleExpandedProbe(probeId: string) {
@@ -508,17 +462,7 @@ function toggleExpandedProbe(probeId: string) {
     : [...current, probeId]
 }
 
-const mtrData = ref<Record<string, MTRResult>>({})
 const tracerouteData = ref<Record<string, TracerouteResult>>({})
-
-// Ping continuous 自动触发的 MTR 子任务：避免每秒全量拉取导致卡顿，这里做增量拉取 + 缓存
-const mtrTriggeredTaskIds = ref<string[]>([])
-
-// 已成功拿到 hops 的 task_id（拿到一次就不再重复拉取）
-const fetchedMtrTriggeredTaskIds = new Set<string>()
-
-// 没拿到数据时需要重试，但要限频（避免每秒对所有 task_id 打爆请求）
-const lastMtrTriggeredTaskFetchAt = new Map<string, number>()
 
 // 保留原始任务结果，用于绘制每包的柱状图
 const rawTaskResults = ref<TaskResult[]>([])
@@ -533,7 +477,7 @@ const accumulatedPacketData = ref<Record<string, Array<number | null>>>({})
 const currentTaskId = ref<string>('')
 // run_count（全局执行次数，用于停止条件/展示）
 
-// continuous（ping/tcp/mtr）最大轮次：默认 100，后续会从 task.schedule.max_runs 读取
+// continuous（ping/tcp）最大轮次：默认 100，后续会从 task.schedule.max_runs 读取
 const maxRuns = ref<number>(100)
 
 const taskStatus = ref<DisplayTaskStatus>('idle')
@@ -546,7 +490,6 @@ const testTypes = [
   { value: 'icmp_ping', label: String($t('taskTable.typeNames.icmp_ping')) },
   { value: 'tcp_ping', label: String($t('taskTable.typeNames.tcp_ping')) },
   { value: 'http_test', label: String($t('taskTable.typeNames.http_test')) },
-  { value: 'mtr', label: String($t('taskTable.typeNames.mtr')) },
   { value: 'traceroute', label: String($t('taskTable.typeNames.traceroute')) },
 ]
 
@@ -590,8 +533,8 @@ function startContinuousFromUI() {
 }
 
 function startFromMode() {
-  // Enter key behavior: Ping/TCP/MTR 走持续；Traceroute/HTTP 走单次
-  if (testType.value === 'icmp_ping' || testType.value === 'tcp_ping' || testType.value === 'mtr') {
+  // Enter key behavior: Ping/TCP 走持续；Traceroute/HTTP 走单次
+  if (testType.value === 'icmp_ping' || testType.value === 'tcp_ping') {
     startContinuousFromUI()
     return
   }
@@ -603,16 +546,15 @@ const targetPlaceholder = computed(() => {
     icmp_ping: String($t('home.targetExamples.icmp_ping')),
     tcp_ping: String($t('home.targetExamples.tcp_ping')),
     http_test: String($t('home.targetExamples.http_test')),
-    mtr: String($t('home.targetExamples.mtr')),
     traceroute: String($t('home.targetExamples.traceroute')),
   }
   return examples[testType.value] || String($t('home.targetPlaceholder'))
 })
 
-// continuous 模式：仅 Ping/TCP/MTR
-const supportsContinuous = computed(() => testType.value === 'icmp_ping' || testType.value === 'tcp_ping' || testType.value === 'mtr')
+// continuous 模式：仅 Ping/TCP
+const supportsContinuous = computed(() => testType.value === 'icmp_ping' || testType.value === 'tcp_ping')
 
-const isStreamingRouteDetails = computed(() => testType.value === 'mtr' || testType.value === 'traceroute')
+const isStreamingRouteDetails = computed(() => testType.value === 'traceroute')
 
 // 已启动过任务就保持显示（任务结束后也保留最终结果）
 const hasStartedTask = computed(() => currentTaskId.value !== '' || results.value.length > 0)
@@ -639,11 +581,11 @@ function markTaskCompletedAndStopPolling(status: DisplayTaskStatus) {
 function onSelectType(value: string) {
   testType.value = value
 
-  if (value !== 'traceroute' && value !== 'mtr') {
+  if (value !== 'traceroute') {
     selectedProbeIds.value = []
   }
 
-  // continuous 仅支持 Ping/TCP/MTR
+  // continuous 仅支持 Ping/TCP
   if (pageMode.value === 'continuous' && !supportsContinuous.value) {
     pageMode.value = 'single'
   }
@@ -833,9 +775,6 @@ function getLossClass(loss?: number): string {
 
 const sparkCanvasByProbeId = ref<Record<string, HTMLCanvasElement>>({})
 
-// MTR hop canvas 注册表：key = `${probeId}:${hopNumber}`
-const mtrHopCanvases = ref<Record<string, HTMLCanvasElement>>({})
-
 function registerSparkCanvas(el: Element | ComponentPublicInstance | null, probeId: string) {
   const canvas = (el as HTMLCanvasElement | null)
   if (!canvas) return
@@ -845,19 +784,6 @@ function registerSparkCanvas(el: Element | ComponentPublicInstance | null, probe
   drawSparkForProbe(probeId)
 }
 
-function registerMTRHopCanvas(el: Element | ComponentPublicInstance | null, probeId: string, hopNumber: number) {
-  const canvas = (el as HTMLCanvasElement | null)
-  if (!canvas) return
-  const key = `${probeId}:${hopNumber}`
-  if (mtrHopCanvases.value[key] === canvas) return
-
-  mtrHopCanvases.value = { ...mtrHopCanvases.value, [key]: canvas }
-
-  // 避免在同一帧内同步绘制过多 canvas 导致卡顿
-  requestAnimationFrame(() => {
-    drawMTRHopChart(probeId, hopNumber)
-  })
-}
 
 function sparkColor(latency?: number, status?: string): string {
   if (status === 'failed') return '#F56C6C'
@@ -997,25 +923,6 @@ function drawPacketBars(canvas: HTMLCanvasElement, latencies: (number | null)[])
   })
 }
 
-function drawMTRHopChart(probeId: string, hopNumber: number) {
-  const key = `${probeId}:${hopNumber}`
-  const canvas = mtrHopCanvases.value[key]
-  if (!canvas) return
-
-  // 仅在需要绘制时，从 mtrData 动态计算 hop 序列，避免在数据到达时就构造/维护大对象
-  const data = mtrData.value[probeId]
-  const hops = data?.hops || []
-  if (hops.length === 0) return
-
-  const hop = hops.find((h) => h.hop === hopNumber)
-  if (!hop) return
-
-  const avgMs = hop.avg_ms
-  const isValid = typeof avgMs === 'number' && Number.isFinite(avgMs) && avgMs > 0
-  const series: Array<number | null> = [isValid ? avgMs : null]
-
-  drawPacketBars(canvas, series)
-}
 
 function getLatencyClass(latency?: number): string {
   if (latency === undefined) return ''
@@ -1086,12 +993,7 @@ async function startTest(modeValue: 'single' | 'continuous') {
   rawTaskResults.value = []
   sparkCanvasByProbeId.value = {}
   accumulatedPacketData.value = {}
-  mtrHopCanvases.value = {}
-  mtrData.value = {}
   tracerouteData.value = {}
-  mtrTriggeredTaskIds.value = []
-  fetchedMtrTriggeredTaskIds.clear()
-  lastMtrTriggeredTaskFetchAt.clear()
   currentTaskId.value = ''
   initialMapMarkers.value = null
 
@@ -1114,7 +1016,7 @@ async function startTest(modeValue: 'single' | 'continuous') {
       task_id: string
     }
 
-    const assignedProbes = (testType.value === 'traceroute' || testType.value === 'mtr') ? selectedProbeIds.value : []
+    const assignedProbes = testType.value === 'traceroute' ? selectedProbeIds.value : []
 
     const task = await api.post<TaskResponse>('/tasks', {
       task_type: testType.value,
@@ -1146,50 +1048,6 @@ async function startTest(modeValue: 'single' | 'continuous') {
           const maxRunsFromServer = schedule['max_runs'] as number | undefined
           if (typeof maxRunsFromServer === 'number' && Number.isFinite(maxRunsFromServer) && maxRunsFromServer > 0) {
             maxRuns.value = Math.floor(maxRunsFromServer)
-          }
-
-          // continuous icmp_ping 会自动触发 mtr 子任务：子任务 task_id 会记录在 schedule.mtr_triggered_task_ids
-          if (testType.value === 'icmp_ping') {
-            const mtrTaskIds = (schedule['mtr_triggered_task_ids'] as string[]) || []
-            mtrTriggeredTaskIds.value = mtrTaskIds
-
-            // 拉取 ping 触发的 mtr 子任务结果：
-            // - 若结果暂未生成（/results 为空或 hops 为空），需要重试
-            // - 但要限频，避免每秒对所有 mtrTaskId 打爆请求
-            const retryIntervalMs = 4000
-
-            for (const mtrTaskId of mtrTaskIds) {
-              if (!mtrTaskId) continue
-              if (fetchedMtrTriggeredTaskIds.has(mtrTaskId)) continue
-
-              const lastAt = lastMtrTriggeredTaskFetchAt.get(mtrTaskId) || 0
-              const now = Date.now()
-              if (now - lastAt < retryIntervalMs) continue
-              lastMtrTriggeredTaskFetchAt.set(mtrTaskId, now)
-
-              const mtrRes = await api.get<ResultsListResponse>('/results', {
-                params: { task_id: mtrTaskId, limit: 1, offset: 0 },
-              })
-              const row = mtrRes.results?.[0]
-              if (!row) continue
-
-              const data = parseMaybeJSON(row.result_data) as unknown as MTRResult
-              if (!data?.hops?.length) {
-                // 还没生成 hops，等待下次重试
-                continue
-              }
-
-              // 已拿到 hops：标记为完成，后续不再拉取
-              fetchedMtrTriggeredTaskIds.add(mtrTaskId)
-
-              // 增量写入，避免替换整个对象导致大范围重渲染
-              mtrData.value = {
-                ...mtrData.value,
-                [row.probe_id]: data,
-              }
-
-              // hop canvas 仅在用户展开详情后注册（registerMTRHopCanvas），绘制时按需从 mtrData 计算。
-            }
           }
 
           // max_runs 的 UI 需要 task.schedule 中的 run_count，这里不用额外处理
@@ -1299,17 +1157,6 @@ async function startTest(modeValue: 'single' | 'continuous') {
           accumulatedPacketData.value = newAccumulatedData
         }
 
-        if (testType.value === 'mtr') {
-          const next: Record<string, MTRResult> = {}
-          for (const r of taskResults) {
-            const data = r.result_data as unknown as MTRResult
-            if (data?.hops?.length) next[r.probe_id] = data
-          }
-          mtrData.value = next
-
-          // hop canvas 在展开后按需从 mtrData 计算。
-        }
-
         if (testType.value === 'traceroute') {
           const next: Record<string, TracerouteResult> = {}
           for (const r of taskResults) {
@@ -1361,7 +1208,7 @@ async function startSingle() {
 }
 
 async function startContinuous() {
-  // 不支持持续监控的类型（HTTP/MTR/Traceroute）直接忽略
+  // 不支持持续监控的类型（HTTP/Traceroute）直接忽略
   if (!supportsContinuous.value) return
   await startTest('continuous')
 }
@@ -1386,7 +1233,7 @@ const initialMapMarkers = ref<ProbeMarker[] | null>(null)
 
 const probeMarkers = computed<ProbeMarker[]>(() => {
   // 持续模式下：避免每秒刷新地图（WorldMap 重绘/重算开销较大）
-  // 同时：MTR/Traceroute 也可能每秒刷新，因此同样固定地图标记避免卡顿
+  // 同时：Traceroute 也可能每秒刷新，因此同样固定地图标记避免卡顿
   if ((supportsContinuous.value || isStreamingRouteDetails.value) && initialMapMarkers.value) {
     return initialMapMarkers.value
   }
@@ -1445,13 +1292,12 @@ watch(
   { deep: true }
 )
 
-// MTR hop 的绘制完全由 registerMTRHopCanvas 按需触发（用户展开详情后才会注册 canvas）。
 
 onMounted(async () => {
   targetInput.value?.focus?.()
 
   // 默认模式：
-  // - Ping/TCP/MTR 走持续（监控）
+  // - Ping/TCP 走持续（监控）
   // - Traceroute/HTTP 走单次
   pageMode.value = supportsContinuous.value ? 'continuous' : 'single'
 
@@ -1661,18 +1507,6 @@ onBeforeUnmount(() => {
 .text-muted {
   color: var(--text-2);
   font-size: 13px;
-}
-
-.mtr-chart-cell {
-  padding: 6px 12px;
-  text-align: center;
-}
-
-.mtr-hop-canvas {
-  width: 90px;
-  height: 24px;
-  display: block;
-  margin: 0 auto;
 }
 
 .hop-geo {

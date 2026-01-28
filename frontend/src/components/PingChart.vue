@@ -8,6 +8,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import * as echarts from 'echarts'
 
 type PingPacket = {
@@ -22,6 +23,8 @@ const props = defineProps<{
   data: PingChartData
 }>()
 
+const { t: $t, locale } = useI18n()
+
 const chartRef = ref<HTMLElement>()
 let chartInstance: echarts.ECharts | null = null
 
@@ -33,11 +36,11 @@ function initChart() {
   // 解析 Ping 结果数据
   const packets = props.data?.packets || []
   const times = packets.map((p) => p.time)
-  const xData = packets.map((_, i: number) => `第${i + 1}次`)
+  const xData = packets.map((_, i: number) => String($t('pingChart.attempt', { n: i + 1 })))
 
   const option = {
     title: {
-      text: 'ICMP Ping 延迟',
+      text: String($t('pingChart.title')),
       left: 'center',
     },
     tooltip: {
@@ -46,24 +49,24 @@ function initChart() {
         const first = (params as Array<{ name?: string; value?: number }> | undefined)?.[0]
         const name = first?.name ?? ''
         const value = first?.value ?? 0
-        return `${name}<br/>延迟: ${value} ms`
+        return `${name}<br/>${String($t('pingChart.latency'))}: ${value} ${String($t('common.ms'))}`
       },
     },
     xAxis: {
       type: 'category',
       data: xData,
-      name: '发包次数',
+      name: String($t('pingChart.xAxis')),
     },
     yAxis: {
       type: 'value',
-      name: '延迟 (ms)',
+      name: String($t('pingChart.yAxis')),
       axisLabel: {
-        formatter: '{value} ms',
+        formatter: `{value} ${String($t('common.ms'))}`,
       },
     },
     series: [
       {
-        name: '延迟',
+        name: String($t('pingChart.seriesLatency')),
         type: 'line',
         data: times,
         smooth: true,
@@ -93,16 +96,28 @@ onMounted(() => {
   initChart()
 })
 
+function redraw() {
+  if (chartInstance) {
+    chartInstance.dispose()
+  }
+  initChart()
+}
+
+onMounted(() => {
+  initChart()
+})
+
 watch(
   () => props.data,
   () => {
-    if (chartInstance) {
-      chartInstance.dispose()
-    }
-    initChart()
+    redraw()
   },
   { deep: true }
 )
+
+watch(locale, () => {
+  redraw()
+})
 </script>
 
 <style scoped>

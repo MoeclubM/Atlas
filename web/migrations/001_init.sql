@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS probes (
     location TEXT NOT NULL,                   -- 地理位置 (国家/城市)
     region TEXT,                              -- 区域标识 (asia/us/eu等)
     ip_address TEXT,                          -- 探针IP地址
-    capabilities TEXT,                        -- 支持的测试类型 JSON: ["icmp","tcp","mtr","traceroute","bird"]
+    capabilities TEXT,                        -- 支持的测试类型 JSON: ["icmp","tcp","traceroute","bird"]
     status TEXT DEFAULT 'offline',            -- 状态: online/offline/busy
     last_heartbeat DATETIME,                  -- 最后心跳时间
     registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id TEXT UNIQUE NOT NULL,             -- 任务UUID
     user_id INTEGER,                          -- 创建用户ID (可选)
-    task_type TEXT NOT NULL,                  -- 任务类型: icmp_ping/tcp_ping/mtr/traceroute/bird_route
+    task_type TEXT NOT NULL,                  -- 任务类型: icmp_ping/tcp_ping/traceroute/bird_route
     mode TEXT NOT NULL,                       -- 模式: single/continuous
     target TEXT NOT NULL,                     -- 测试目标 (IP/域名)
     parameters TEXT,                          -- 测试参数 JSON: {"count":4,"interval":1,"timeout":5}

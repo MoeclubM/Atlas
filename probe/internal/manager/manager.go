@@ -159,8 +159,6 @@ func (m *Manager) executeTask(workerID int, job TaskJob) {
 		resultData, err = executeICMPPing(ctx, task.Target, task.Parameters)
 	case "tcp_ping":
 		resultData, err = executeTCPPing(task.Target, task.Parameters)
-	case "mtr":
-		resultData, err = executeMTR(ctx, task.Target, task.Parameters)
 	case "traceroute":
 		resultData, err = executeTraceroute(ctx, task.Target, task.Parameters)
 	case "http_test":

@@ -1,0 +1,30 @@
+services:
+  probe:
+    build:
+      context: .
+      dockerfile: deploy/probe/Dockerfile
+    container_name: atlas-probe-dev
+    environment:
+      - WEB_SERVER_URL=ws://web:8080/ws
+      - AUTH_TOKEN=${SHARED_SECRET}
+      - PROBE_NAME=Dev Probe
+      - PROBE_ID_DIR=/app/probe-id
+      - PROBE_ID_FILE=/app/probe-id/probe_id_dev.txt
+    volumes:
+      - atlas-probe-id:/app/probe-id
+      - atlas-probe-logs:/app/logs
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - atlas-network
+
+volumes:
+  atlas-probe-id:
+    driver: local
+  atlas-probe-logs:
+    driver: local

@@ -172,14 +172,6 @@
                     hide-details
                   />
 
-                  <v-text-field
-                    v-model.number="config.mtr_timeout_seconds"
-                    type="number"
-                    density="compact"
-                    variant="outlined"
-                    :label="$t('admin.mtrTimeoutSeconds')"
-                    hide-details
-                  />
 
                   <v-text-field
                     v-model.number="config.traceroute_timeout_seconds"
@@ -236,7 +228,6 @@ type AdminConfig = {
 
   ping_max_runs: number
   tcp_ping_max_runs: number
-  mtr_timeout_seconds: number
   traceroute_timeout_seconds: number
 }
 
@@ -247,7 +238,6 @@ const config = ref<AdminConfig>({
 
   ping_max_runs: 100,
   tcp_ping_max_runs: 100,
-  mtr_timeout_seconds: 180,
   traceroute_timeout_seconds: 60,
 })
 
@@ -288,14 +278,12 @@ async function loadConfig() {
 
       ping_max_runs?: string
       tcp_ping_max_runs?: string
-      mtr_timeout_seconds?: string
       traceroute_timeout_seconds?: string
     }
     const response = await api.get<ConfigResponse>('/admin/config')
 
     const pingMaxRuns = Number(response.ping_max_runs)
     const tcpPingMaxRuns = Number(response.tcp_ping_max_runs)
-    const mtrTimeoutSeconds = Number(response.mtr_timeout_seconds)
     const tracerouteTimeoutSeconds = Number(response.traceroute_timeout_seconds)
 
     config.value = {
@@ -304,7 +292,6 @@ async function loadConfig() {
 
       ping_max_runs: Number.isFinite(pingMaxRuns) && pingMaxRuns > 0 ? Math.floor(pingMaxRuns) : 100,
       tcp_ping_max_runs: Number.isFinite(tcpPingMaxRuns) && tcpPingMaxRuns > 0 ? Math.floor(tcpPingMaxRuns) : 100,
-      mtr_timeout_seconds: Number.isFinite(mtrTimeoutSeconds) && mtrTimeoutSeconds > 0 ? Math.floor(mtrTimeoutSeconds) : 180,
       traceroute_timeout_seconds:
         Number.isFinite(tracerouteTimeoutSeconds) && tracerouteTimeoutSeconds > 0 ? Math.floor(tracerouteTimeoutSeconds) : 60,
     }
@@ -345,7 +332,6 @@ async function saveConfig() {
       ...config.value,
       ping_max_runs: String(config.value.ping_max_runs),
       tcp_ping_max_runs: String(config.value.tcp_ping_max_runs),
-      mtr_timeout_seconds: String(config.value.mtr_timeout_seconds),
       traceroute_timeout_seconds: String(config.value.traceroute_timeout_seconds),
     })
     ui.notify(String($t('admin.saveSuccess')), 'success')

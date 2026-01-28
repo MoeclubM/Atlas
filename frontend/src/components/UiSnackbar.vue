@@ -6,16 +6,25 @@
     timeout="2500"
     @update:model-value="(v) => (!v ? closeNotify() : undefined)"
   >
-    {{ state.message }}
+    {{ displayMessage }}
   </v-snackbar>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useUiStore } from '@/stores/ui'
 
 const ui = useUiStore()
 const state = ui.notifyState
+
+const { t: $t, te: $te } = useI18n()
+
+const displayMessage = computed(() => {
+  const msg = state.message
+  if (msg && $te(msg)) return String($t(msg))
+  return msg
+})
 
 const color = computed(() => {
   const type = state.type

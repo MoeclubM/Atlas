@@ -29,10 +29,6 @@ func filterCapabilities(caps []string) []string {
 			}
 		case "tcp_ping":
 			filtered = append(filtered, c)
-		case "mtr":
-			if hasCommand("mtr") {
-				filtered = append(filtered, c)
-			}
 		case "traceroute":
 			if hasCommand("traceroute") {
 				filtered = append(filtered, c)

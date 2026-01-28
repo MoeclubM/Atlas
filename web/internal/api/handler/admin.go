@@ -30,7 +30,6 @@ type adminConfigDTO struct {
 	// 测试参数
 	PingMaxRuns               int `json:"ping_max_runs"`
 	TCPPingMaxRuns            int `json:"tcp_ping_max_runs"`
-	MTRTimeoutSeconds         int `json:"mtr_timeout_seconds"`
 	TracerouteTimeoutSeconds  int `json:"traceroute_timeout_seconds"`
 }
 
@@ -85,7 +84,6 @@ func (h *AdminHandler) GetConfig(c *gin.Context) {
 
 	pingMaxRuns, _ := h.db.GetConfig("ping_max_runs")
 	tcpPingMaxRuns, _ := h.db.GetConfig("tcp_ping_max_runs")
-	mtrTimeout, _ := h.db.GetConfig("mtr_timeout_seconds")
 	trTimeout, _ := h.db.GetConfig("traceroute_timeout_seconds")
 
 	// 如果DB未初始化这些键，退回到当前运行配置
@@ -98,7 +96,6 @@ func (h *AdminHandler) GetConfig(c *gin.Context) {
 		"blocked_networks":           blocked,
 		"ping_max_runs":              pingMaxRuns,
 		"tcp_ping_max_runs":          tcpPingMaxRuns,
-		"mtr_timeout_seconds":        mtrTimeout,
 		"traceroute_timeout_seconds": trTimeout,
 	})
 }
@@ -137,7 +134,6 @@ func (h *AdminHandler) UpdateConfig(c *gin.Context) {
 	// 数值类配置：0/负数 => 不写入，保持原值
 	setPositiveInt("ping_max_runs", req.PingMaxRuns)
 	setPositiveInt("tcp_ping_max_runs", req.TCPPingMaxRuns)
-	setPositiveInt("mtr_timeout_seconds", req.MTRTimeoutSeconds)
 	setPositiveInt("traceroute_timeout_seconds", req.TracerouteTimeoutSeconds)
 
 	c.JSON(http.StatusOK, gin.H{"success": true})

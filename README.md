@@ -29,6 +29,26 @@ curl http://localhost:18080/api/health
 
 > 注意：本仓库的 docker-compose 仅启动 web；Probe 需要在独立机器上通过脚本安装并通过 systemd 运行。
 
+### 本地 Docker 联调（web + probe，仅用于开发）
+
+> 说明：生产环境仍建议使用 `docker-compose.yml`（仅 web）+ 远端 probe(systemd)。
+
+启动 web + dev probe：
+```bash
+# 方式 1：直接用 compose 叠加
+cp .env.example .env
+# 编辑 .env，设置 SHARED_SECRET
+
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+或使用 Makefile 快捷命令：
+```bash
+make dev-up
+make dev-logs
+make dev-down
+```
+
 ### 本地开发模式 (Windows)
 
 #### 前置要求
@@ -81,7 +101,6 @@ curl http://localhost:18080/api/health
 ### 网络测试
 - ICMP Ping
 - TCP Ping
-- MTR 路由追踪
 - Traceroute
 - HTTP 测试 (计划中)
 
@@ -159,7 +178,7 @@ Atlas/
 ### 前置说明
 - Probe 通过 WebSocket 连接 Web：`server.url`（示例：`ws://<host>:18080/ws` 或 `wss://<domain>/ws`）
 - 鉴权关系：`AUTH_TOKEN` **必须**与 Web 端 `SHARED_SECRET` 完全一致（校验位置：`web/internal/websocket/handler.go:33`）
-- 能力探测依赖系统命令：`ping` / `mtr` / `traceroute`（Probe 启动时会检测命令是否存在并决定 capabilities，见 `probe/cmd/probe/main.go:17`）
+- 能力探测依赖系统命令：`ping` / `traceroute`（Probe 启动时会检测命令是否存在并决定 capabilities，见 `probe/cmd/probe/main.go:17`）
 - 生产建议通过 systemd 赋予最小能力（CAP_NET_RAW 等），避免 probe 以 root 运行
 
 ### 安装/升级
@@ -223,6 +242,7 @@ cd probe && go test ./...
 - [ ] 用户认证系统
 - [ ] 导出测试报告
 - [ ] 热力图模式
+- [ ] 补齐本地联调 docker-compose overlay（docker-compose.dev.yml + Makefile dev-*）
 
 ## 📄 License
 
