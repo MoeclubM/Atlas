@@ -44,7 +44,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to, _from, next) => {
-  // title 支持传 i18n key（例如 route.singleTest）
+  // title 支持传 i18n key（例如 route.continuousTest）
   const metaTitle = (to.meta.title as string | undefined) || 'Atlas'
   const title = metaTitle.includes('.') ? String((i18n.global as any).t(metaTitle)) : metaTitle
   document.title = `${title} - Atlas`

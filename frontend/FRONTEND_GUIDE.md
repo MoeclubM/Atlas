@@ -85,17 +85,15 @@ go run cmd/probe/main.go
 
 ### 方法 1: 修改探针配置文件
 
-编辑 `probe/config.yaml`,添加 metadata:
+编辑 `probe/config.yaml`,添加坐标字段:
 
 ```yaml
 probe:
   name: "Tokyo Probe"
   location: "Tokyo, Japan"
   region: "asia"
-  # 可以在 metadata 中添加坐标信息
-  metadata:
-    latitude: 35.6762
-    longitude: 139.6503
+  latitude: 35.6762
+  longitude: 139.6503
 ```
 
 ### 方法 2: 通过 API 更新
@@ -160,20 +158,16 @@ frontend/
 │   ├── api/              # API 请求封装
 │   ├── components/       # 可复用组件
 │   │   ├── WorldMap.vue
-│   │   ├── QuickTaskForm.vue
-│   │   ├── TaskTable.vue
-│   │   ├── ProbeList.vue
+│   │   ├── TopBar.vue
+│   │   ├── ProbeCell.vue
+│   │   ├── ProviderCell.vue
 │   │   └── PingChart.vue
 │   ├── views/            # 页面组件
-│   │   ├── Dashboard.vue
-│   │   ├── Tasks.vue
-│   │   ├── TaskDetail.vue
+│   │   ├── Home.vue
+│   │   ├── Admin.vue
+│   │   ├── Login.vue
 │   │   ├── SingleTestResult.vue
-│   │   ├── ContinuousTestResult.vue
-│   │   ├── Probes.vue
-│   │   └── Results.vue
-│   ├── layouts/          # 布局组件
-│   │   └── MainLayout.vue
+│   │   └── ContinuousTestResult.vue
 │   ├── router/           # 路由配置
 │   │   └── index.ts
 │   ├── stores/           # Pinia 状态管理

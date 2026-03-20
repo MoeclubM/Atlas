@@ -9,12 +9,9 @@ declare module 'vue' {
   export interface GlobalComponents {
     PingChart: typeof import('./components/PingChart.vue')['default']
     ProbeCell: typeof import('./components/ProbeCell.vue')['default']
-    ProbeList: typeof import('./components/ProbeList.vue')['default']
     ProviderCell: typeof import('./components/ProviderCell.vue')['default']
-    QuickTaskForm: typeof import('./components/QuickTaskForm.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    TaskTable: typeof import('./components/TaskTable.vue')['default']
     TopBar: typeof import('./components/TopBar.vue')['default']
     UiConfirmDialog: typeof import('./components/UiConfirmDialog.vue')['default']
     UiSnackbar: typeof import('./components/UiSnackbar.vue')['default']

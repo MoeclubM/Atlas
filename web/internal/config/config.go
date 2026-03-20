@@ -12,10 +12,8 @@ import (
 type Config struct {
 	Server    ServerConfig    `yaml:"server"`
 	Database  DatabaseConfig  `yaml:"database"`
-	WebSocket WebSocketConfig `yaml:"websocket"`
 	Scheduler SchedulerConfig `yaml:"scheduler"`
 	Security  SecurityConfig  `yaml:"security"`
-	Logging   LoggingConfig   `yaml:"logging"`
 }
 
 // ServerConfig HTTP服务器配置
@@ -27,37 +25,19 @@ type ServerConfig struct {
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Path           string `yaml:"path"`
-	MaxConnections int    `yaml:"max_connections"`
-}
-
-// WebSocketConfig WebSocket配置
-type WebSocketConfig struct {
-	HeartbeatInterval int   `yaml:"heartbeat_interval"` // 秒
-	ReadTimeout       int   `yaml:"read_timeout"`
-	WriteTimeout      int   `yaml:"write_timeout"`
-	MaxMessageSize    int64 `yaml:"max_message_size"`
+	Path string `yaml:"path"`
 }
 
 // SchedulerConfig 调度器配置
 type SchedulerConfig struct {
-	WorkerCount        int `yaml:"worker_count"`
-	ScanInterval       int `yaml:"scan_interval"` // 秒
-	MaxConcurrentTasks int `yaml:"max_concurrent_tasks"`
+	ScanInterval int `yaml:"scan_interval"` // 秒
 }
 
 // SecurityConfig 安全配置
 type SecurityConfig struct {
-	SharedSecret    string   `yaml:"shared_secret"`
-	JWTSecret       string   `yaml:"jwt_secret"`
-	AdminPassword   string   `yaml:"admin_password"`
-	CORSOrigins     []string `yaml:"cors_origins"`
-}
-
-// LoggingConfig 日志配置
-type LoggingConfig struct {
-	Level string `yaml:"level"` // debug/info/warn/error
-	File  string `yaml:"file"`
+	SharedSecret  string `yaml:"shared_secret"`
+	JWTSecret     string `yaml:"jwt_secret"`
+	AdminPassword string `yaml:"admin_password"`
 }
 
 // Load 加载配置文件
@@ -70,29 +50,15 @@ func Load(configPath string) (*Config, error) {
 			StaticPath: "./static",
 		},
 		Database: DatabaseConfig{
-			Path:           "./data/atlas.db",
-			MaxConnections: 10,
-		},
-		WebSocket: WebSocketConfig{
-			HeartbeatInterval: 30,
-			ReadTimeout:       60,
-			WriteTimeout:      60,
-			MaxMessageSize:    1048576, // 1MB
+			Path: "./data/atlas.db",
 		},
 		Scheduler: SchedulerConfig{
-			WorkerCount:        4,
-			ScanInterval:       1,
-			MaxConcurrentTasks: 100,
+			ScanInterval: 1,
 		},
 		Security: SecurityConfig{
 			SharedSecret:  "your-secret-key-change-in-production",
 			JWTSecret:     "your-jwt-secret-change-in-production",
 			AdminPassword: "change-me",
-			CORSOrigins:   []string{"*"},
-		},
-		Logging: LoggingConfig{
-			Level: "info",
-			File:  "./logs/atlas.log",
 		},
 	}
 
@@ -155,8 +121,5 @@ func applyRelativePaths(baseDir string, cfg *Config) {
 	}
 	if cfg.Database.Path != "" && !filepath.IsAbs(cfg.Database.Path) {
 		cfg.Database.Path = filepath.Clean(filepath.Join(baseDir, cfg.Database.Path))
-	}
-	if cfg.Logging.File != "" && !filepath.IsAbs(cfg.Logging.File) {
-		cfg.Logging.File = filepath.Clean(filepath.Join(baseDir, cfg.Logging.File))
 	}
 }

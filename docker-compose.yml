@@ -13,12 +13,11 @@ services:
       - SHARED_SECRET=${SHARED_SECRET:?Please set SHARED_SECRET in your environment or .env}
     volumes:
       - atlas-data:/app/data
-      - atlas-logs:/app/logs
     restart: unless-stopped
     networks:
       - atlas-network
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/api/health"]
+      test: ["CMD", "wget", "-q", "-T", "3", "-O", "/dev/null", "http://127.0.0.1:8080/api/health"]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -26,8 +25,6 @@ services:
 
 volumes:
   atlas-data:
-    driver: local
-  atlas-logs:
     driver: local
 
 networks:

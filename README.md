@@ -54,7 +54,7 @@ make dev-down
 
 ### 自动地理位置获取
 - 探针注册时自动从 IP 地址获取地理坐标
-- 使用 ip-api.com 免费服务
+- 使用外部 GeoIP 服务自动补全位置信息
 - 无需手动配置经纬度
 
 ### 可视化界面
@@ -68,7 +68,7 @@ make dev-down
 - ICMP Ping
 - TCP Ping
 - Traceroute
-- HTTP 测试 (计划中)
+- HTTP 测试
 
 ### 技术栈
 - **后端**: Go + Gin + WebSocket + SQLite
@@ -100,13 +100,17 @@ Atlas/
 ├── frontend/               # Vue.js 前端
 │   ├── src/
 │   │   ├── views/          # 页面
-│   │   │   ├── SingleTestResult.vue       ✨
-│   │   │   └── ContinuousTestResult.vue   ✨
+│   │   │   ├── Home.vue
+│   │   │   ├── Admin.vue
+│   │   │   ├── Login.vue
+│   │   │   ├── SingleTestResult.vue
+│   │   │   └── ContinuousTestResult.vue
 │   │   ├── components/
-│   │   │   ├── WorldMap.vue               ✨
-│   │   │   └── QuickTaskForm.vue
+│   │   │   ├── TopBar.vue
+│   │   │   ├── WorldMap.vue
+│   │   │   ├── ProbeCell.vue
+│   │   │   └── ProviderCell.vue
 │   │   └── api/
-│   └── dist/               # 构建输出
 │
 ├── shared/                 # 共享模型
 │
@@ -202,13 +206,11 @@ cd probe && go test ./...
 
 ## 📝 待办事项
 
-- [ ] 实现 HTTP 测试执行器
 - [ ] 添加 IPv4/IPv6 强制解析
 - [ ] WebSocket 实时推送测试结果
 - [ ] 用户认证系统
 - [ ] 导出测试报告
 - [ ] 热力图模式
-- [ ] 补齐本地联调 docker-compose overlay（docker-compose.dev.yml + Makefile dev-*）
 
 ## 📄 License
 

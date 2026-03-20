@@ -5,18 +5,17 @@ import "time"
 // 消息类型常量
 const (
 	// Probe → Web
-	MsgTypeRegister    = "register"
-	MsgTypeHeartbeat   = "heartbeat"
-	MsgTypeTaskResult  = "task_result"
-	MsgTypeTaskStatus  = "task_status"
-	MsgTypeError       = "error"
+	MsgTypeRegister   = "register"
+	MsgTypeHeartbeat  = "heartbeat"
+	MsgTypeTaskResult = "task_result"
+	MsgTypeTaskStatus = "task_status"
+	MsgTypeError      = "error"
 
 	// Web → Probe
 	MsgTypeRegisterAck  = "register_ack"
 	MsgTypeHeartbeatAck = "heartbeat_ack"
 	MsgTypeTaskAssign   = "task_assign"
 	MsgTypeTaskCancel   = "task_cancel"
-	MsgTypeConfig       = "config"
 
 	// 双向
 	MsgTypePing = "ping"
@@ -33,28 +32,21 @@ type WSMessage struct {
 
 // RegisterMessage 探针注册消息
 type RegisterMessage struct {
-	ProbeID      string            `json:"probe_id"`      // 探针ID
-	Name         string            `json:"name"`          // 探针名称
-	Location     string            `json:"location"`      // 地理位置
-	Region       string            `json:"region"`        // 区域
-	Capabilities []string          `json:"capabilities"`  // 支持的测试类型
-	Version      string            `json:"version"`       // 探针版本
-	AuthToken    string            `json:"auth_token"`    // 认证令牌
-	Metadata     map[string]string `json:"metadata"`      // 额外信息
+	ProbeID      string            `json:"probe_id"`     // 探针ID
+	Name         string            `json:"name"`         // 探针名称
+	Location     string            `json:"location"`     // 地理位置
+	Region       string            `json:"region"`       // 区域
+	Capabilities []string          `json:"capabilities"` // 支持的测试类型
+	Version      string            `json:"version"`      // 探针版本
+	AuthToken    string            `json:"auth_token"`   // 认证令牌
+	Metadata     map[string]string `json:"metadata"`     // 额外信息
 }
 
 // RegisterAckMessage 注册响应消息
 type RegisterAckMessage struct {
-	Success bool        `json:"success"`
-	ProbeID string      `json:"probe_id"`
-	Message string      `json:"message"`
-	Config  ProbeConfig `json:"config"` // 服务端配置
-}
-
-// ProbeConfig 探针配置
-type ProbeConfig struct {
-	HeartbeatInterval  int `json:"heartbeat_interval"`   // 心跳间隔(秒)
-	MaxConcurrentTasks int `json:"max_concurrent_tasks"` // 最大并发任务数
+	Success bool   `json:"success"`
+	ProbeID string `json:"probe_id"`
+	Message string `json:"message"`
 }
 
 // HeartbeatMessage 心跳消息
@@ -143,12 +135,12 @@ type PingReply struct {
 
 // TCPPingResult TCP Ping测试结果
 type TCPPingResult struct {
-	Target                string          `json:"target"`
-	SuccessfulConnections int             `json:"successful_connections"`
-	FailedConnections     int             `json:"failed_connections"`
-	AvgConnectTimeMs      float64         `json:"avg_connect_time_ms"`
-	MinConnectTimeMs      float64         `json:"min_connect_time_ms"`
-	MaxConnectTimeMs      float64         `json:"max_connect_time_ms"`
+	Target                string           `json:"target"`
+	SuccessfulConnections int              `json:"successful_connections"`
+	FailedConnections     int              `json:"failed_connections"`
+	AvgConnectTimeMs      float64          `json:"avg_connect_time_ms"`
+	MinConnectTimeMs      float64          `json:"min_connect_time_ms"`
+	MaxConnectTimeMs      float64          `json:"max_connect_time_ms"`
 	Attempts              []TCPPingAttempt `json:"attempts"`
 
 	// 目标为域名时，探针实际解析并连接的 IP；若输入为 IP，则等于输入值。
@@ -162,7 +154,6 @@ type TCPPingAttempt struct {
 	TimeMs float64 `json:"time_ms"`
 	Error  string  `json:"error,omitempty"`
 }
-
 
 // TracerouteResult Traceroute测试结果
 type TracerouteResult struct {
@@ -185,17 +176,17 @@ type TracerouteHop struct {
 
 // BirdRouteResult Bird路由测试结果
 type BirdRouteResult struct {
-	Routes    []BirdRoute `json:"routes"`
-	TotalRoutes int       `json:"total_routes"`
-	Success   bool        `json:"success"`
+	Routes      []BirdRoute `json:"routes"`
+	TotalRoutes int         `json:"total_routes"`
+	Success     bool        `json:"success"`
 }
 
 // BirdRoute Bird单条路由
 type BirdRoute struct {
-	Network   string    `json:"network"`
-	Gateway   string    `json:"gateway"`
-	Interface string    `json:"interface"`
-	Protocol  string    `json:"protocol"`
-	Metric    int       `json:"metric"`
+	Network   string        `json:"network"`
+	Gateway   string        `json:"gateway"`
+	Interface string        `json:"interface"`
+	Protocol  string        `json:"protocol"`
+	Metric    int           `json:"metric"`
 	Age       time.Duration `json:"age"`
 }

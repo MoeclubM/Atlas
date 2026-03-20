@@ -28,7 +28,6 @@ type Hub struct {
 	connections  map[string]*Connection // probeID -> Connection
 	register     chan *Connection
 	unregister   chan *Connection
-	broadcast    chan []byte
 	mu           sync.RWMutex
 	sharedSecret string
 }
@@ -41,7 +40,6 @@ func NewHub(db *database.Database, sharedSecret string) *Hub {
 		connections:  make(map[string]*Connection),
 		register:     make(chan *Connection),
 		unregister:   make(chan *Connection),
-		broadcast:    make(chan []byte, 256),
 		sharedSecret: sharedSecret,
 	}
 }
@@ -69,18 +67,6 @@ func (h *Hub) Run() {
 				}
 			}
 			h.mu.Unlock()
-
-		case message := <-h.broadcast:
-			h.mu.RLock()
-			for _, conn := range h.connections {
-				select {
-				case conn.send <- message:
-				default:
-					close(conn.send)
-					delete(h.connections, conn.ProbeID)
-				}
-			}
-			h.mu.RUnlock()
 		}
 	}
 }
@@ -141,18 +127,6 @@ func (h *Hub) SendToProbe(probeID, msgType string, data interface{}) error {
 	default:
 		return ErrSendTimeout
 	}
-}
-
-// Broadcast 广播消息到所有连接
-func (h *Hub) Broadcast(msgType string, data interface{}) {
-	message := map[string]interface{}{
-		"type":      msgType,
-		"timestamp": time.Now().Unix(),
-		"data":      data,
-	}
-
-	msgBytes, _ := json.Marshal(message)
-	h.broadcast <- msgBytes
 }
 
 // GetConnection 获取探针连接

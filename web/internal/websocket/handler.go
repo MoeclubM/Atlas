@@ -137,10 +137,6 @@ func (c *Connection) handleRegister(msg map[string]interface{}) error {
 		Success: true,
 		ProbeID: registerMsg.ProbeID,
 		Message: "Registration successful",
-		Config: protocol.ProbeConfig{
-			HeartbeatInterval:  30,
-			MaxConcurrentTasks: 5,
-		},
 	})
 
 	log.Printf("[Handler] Probe registered successfully: %s", registerMsg.Name)
