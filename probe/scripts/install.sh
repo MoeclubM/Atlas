@@ -329,7 +329,7 @@ download_release_assets() {
   curl -fsSLO "\${base_url}/checksums.txt"
 
   local checksum
-  checksum="\$(awk -v asset=\"\${tgz}\" '\$2 == asset || \$2 == ("dist/" asset) { print \$1; exit }' checksums.txt)"
+  checksum="\$(awk -v asset="\${tgz}" '\$2 == asset || \$2 == ("dist/" asset) { print \$1; exit }' checksums.txt)"
   if [[ -z "\${checksum}" ]]; then
     echo "checksums.txt does not contain entry for \${tgz}" >&2
     exit 1
