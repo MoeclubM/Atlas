@@ -43,7 +43,7 @@ jobs:
               -o "../${build_dir}/atlas-probe" ./cmd/probe
 
             tar -C "${build_dir}" -czf "dist/atlas-probe_${version}_linux_${arch}.tar.gz" atlas-probe
-            sha256sum "dist/atlas-probe_${version}_linux_${arch}.tar.gz" >> dist/checksums.txt
+            (cd dist && sha256sum "atlas-probe_${version}_linux_${arch}.tar.gz") >> dist/checksums.txt
           done
 
           echo "Artifacts:"

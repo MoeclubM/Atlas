@@ -117,12 +117,14 @@ download_release_assets() {
   curl -fsSLO "${base_url}/${tgz}"
   curl -fsSLO "${base_url}/checksums.txt"
 
-  if ! grep -F "${tgz}" checksums.txt >/dev/null 2>&1; then
+  local checksum
+  checksum="$(awk -v asset="${tgz}" '$2 == asset || $2 == ("dist/" asset) { print $1; exit }' checksums.txt)"
+  if [[ -z "${checksum}" ]]; then
     echo "checksums.txt does not contain entry for ${tgz}" >&2
     exit 1
   fi
 
-  (grep -F "${tgz}" checksums.txt | sha256sum -c -)
+  printf '%s  %s\n' "${checksum}" "${tgz}" | sha256sum -c -
 
   tar -xzf "${tgz}"
   if [[ ! -f "${DEFAULT_BIN_NAME}" ]]; then
@@ -326,12 +328,14 @@ download_release_assets() {
   curl -fsSLO "\${base_url}/\${tgz}"
   curl -fsSLO "\${base_url}/checksums.txt"
 
-  if ! grep -F "\${tgz}" checksums.txt >/dev/null 2>&1; then
+  local checksum
+  checksum="\$(awk -v asset=\"\${tgz}\" '\$2 == asset || \$2 == (\"dist/\" asset) { print \$1; exit }' checksums.txt)"
+  if [[ -z "\${checksum}" ]]; then
     echo "checksums.txt does not contain entry for \${tgz}" >&2
     exit 1
   fi
 
-  (grep -F "\${tgz}" checksums.txt | sha256sum -c -)
+  printf '%s  %s\n' "\${checksum}" "\${tgz}" | sha256sum -c -
 
   tar -xzf "\${tgz}"
   if [[ ! -f "\${BIN_NAME}" ]]; then
