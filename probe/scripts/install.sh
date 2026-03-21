@@ -108,10 +108,10 @@ download_release_assets() {
 
   local base_url="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${version}"
   local tgz="${DEFAULT_BIN_NAME}_${version}_linux_${arch}.tar.gz"
-  local work_dir
+  local work_dir=""
 
   work_dir="$(mktemp -d /tmp/atlas-probe-install.XXXXXX)"
-  trap 'rm -rf "${work_dir}"' RETURN
+  trap '[[ -n "${work_dir:-}" ]] && rm -rf "${work_dir}"' RETURN
   cd "${work_dir}"
 
   curl -fsSLO "${base_url}/${tgz}"
