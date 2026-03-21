@@ -163,7 +163,9 @@ import type { ProbeMarker } from '@/components/WorldMap.vue'
 import ProviderCell from '@/components/ProviderCell.vue'
 import ProbeCell from '@/components/ProbeCell.vue'
 import { useUiStore } from '@/stores/ui'
+import { parseMaybeJSON } from '@/utils/parse'
 import api from '@/utils/request'
+import { getAvgLatency, getMaxLatency, getPacketLossPercent, getResolvedIP, getStddevLatency, getTargetNetworkInfo, getMinLatency } from '@/utils/result'
 
 type TaskInfo = {
   status?: string
@@ -239,7 +241,7 @@ const probeMarkers = computed<ProbeMarker[]>(() => {
       const probe = result.probe
       if (!probe?.latitude || !probe?.longitude) return null
 
-      const summary = (result.summary || {}) as Record<string, unknown>
+      const summary = parseMaybeJSON(result.summary)
       const status = result.status || 'timeout'
       const validStatus: 'success' | 'failed' | 'timeout' =
         status === 'success' || status === 'failed' ? status : 'timeout'
@@ -250,9 +252,9 @@ const probeMarkers = computed<ProbeMarker[]>(() => {
         location: probe.location,
         latitude: probe.latitude,
         longitude: probe.longitude,
-        latency: (summary['avg_rtt_ms'] as number | undefined) || (summary['avg_latency'] as number | undefined),
+        latency: getAvgLatency(summary, result.result_data),
         status: validStatus,
-        packetLoss: (summary['packet_loss_percent'] as number | undefined) || 0,
+        packetLoss: getPacketLossPercent(result.summary, result.result_data),
       } as ProbeMarker
     })
     .filter((m): m is ProbeMarker => m !== null)
@@ -261,9 +263,11 @@ const probeMarkers = computed<ProbeMarker[]>(() => {
 // 节点结果数据
 const probeResults = computed<ProbeResultRow[]>(() => {
   return results.value.map((result) => {
-    const summary = (result.summary || {}) as Record<string, unknown>
-    const metadata = (result.probe?.metadata || {}) as Record<string, unknown>
+    const summary = parseMaybeJSON(result.summary)
+    const data = parseMaybeJSON(result.result_data)
+    const metadata = parseMaybeJSON(result.probe?.metadata)
     const provider = (metadata['provider'] as string) || (metadata['isp'] as string) || undefined
+    const targetNetwork = getTargetNetworkInfo(summary, data)
 
     return {
       probe_id: result.probe?.probe_id,
@@ -271,15 +275,15 @@ const probeResults = computed<ProbeResultRow[]>(() => {
       location: result.probe?.location || String($t('common.unknown')),
       provider,
       target: result.target,
-      ip_address: (summary['resolved_ip'] as string) || (summary['resolvedIP'] as string) || '-',
-      target_asn: (summary['target_asn'] as string) || undefined,
-      target_as_name: (summary['target_as_name'] as string) || undefined,
-      target_isp: (summary['target_isp'] as string) || undefined,
-      avg_latency: (summary['avg_rtt_ms'] as number) || (summary['avg_latency'] as number),
-      min_latency: (summary['min_rtt_ms'] as number) || (summary['min_latency'] as number),
-      max_latency: (summary['max_rtt_ms'] as number) || (summary['max_latency'] as number),
-      stddev: (summary['stddev_rtt_ms'] as number) || (summary['stddev'] as number),
-      packet_loss: summary['packet_loss_percent'] as number,
+      ip_address: getResolvedIP(summary, data, result.target) || '-',
+      target_asn: targetNetwork.asn,
+      target_as_name: targetNetwork.asName,
+      target_isp: targetNetwork.isp,
+      avg_latency: getAvgLatency(summary, data),
+      min_latency: getMinLatency(summary, data),
+      max_latency: getMaxLatency(summary, data),
+      stddev: getStddevLatency(summary, data),
+      packet_loss: getPacketLossPercent(summary, data),
       status: result.status || 'unknown',
       test_type: result.test_type,
       raw_data: result.result_data,
@@ -385,12 +389,8 @@ async function loadData() {
     results.value = (resultsRes.results as ResultView[]).map((r) => ({
       ...r,
       probe: probesMap.get(r.probe_id),
-      summary:
-        typeof r.summary === 'string' ? (JSON.parse(r.summary) as Record<string, unknown>) : ((r.summary || {}) as Record<string, unknown>),
-      result_data:
-        typeof r.result_data === 'string'
-          ? (JSON.parse(r.result_data) as Record<string, unknown>)
-          : ((r.result_data || {}) as Record<string, unknown>),
+      summary: parseMaybeJSON(r.summary),
+      result_data: parseMaybeJSON(r.result_data),
     }))
   } catch (error: unknown) {
     console.error('加载数据失败:', error)

@@ -12,6 +12,7 @@ import (
 	"atlas/shared/protocol"
 	"atlas/web/internal/geoip"
 	"atlas/web/internal/model"
+	"atlas/web/internal/targetutil"
 )
 
 // handleRegister 处理探针注册
@@ -348,7 +349,11 @@ func extractSummary(resultData interface{}) map[string]interface{} {
 		summary["avg_latency"] = avgConnTime
 	}
 	if packetLoss, ok := dataMap["packet_loss_percent"]; ok {
+		summary["packet_loss_percent"] = packetLoss
 		summary["packet_loss"] = packetLoss
+	}
+	if resolvedIP := extractResolvedIP(resultData); resolvedIP != "" {
+		summary["resolved_ip"] = resolvedIP
 	}
 
 	return summary
@@ -366,27 +371,14 @@ func extractResolvedIP(resultData interface{}) string {
 		return ip
 	}
 
-	// TCP Ping: target 字段可能包含端口，需要提取主机部分
 	if target, ok := dataMap["target"].(string); ok && target != "" {
-		// 尝试去除端口
-		for i := len(target) - 1; i >= 0; i-- {
-			if target[i] == ':' {
-				// 检查是否为 IPv6（包含多个冒号）
-				colonCount := 0
-				for j := 0; j < len(target); j++ {
-					if target[j] == ':' {
-						colonCount++
-					}
-				}
-				if colonCount > 1 {
-					// IPv6 地址，不处理
-					return target
-				}
-				// IPv4:port 或 domain:port 形式
-				return target[:i]
-			}
+		host := targetutil.ExtractHost(target)
+		if host == "" {
+			return ""
 		}
-		return target
+		if ip := net.ParseIP(targetutil.StripIPv6Zone(host)); ip != nil {
+			return host
+		}
 	}
 
 	return ""

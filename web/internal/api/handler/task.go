@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
 	"strings"
 	"time"
 
@@ -16,6 +15,7 @@ import (
 	"atlas/shared/protocol"
 	"atlas/web/internal/database"
 	"atlas/web/internal/model"
+	"atlas/web/internal/targetutil"
 	"atlas/web/internal/websocket"
 )
 
@@ -31,12 +31,12 @@ func NewTaskHandler(db *database.Database, hub *websocket.Hub) *TaskHandler {
 }
 
 func blockedByPolicy(target string, blocked []*net.IPNet, ipVersion string) bool {
-	host := extractTargetHost(target)
+	host := targetutil.ExtractHost(target)
 	if host == "" {
 		return false
 	}
 
-	if ip := net.ParseIP(stripIPv6Zone(host)); ip != nil {
+	if ip := net.ParseIP(targetutil.StripIPv6Zone(host)); ip != nil {
 		return ipInBlockedNetworks(ip, blocked)
 	}
 
@@ -95,59 +95,6 @@ func ipInBlockedNetworks(ip net.IP, blocked []*net.IPNet) bool {
 		}
 	}
 	return false
-}
-
-func stripIPv6Zone(host string) string {
-	if i := strings.IndexByte(host, '%'); i > 0 {
-		return host[:i]
-	}
-	return host
-}
-
-func extractTargetHost(target string) string {
-	target = strings.TrimSpace(target)
-	if target == "" {
-		return ""
-	}
-
-	if strings.Contains(target, "://") {
-		u, err := url.Parse(target)
-		if err == nil {
-			if h := u.Hostname(); h != "" {
-				return h
-			}
-		}
-	}
-
-	if strings.Contains(target, "/") {
-		u, err := url.Parse("http://" + target)
-		if err == nil {
-			if h := u.Hostname(); h != "" {
-				return h
-			}
-		}
-	}
-
-	// [ipv6] or [ipv6]:port
-	if strings.HasPrefix(target, "[") {
-		if i := strings.Index(target, "]"); i > 1 {
-			host := target[1:i]
-			if host != "" {
-				return host
-			}
-		}
-	}
-
-	if host, _, err := net.SplitHostPort(target); err == nil {
-		return host
-	}
-
-	// 未带端口的 IPv6（包含多个冒号）
-	if strings.Count(target, ":") >= 2 {
-		return target
-	}
-
-	return target
 }
 
 // CreateTask 创建任务

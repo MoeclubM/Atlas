@@ -75,14 +75,15 @@
                     />
                   </td>
                   <td style="text-align: center">
-                    <v-chip size="small" variant="tonal" :color="getLossColor(probe.packet_loss)">
-                      {{ probe.packet_loss?.toFixed(1) }}%
+                    <v-chip v-if="probe.packet_loss !== undefined" size="small" variant="tonal" :color="getLossColor(probe.packet_loss)">
+                      {{ probe.packet_loss.toFixed(1) }}%
                     </v-chip>
+                    <span v-else>-</span>
                   </td>
                   <td style="text-align: center">{{ probe.test_count }}</td>
                   <td style="text-align: center">
                     <v-chip
-                      v-if="probe.last_latency"
+                      v-if="probe.last_latency !== undefined"
                       size="small"
                       variant="tonal"
                       :color="getLatencyColor(probe.last_latency)"
@@ -92,7 +93,7 @@
                     <span v-else>-</span>
                   </td>
                   <td style="text-align: center">
-                    <span v-if="probe.avg_latency" :class="getAvgClass(probe.avg_latency)">
+                    <span v-if="probe.avg_latency !== undefined" :class="getAvgClass(probe.avg_latency)">
                       {{ probe.avg_latency.toFixed(2) }}
                     </span>
                     <span v-else>-</span>
@@ -144,6 +145,8 @@ import { useUiStore } from '@/stores/ui'
 import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
 import api from '@/utils/request'
+import { parseMaybeJSON } from '@/utils/parse'
+import { getAvgLatency, getPacketLossPercent, getPacketLossStats, getResolvedIP, getTargetNetworkInfo } from '@/utils/result'
 import ProviderCell from '@/components/ProviderCell.vue'
 import ProbeCell from '@/components/ProbeCell.vue'
 
@@ -308,8 +311,7 @@ function updateChart(results: ResultRow[]) {
 
     // 构建数据点
     const seriesData = data.map((r) => {
-      const summary = (r.summary || {}) as Record<string, unknown>
-      const latency = (summary['avg_rtt_ms'] as number) || (summary['avg_latency'] as number) || 0
+      const latency = getAvgLatency(r.summary, r.result_data)
       return [new Date(r.created_at).getTime(), latency]
     })
 
@@ -337,43 +339,65 @@ function updateChart(results: ResultRow[]) {
 function updateProbeStats(results: ResultRow[]) {
   const statsMap = new Map<string, ProbeStatsRow>()
 
-  // 按探针分组收集所有延迟值
+  // 按探针分组收集所有延迟值和丢包统计
   const probeLatenciesMap = new Map<string, number[]>()
+  const probeLossStatsMap = new Map<string, { failed: number; total: number }>()
+  const probeResultsMap = new Map<string, ResultRow[]>()
 
   results.forEach((result) => {
     const probeId = result.probe_id
-    const summary = (result.summary || {}) as Record<string, unknown>
-    const latency = (summary['avg_rtt_ms'] as number) || (summary['avg_latency'] as number)
+    const resultData = parseMaybeJSON(result.result_data)
+    const latency = getAvgLatency(result.summary, result.result_data)
     if (!probeLatenciesMap.has(probeId)) {
       probeLatenciesMap.set(probeId, [])
+    }
+    if (!probeResultsMap.has(probeId)) {
+      probeResultsMap.set(probeId, [])
     }
 
     if (latency !== undefined) {
       probeLatenciesMap.get(probeId)!.push(latency)
     }
+
+    probeResultsMap.get(probeId)!.push(result)
+
+    const packetLossStats = getPacketLossStats(resultData)
+    if (packetLossStats) {
+      const current = probeLossStatsMap.get(probeId) || { failed: 0, total: 0 }
+      current.failed += packetLossStats.failed
+      current.total += packetLossStats.total
+      probeLossStatsMap.set(probeId, current)
+    }
   })
 
   // 计算统计数据
-  probeLatenciesMap.forEach((latencies, probeId) => {
-    const first = results.find((r) => r.probe_id === probeId)
-    const probe = first?.probe
-    const parsedSummary = ((first?.summary || {}) as Record<string, unknown>)
+  probeResultsMap.forEach((groupedResults, probeId) => {
+    const latencies = probeLatenciesMap.get(probeId) || []
+    const latest = [...groupedResults]
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .at(-1)
+    const probe = latest?.probe
+    const parsedSummary = parseMaybeJSON(latest?.summary)
+    const parsedData = parseMaybeJSON(latest?.result_data)
+    const aggregatedLoss = probeLossStatsMap.get(probeId)
+    const packetLoss = aggregatedLoss && aggregatedLoss.total > 0
+      ? (aggregatedLoss.failed / aggregatedLoss.total) * 100
+      : getPacketLossPercent(parsedSummary, parsedData)
+    const lastLatency = latencies.length > 0 ? latencies[latencies.length - 1] : undefined
+    const minLatency = latencies.length > 0 ? Math.min(...latencies) : undefined
+    const maxLatency = latencies.length > 0 ? Math.max(...latencies) : undefined
+    const avgLatency = latencies.length > 0
+      ? latencies.reduce((a: number, b: number) => a + b, 0) / latencies.length
+      : undefined
 
-    const packetLoss = (parsedSummary['packet_loss_percent'] as number) || 0
-    const lastLatency = latencies[latencies.length - 1]
-    const minLatency = Math.min(...latencies)
-    const maxLatency = Math.max(...latencies)
-    const avgLatency = latencies.reduce((a: number, b: number) => a + b, 0) / latencies.length
+    const stdev = avgLatency !== undefined && latencies.length > 0
+      ? Math.sqrt(
+          latencies.reduce((sum: number, val: number) => sum + Math.pow(val - avgLatency, 2), 0) / latencies.length,
+        )
+      : undefined
 
-    // 计算标准差
-    const variance = latencies.reduce((sum: number, val: number) => sum + Math.pow(val - avgLatency, 2), 0) / latencies.length
-    const stdev = Math.sqrt(variance)
-
-    const parsedData = ((first?.result_data || {}) as Record<string, unknown>)
-    const resolvedIP = (parsedData['resolved_ip'] as string) || (parsedSummary['resolved_ip'] as string) || undefined
-    const targetISP = (parsedSummary['target_isp'] as string) || (parsedData['target_isp'] as string) || undefined
-    const targetASN = (parsedSummary['target_asn'] as string) || (parsedData['target_asn'] as string) || undefined
-    const targetASName = (parsedSummary['target_as_name'] as string) || (parsedData['target_as_name'] as string) || undefined
+    const resolvedIP = getResolvedIP(parsedSummary, parsedData, target.value)
+    const targetNetwork = getTargetNetworkInfo(parsedSummary, parsedData)
 
     statsMap.set(probeId, {
       probe_id: probeId,
@@ -382,7 +406,7 @@ function updateProbeStats(results: ResultRow[]) {
       location: probe?.location || 'Unknown',
       city: probe?.city || probe?.location || 'Unknown',
       country: probe?.country || '',
-      test_count: latencies.length,
+      test_count: groupedResults.length,
       last_latency: lastLatency,
       avg_latency: avgLatency,
       min_latency: minLatency,
@@ -390,9 +414,9 @@ function updateProbeStats(results: ResultRow[]) {
       packet_loss: packetLoss,
       stdev: stdev,
       resolved_ip: resolvedIP,
-      target_isp: targetISP,
-      target_asn: targetASN,
-      target_as_name: targetASName,
+      target_isp: targetNetwork.isp,
+      target_asn: targetNetwork.asn,
+      target_as_name: targetNetwork.asName,
     } satisfies ProbeStatsRow)
   })
 
@@ -451,7 +475,8 @@ async function loadData() {
 
     const results = (resultsRes.results || []).map((r: ResultRow) => ({
       ...r,
-      summary: typeof r.summary === 'string' ? (JSON.parse(r.summary) as Record<string, unknown>) : r.summary,
+      summary: parseMaybeJSON(r.summary),
+      result_data: parseMaybeJSON(r.result_data),
       probe: probesMap.get(r.probe_id),
     }))
 

@@ -287,6 +287,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, type Compon
 import { useI18n } from 'vue-i18n'
 import api from '@/utils/request'
 import { parseMaybeJSON } from '@/utils/parse'
+import { getAvgLatency, getMaxLatency, getMinLatency, getPacketLossPercent, getResolvedIP, getTargetNetworkInfo } from '@/utils/result'
 import { getProviderLabelFromMetadata } from '@/utils/provider'
 import WorldMap, { type ProbeMarker } from '@/components/WorldMap.vue'
 import ProviderCell from '@/components/ProviderCell.vue'
@@ -591,62 +592,63 @@ function onSelectType(value: string) {
   }
 }
 
-
-function getLatencyMsFromResult(result: TaskResult): number | undefined {
-  const summary = parseMaybeJSON(result.summary)
+function getSparkSamplesFromResult(result: TaskResult, taskType: string): Array<number | null> {
   const data = parseMaybeJSON(result.result_data)
 
-  const candidates = [
-    summary['avg_rtt_ms'],
-    summary['avg_latency'],
-    summary['avg_connect_time_ms'],
-    data['avg_rtt_ms'],
-    data['avg_latency'],
-    data['avg_connect_time_ms'],
-  ]
+  if (taskType === 'icmp_ping') {
+    const replies = Array.isArray(data['replies']) ? data['replies'] as Array<Record<string, unknown>> : []
+    const packetsSent = typeof data['packets_sent'] === 'number' && Number.isFinite(data['packets_sent'])
+      ? Math.max(0, Math.floor(data['packets_sent'] as number))
+      : 0
 
-  for (const v of candidates) {
-    if (typeof v === 'number' && Number.isFinite(v)) return v
+    if (replies.length > 0) {
+      const samples = replies.map((reply) => {
+        const timeMs = reply['time_ms'] as number | undefined
+        return timeMs !== undefined && Number.isFinite(timeMs) && timeMs > 0 ? timeMs : null
+      })
+
+      while (samples.length < packetsSent) {
+        samples.push(null)
+      }
+
+      return samples
+    }
+
+    if (packetsSent > 0) {
+      return Array.from({ length: packetsSent }, () => null)
+    }
+
+    return result.status === 'failed' ? [null] : []
   }
-  return undefined
-}
 
-function getMinLatencyMsFromResult(result: TaskResult): number | undefined {
-  const summary = parseMaybeJSON(result.summary)
-  const data = parseMaybeJSON(result.result_data)
+  if (taskType === 'tcp_ping') {
+    const attempts = Array.isArray(data['attempts']) ? data['attempts'] as Array<Record<string, unknown>> : []
+    if (attempts.length > 0) {
+      return attempts.map((attempt) => {
+        const timeMs = attempt['time_ms'] as number | undefined
+        const status = attempt['status'] as string | undefined
+        return status !== 'failed' && timeMs !== undefined && Number.isFinite(timeMs) && timeMs > 0 ? timeMs : null
+      })
+    }
 
-  const candidates = [
-    summary['min_rtt_ms'],
-    summary['min_latency'],
-    summary['min_connect_time_ms'],
-    data['min_rtt_ms'],
-    data['min_latency'],
-    data['min_connect_time_ms'],
-  ]
+    const successful = typeof data['successful_connections'] === 'number' && Number.isFinite(data['successful_connections'])
+      ? Math.max(0, Math.floor(data['successful_connections'] as number))
+      : 0
+    const failed = typeof data['failed_connections'] === 'number' && Number.isFinite(data['failed_connections'])
+      ? Math.max(0, Math.floor(data['failed_connections'] as number))
+      : 0
+    const total = successful + failed
 
-  for (const v of candidates) {
-    if (typeof v === 'number' && Number.isFinite(v)) return v
+    if (total > 0) {
+      return Array.from({ length: total }, () => null)
+    }
+
+    return result.status === 'failed' ? [null] : []
   }
-  return undefined
-}
 
-function getMaxLatencyMsFromResult(result: TaskResult): number | undefined {
-  const summary = parseMaybeJSON(result.summary)
-  const data = parseMaybeJSON(result.result_data)
-
-  const candidates = [
-    summary['max_rtt_ms'],
-    summary['max_latency'],
-    summary['max_connect_time_ms'],
-    data['max_rtt_ms'],
-    data['max_latency'],
-    data['max_connect_time_ms'],
-  ]
-
-  for (const v of candidates) {
-    if (typeof v === 'number' && Number.isFinite(v)) return v
-  }
-  return undefined
+  const latency = getAvgLatency(result.summary, result.result_data)
+  if (latency !== undefined) return [latency]
+  return result.status === 'failed' ? [null] : []
 }
 
 
@@ -665,83 +667,30 @@ function deriveHomeRows(taskResults: TaskResult[]): HomeResultRow[] {
     const latencies: number[] = []
     const mins: number[] = []
     const maxs: number[] = []
-    const lastLatencies: number[] = []
-
-    let status: string | undefined
 
     for (const it of items) {
-      const latency = getLatencyMsFromResult(it)
+      const latency = getAvgLatency(it.summary, it.result_data)
       if (latency !== undefined) latencies.push(latency)
 
-      const minL = getMinLatencyMsFromResult(it)
+      const minL = getMinLatency(it.summary, it.result_data)
       if (minL !== undefined) mins.push(minL)
 
-      const maxL = getMaxLatencyMsFromResult(it)
+      const maxL = getMaxLatency(it.summary, it.result_data)
       if (maxL !== undefined) maxs.push(maxL)
-
-      // 收集所有延迟值作为 last_latency 候选
-      if (latency !== undefined) lastLatencies.push(latency)
-
-      if (it.status === 'failed') status = 'failed'
-      if (!status && it.status === 'success') status = 'success'
     }
 
+    const last = items.length ? items[items.length - 1] : undefined
     const avgLatency = latencies.length ? latencies.reduce((a, b) => a + b, 0) / latencies.length : undefined
     const minLatency = mins.length ? Math.min(...mins) : undefined
     const maxLatency = maxs.length ? Math.max(...maxs) : undefined
-    const lastLatency = lastLatencies.length ? lastLatencies[lastLatencies.length - 1] : undefined
+    const lastLatency = last ? getAvgLatency(last.summary, last.result_data) : undefined
+    const latestStatus = last?.status || (latencies.length > 0 ? 'success' : 'unknown')
 
-    // 从 result_data 中计算准确的丢包率
-    let calculatedPacketLoss: number | undefined = undefined
-
-    // 优先使用 summary 中的 packet_loss_percent
-    const last = items.length ? items[items.length - 1] : undefined
     const lastSummary = last ? parseMaybeJSON(last.summary) : {}
     const lastData = last ? parseMaybeJSON(last.result_data) : {}
-
-    const summaryLoss = (lastSummary['packet_loss_percent'] as number) ||
-                        (lastSummary['packet_loss'] as number) || undefined
-    if (summaryLoss !== undefined) {
-      calculatedPacketLoss = summaryLoss
-    } else {
-      // 从 result_data 手动计算
-      if (testType.value === 'icmp_ping') {
-        // ICMP Ping: (PacketsSent - PacketsReceived) / PacketsSent * 100
-        const sent = (lastData['packets_sent'] as number) || 0
-        const received = (lastData['packets_received'] as number) || 0
-        if (sent > 0) {
-          calculatedPacketLoss = ((sent - received) / sent) * 100
-        }
-      } else if (testType.value === 'tcp_ping') {
-        // TCP Ping: FailedConnections / (SuccessfulConnections + FailedConnections) * 100
-        const successful = (lastData['successful_connections'] as number) || 0
-        const failed = (lastData['failed_connections'] as number) || 0
-        const total = successful + failed
-        if (total > 0) {
-          calculatedPacketLoss = (failed / total) * 100
-        }
-      }
-    }
-
-    const resolvedIP =
-      (lastData['resolved_ip'] as string | undefined) ||
-      (lastSummary['resolved_ip'] as string | undefined) ||
-      undefined
-
-    const targetISP =
-      (lastSummary['target_isp'] as string | undefined) ||
-      (lastData['target_isp'] as string | undefined) ||
-      undefined
-
-    const targetASN =
-      (lastSummary['target_asn'] as string | undefined) ||
-      (lastData['target_asn'] as string | undefined) ||
-      undefined
-
-    const targetASName =
-      (lastSummary['target_as_name'] as string | undefined) ||
-      (lastData['target_as_name'] as string | undefined) ||
-      undefined
+    const calculatedPacketLoss = last ? getPacketLossPercent(lastSummary, lastData) : undefined
+    const resolvedIP = last ? getResolvedIP(lastSummary, lastData, target.value) : undefined
+    const targetNetwork = getTargetNetworkInfo(lastSummary, lastData)
 
     rows.push({
       probe_id: probeId,
@@ -754,11 +703,11 @@ function deriveHomeRows(taskResults: TaskResult[]): HomeResultRow[] {
       last_latency: lastLatency,
       packet_loss: calculatedPacketLoss,
       send_count: items.length,
-      status: status || 'unknown',
+      status: latestStatus,
       resolved_ip: resolvedIP,
-      target_isp: targetISP,
-      target_asn: targetASN,
-      target_as_name: targetASName,
+      target_isp: targetNetwork.isp,
+      target_asn: targetNetwork.asn,
+      target_as_name: targetNetwork.asName,
     })
   })
 
@@ -856,16 +805,14 @@ function drawSparkForProbe(probeId: string) {
     return
   }
 
-  // 数组本身就是按时间顺序的延迟序列
-  const latencies: (number | null)[] = packetArray
-
-  drawPacketBars(canvas, latencies)
+  drawPacketBars(canvas, packetArray)
 }
 
 /**
- * 按包数分栏绘制柱状图：
- * - 每个包占一栏,高度表示延迟(0-300ms映射到0%-100%高度)
- * - 颜色: <100ms绿色, <200ms橙色, >=200ms红色, null灰色
+ * 绘制类似 ping.pe 的最近包延迟柱状图：
+ * - 每个 execution/attempt 至少占一栏
+ * - 展示全部历史，随样本数增多自动压缩到画布宽度内
+ * - 颜色: <100ms绿色, <200ms橙色, >=200ms红色, null(丢包/失败)红色满高
  */
 function drawPacketBars(canvas: HTMLCanvasElement, latencies: (number | null)[]) {
   const cssWidth = canvas.clientWidth || 90
@@ -886,15 +833,13 @@ function drawPacketBars(canvas: HTMLCanvasElement, latencies: (number | null)[])
   const barCount = latencies.length
   if (barCount === 0) return
 
-  const barWidth = width / barCount
-  const gap = Math.max(0.5, barWidth * 0.1) // 10%间隙
-
   latencies.forEach((latency, i) => {
-    const x = i * barWidth
-    const fillWidth = Math.max(1, barWidth - gap)
+    const x = Math.floor((i * width) / barCount)
+    const nextX = Math.floor(((i + 1) * width) / barCount)
+    const fillWidth = Math.max(1, nextX - x)
 
     let barHeight = 0
-    let color = '#E0E0E0' // 灰色 (无数据)
+    let color = '#F56C6C'
 
     if (latency !== null && Number.isFinite(latency)) {
       // 延迟映射到高度：0ms 也给一定可见高度；越慢越接近满高
@@ -913,7 +858,6 @@ function drawPacketBars(canvas: HTMLCanvasElement, latencies: (number | null)[])
     } else {
       // 失败/超时/丢包: 显示红色满高度
       barHeight = height
-      color = '#F56C6C' // 红色
     }
 
     ctx.fillStyle = color
@@ -1119,6 +1063,7 @@ async function startTest(modeValue: 'single' | 'continuous') {
         if (testType.value === 'icmp_ping' || testType.value === 'tcp_ping') {
           // 创建新的对象引用以触发 Vue 响应式更新
           const newAccumulatedData: Record<string, Array<number | null>> = {}
+          const sparkTaskType = testType.value
 
           // 从 rawTaskResults（现在是累积的）中提取所有包数据
           const allResults = rawTaskResults.value
@@ -1129,28 +1074,7 @@ async function startTest(modeValue: 'single' | 'continuous') {
               newAccumulatedData[probeId] = []
             }
             const packetArray = newAccumulatedData[probeId]!
-
-            const data = r.result_data as Record<string, unknown> | undefined
-            if (!data) continue
-
-            if (testType.value === 'icmp_ping') {
-              const replies = (data['replies'] as Array<Record<string, unknown>>) || []
-              for (const reply of replies) {
-                const timeMs = reply['time_ms'] as number | undefined
-                const valid = timeMs !== undefined && Number.isFinite(timeMs) && timeMs > 0
-                // 直接 push 到数组，不使用 seq 作为 key，避免覆盖
-                packetArray.push(valid ? timeMs : null)
-              }
-            } else if (testType.value === 'tcp_ping') {
-              const attempts = (data['attempts'] as Array<Record<string, unknown>>) || []
-              for (const attempt of attempts) {
-                const timeMs = attempt['time_ms'] as number | undefined
-                const status = attempt['status'] as string | undefined
-                const valid = status !== 'failed' && timeMs !== undefined && Number.isFinite(timeMs) && timeMs > 0
-                // 直接 push 到数组，不使用 seq 作为 key，避免覆盖
-                packetArray.push(valid ? timeMs : null)
-              }
-            }
+            packetArray.push(...getSparkSamplesFromResult(r, sparkTaskType))
           }
 
           // 一次性替换整个对象以触发响应式更新
