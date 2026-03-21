@@ -80,11 +80,6 @@ export default {
       http_test: 'HTTP',
       traceroute: 'Traceroute',
     },
-    filters: {
-      lossGt0: 'loss>0',
-      avgGe100: 'avg≥100ms',
-      avgGe200: 'avg≥200ms',
-    },
     route: {
       hop: '跳',
       ip: 'IP',

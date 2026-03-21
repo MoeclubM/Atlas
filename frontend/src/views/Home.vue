@@ -123,33 +123,6 @@
             clearable
             :label="$t('common.search')"
           />
-
-          <v-select
-            v-model="filterState.status"
-            :items="statusFilterItems"
-            density="compact"
-            variant="outlined"
-            hide-details
-            :label="$t('common.status')"
-          />
-
-          <v-select
-            v-model="filterState.loss"
-            :items="lossFilterItems"
-            density="compact"
-            variant="outlined"
-            hide-details
-            :label="$t('results.loss')"
-          />
-
-          <v-select
-            v-model="filterState.avg"
-            :items="avgFilterItems"
-            density="compact"
-            variant="outlined"
-            hide-details
-            :label="$t('results.avg')"
-          />
         </div>
 
         <v-progress-linear
@@ -391,60 +364,15 @@ const availableProbes = ref<ProbeRecord[]>([])
 
 const filterState = ref({
   keyword: '',
-  status: 'all' as 'all' | 'success' | 'failed' | 'timeout',
-  loss: 'all' as 'all' | 'loss_gt_0',
-  avg: 'all' as 'all' | 'avg_ge_100' | 'avg_ge_200',
 })
-
-const statusFilterItems = [
-  { title: String($t('common.all')), value: 'all' },
-  { title: String($t('common.success')), value: 'success' },
-  { title: String($t('common.failed')), value: 'failed' },
-  { title: String($t('common.timeout')), value: 'timeout' },
-]
-
-const lossFilterItems = [
-  { title: String($t('common.all')), value: 'all' },
-  { title: String($t('home.filters.lossGt0')), value: 'loss_gt_0' },
-]
-
-const avgFilterItems = [
-  { title: String($t('common.all')), value: 'all' },
-  { title: String($t('home.filters.avgGe100')), value: 'avg_ge_100' },
-  { title: String($t('home.filters.avgGe200')), value: 'avg_ge_200' },
-]
 
 const filteredResults = computed(() => {
   const keyword = filterState.value.keyword.trim().toLowerCase()
 
   return results.value.filter((r) => {
-    // keyword
     if (keyword) {
       const hay = [r.location, r.provider].filter(Boolean).join(' ').toLowerCase()
       if (!hay.includes(keyword)) return false
-    }
-
-    // status
-    if (filterState.value.status !== 'all') {
-      const status = r.status || 'timeout'
-      const validStatus: 'success' | 'failed' | 'timeout' = status === 'success' || status === 'failed' ? status : 'timeout'
-      if (validStatus !== filterState.value.status) return false
-    }
-
-    // loss
-    if (filterState.value.loss === 'loss_gt_0') {
-      const loss = r.packet_loss ?? 0
-      if (!(loss > 0)) return false
-    }
-
-    // avg
-    if (filterState.value.avg === 'avg_ge_100') {
-      const avg = r.avg_latency ?? -Infinity
-      if (!(avg >= 100)) return false
-    }
-    if (filterState.value.avg === 'avg_ge_200') {
-      const avg = r.avg_latency ?? -Infinity
-      if (!(avg >= 200)) return false
     }
 
     return true
@@ -1378,7 +1306,7 @@ onBeforeUnmount(() => {
 
 .results-filters {
   display: grid;
-  grid-template-columns: 1fr 160px 160px 160px;
+  grid-template-columns: minmax(0, 1fr);
   gap: 12px;
   padding: 14px 20px;
   border-bottom: 1px solid var(--border);
