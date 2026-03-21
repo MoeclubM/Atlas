@@ -1,14 +1,30 @@
 <template>
-  <v-container class="login-page" fluid>
-    <v-row class="fill-height" align="center" justify="center">
-      <v-col cols="12" sm="8" md="5" lg="4">
+  <v-container
+    class="login-page"
+    fluid
+  >
+    <v-row
+      class="fill-height"
+      align="center"
+      justify="center"
+    >
+      <v-col
+        cols="12"
+        sm="8"
+        md="5"
+        lg="4"
+      >
         <v-card class="login-card">
           <v-card-title class="text-h6 text-center">
             {{ $t('login.title') }}
           </v-card-title>
 
           <v-card-text>
-            <v-alert v-if="error" type="error" class="mb-3">
+            <v-alert
+              v-if="error"
+              type="error"
+              class="mb-3"
+            >
               {{ error }}
             </v-alert>
 

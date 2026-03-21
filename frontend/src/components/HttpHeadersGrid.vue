@@ -2,7 +2,10 @@
   <div class="http-headers-grid">
     <div class="http-headers-card">
       <h4>{{ $t('results.requestHeaders') }}</h4>
-      <div v-if="requestHeaders.length > 0" class="http-header-list">
+      <div
+        v-if="requestHeaders.length > 0"
+        class="http-header-list"
+      >
         <div
           v-for="entry in requestHeaders"
           :key="`req-${keyPrefix}-${entry.name}`"
@@ -12,12 +15,20 @@
           <span class="http-header-value">{{ entry.value }}</span>
         </div>
       </div>
-      <div v-else class="http-header-empty">-</div>
+      <div
+        v-else
+        class="http-header-empty"
+      >
+        -
+      </div>
     </div>
 
     <div class="http-headers-card">
       <h4>{{ $t('results.responseHeaders') }}</h4>
-      <div v-if="responseHeaders.length > 0" class="http-header-list">
+      <div
+        v-if="responseHeaders.length > 0"
+        class="http-header-list"
+      >
         <div
           v-for="entry in responseHeaders"
           :key="`resp-${keyPrefix}-${entry.name}`"
@@ -27,7 +38,12 @@
           <span class="http-header-value">{{ entry.value }}</span>
         </div>
       </div>
-      <div v-else class="http-header-empty">-</div>
+      <div
+        v-else
+        class="http-header-empty"
+      >
+        -
+      </div>
     </div>
   </div>
 </template>

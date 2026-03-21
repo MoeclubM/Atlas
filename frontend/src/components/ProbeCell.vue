@@ -1,7 +1,14 @@
 <template>
   <div class="probe-cell">
-    <div class="probe-line-1">{{ location }}</div>
-    <div v-if="providerLabel" class="probe-line-2">{{ providerLabel }}</div>
+    <div class="probe-line-1">
+      {{ location }}
+    </div>
+    <div
+      v-if="providerLabel"
+      class="probe-line-2"
+    >
+      {{ providerLabel }}
+    </div>
   </div>
 </template>
 

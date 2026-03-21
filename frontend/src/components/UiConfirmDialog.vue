@@ -5,12 +5,25 @@
     persistent
   >
     <v-card>
-      <v-card-title v-if="state.title">{{ state.title }}</v-card-title>
+      <v-card-title v-if="state.title">
+        {{ state.title }}
+      </v-card-title>
       <v-card-text>{{ state.message }}</v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" @click="onCancel">{{ $t('common.cancel') }}</v-btn>
-        <v-btn color="primary" variant="flat" @click="onConfirm">{{ $t('common.confirm') }}</v-btn>
+        <v-btn
+          variant="text"
+          @click="onCancel"
+        >
+          {{ $t('common.cancel') }}
+        </v-btn>
+        <v-btn
+          color="primary"
+          variant="flat"
+          @click="onConfirm"
+        >
+          {{ $t('common.confirm') }}
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

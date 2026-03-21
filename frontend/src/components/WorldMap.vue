@@ -8,7 +8,10 @@
       v-if="loading"
       class="map-loading"
     >
-      <v-progress-circular indeterminate size="32" />
+      <v-progress-circular
+        indeterminate
+        size="32"
+      />
       <span>{{ $t('worldMap.loading') }}</span>
     </div>
   </div>

@@ -1,51 +1,105 @@
 <template>
   <div class="single-test-result">
     <div class="page-header">
-      <v-btn variant="text" @click="router.back()">{{ $t('common.back') }}</v-btn>
-      <div class="page-title">{{ $t('resultsPage.title') }} - {{ taskId }}</div>
-      <v-chip size="small" variant="tonal" :color="statusColor">
+      <v-btn
+        variant="text"
+        @click="router.back()"
+      >
+        {{ $t('common.back') }}
+      </v-btn>
+      <div class="page-title">
+        {{ $t('resultsPage.title') }} - {{ taskId }}
+      </div>
+      <v-chip
+        size="small"
+        variant="tonal"
+        :color="statusColor"
+      >
         {{ statusText }}
       </v-chip>
     </div>
 
-    <v-card class="result-card" variant="outlined">
+    <v-card
+      class="result-card"
+      variant="outlined"
+    >
       <v-card-title class="card-header">
         <v-icon icon="mdi-earth" />
         <span>{{ $t('singleResult.worldMap') }}</span>
       </v-card-title>
       <v-card-text>
-        <v-progress-linear v-if="loading" indeterminate class="mb-3" />
-        <WorldMap :probes="probeMarkers" height="500px" />
+        <v-progress-linear
+          v-if="loading"
+          indeterminate
+          class="mb-3"
+        />
+        <WorldMap
+          :probes="probeMarkers"
+          height="500px"
+        />
       </v-card-text>
     </v-card>
 
-    <v-card class="result-card" variant="outlined" style="margin-top: 20px">
+    <v-card
+      class="result-card"
+      variant="outlined"
+      style="margin-top: 20px"
+    >
       <v-card-title class="card-header">
         <v-icon icon="mdi-format-list-bulleted" />
         <span>{{ $t('singleResult.probeData') }}</span>
       </v-card-title>
 
       <v-card-text>
-        <v-progress-linear v-if="loading" indeterminate class="mb-3" />
+        <v-progress-linear
+          v-if="loading"
+          indeterminate
+          class="mb-3"
+        />
 
         <v-table v-else>
           <thead>
             <tr>
-              <th style="width: 220px">{{ $t('home.probeLabel') }}</th>
-              <th style="width: 160px">{{ $t('results.resolvedIP') }}</th>
-              <th style="width: 160px">{{ $t('results.targetISP') }}</th>
-              <th v-if="isHTTPTask" style="width: 110px">{{ $t('results.httpStatus') }}</th>
-              <th style="width: 130px">{{ $t('singleResult.latency') }}</th>
-              <th style="width: 100px">{{ $t('singleResult.lossRate') }}</th>
+              <th style="width: 220px">
+                {{ $t('home.probeLabel') }}
+              </th>
+              <th style="width: 160px">
+                {{ $t('results.resolvedIP') }}
+              </th>
+              <th style="width: 160px">
+                {{ $t('results.targetISP') }}
+              </th>
+              <th
+                v-if="isHTTPTask"
+                style="width: 110px"
+              >
+                {{ $t('results.httpStatus') }}
+              </th>
+              <th style="width: 130px">
+                {{ $t('singleResult.latency') }}
+              </th>
+              <th style="width: 100px">
+                {{ $t('singleResult.lossRate') }}
+              </th>
               <th>{{ $t('singleResult.stats') }}</th>
-              <th style="width: 110px">{{ $t('results.status') }}</th>
-              <th style="width: 110px">{{ $t('common.actions') }}</th>
+              <th style="width: 110px">
+                {{ $t('results.status') }}
+              </th>
+              <th style="width: 110px">
+                {{ $t('common.actions') }}
+              </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in probeResults" :key="row.probe_id || row.probe_name">
+            <tr
+              v-for="row in probeResults"
+              :key="row.probe_id || row.probe_name"
+            >
               <td>
-                <ProbeCell :location="row.location" :provider="row.provider" />
+                <ProbeCell
+                  :location="row.location"
+                  :provider="row.provider"
+                />
               </td>
               <td>{{ row.ip_address }}</td>
               <td>
@@ -82,7 +136,10 @@
                 <span v-else>-</span>
               </td>
               <td>
-                <div v-if="row.min_latency !== undefined" class="stats-cell">
+                <div
+                  v-if="row.min_latency !== undefined"
+                  class="stats-cell"
+                >
                   <span>{{ $t('singleResult.min') }}: {{ row.min_latency.toFixed(2) }} {{ $t('common.ms') }}</span>
                   <span>{{ $t('singleResult.max') }}: {{ row.max_latency?.toFixed(2) || '-' }} {{ $t('common.ms') }}</span>
                   <span>{{ $t('singleResult.stdev') }}: {{ row.stddev?.toFixed(2) || '-' }} {{ $t('common.ms') }}</span>
@@ -90,12 +147,21 @@
                 <span v-else>-</span>
               </td>
               <td>
-                <v-chip size="small" variant="tonal" :color="getResultStatusColor(row.status)">
+                <v-chip
+                  size="small"
+                  variant="tonal"
+                  :color="getResultStatusColor(row.status)"
+                >
                   {{ row.status === 'success' ? $t('common.success') : row.status === 'failed' ? $t('common.failed') : $t('common.unknown') }}
                 </v-chip>
               </td>
               <td>
-                <v-btn variant="text" color="primary" density="compact" @click="showDetail(row)">
+                <v-btn
+                  variant="text"
+                  color="primary"
+                  density="compact"
+                  @click="showDetail(row)"
+                >
                   {{ $t('common.detail') }}
                 </v-btn>
               </td>
@@ -105,14 +171,19 @@
       </v-card-text>
     </v-card>
 
-    <v-dialog v-model="detailVisible" max-width="600">
+    <v-dialog
+      v-model="detailVisible"
+      max-width="600"
+    >
       <v-card>
         <v-card-title>{{ $t('singleResult.detailTitle') }}</v-card-title>
         <v-card-text v-if="currentDetail">
           <v-table density="compact">
             <tbody>
               <tr>
-                <th style="width: 140px">{{ $t('singleResult.location') }}</th>
+                <th style="width: 140px">
+                  {{ $t('singleResult.location') }}
+                </th>
                 <td>{{ currentDetail.location }}</td>
               </tr>
               <tr v-if="currentDetail.provider">
@@ -144,7 +215,11 @@
               <tr>
                 <th>{{ $t('results.status') }}</th>
                 <td>
-                  <v-chip size="small" variant="tonal" :color="getResultStatusColor(currentDetail.status)">
+                  <v-chip
+                    size="small"
+                    variant="tonal"
+                    :color="getResultStatusColor(currentDetail.status)"
+                  >
                     {{ currentDetail.status === 'success' ? $t('common.success') : currentDetail.status === 'failed' ? $t('common.failed') : $t('common.unknown') }}
                   </v-chip>
                 </td>
@@ -152,15 +227,24 @@
               <tr v-if="currentDetail.http_status_code !== undefined">
                 <th>{{ $t('results.httpStatus') }}</th>
                 <td>
-                  <v-chip size="small" variant="tonal" :color="getHTTPStatusChipColor(currentDetail.http_status_code)">
+                  <v-chip
+                    size="small"
+                    variant="tonal"
+                    :color="getHTTPStatusChipColor(currentDetail.http_status_code)"
+                  >
                     {{ currentDetail.http_status_code }}
                   </v-chip>
-                  <span v-if="currentDetail.http_response_status" style="margin-left: 8px">{{ currentDetail.http_response_status }}</span>
+                  <span
+                    v-if="currentDetail.http_response_status"
+                    style="margin-left: 8px"
+                  >{{ currentDetail.http_response_status }}</span>
                 </td>
               </tr>
               <tr v-if="currentDetail.http_final_url">
                 <th>{{ $t('results.finalUrl') }}</th>
-                <td class="detail-url">{{ currentDetail.http_final_url }}</td>
+                <td class="detail-url">
+                  {{ currentDetail.http_final_url }}
+                </td>
               </tr>
             </tbody>
           </v-table>
@@ -171,14 +255,22 @@
             key-prefix="single-detail"
           />
 
-          <div v-if="currentDetail.raw_data" style="margin-top: 20px">
+          <div
+            v-if="currentDetail.raw_data"
+            style="margin-top: 20px"
+          >
             <h4>{{ $t('resultsPage.rawData') }}</h4>
             <pre class="json-data">{{ JSON.stringify(currentDetail.raw_data, null, 2) }}</pre>
           </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="detailVisible = false">{{ $t('common.close') }}</v-btn>
+          <v-btn
+            variant="text"
+            @click="detailVisible = false"
+          >
+            {{ $t('common.close') }}
+          </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

@@ -16,8 +16,8 @@
               class="type-select-md3"
               data-testid="home-type-select"
               :label="$t('home.type')"
-              @update:model-value="onSelectType"
               style="width: 140px"
+              @update:model-value="onSelectType"
             />
 
             <v-text-field
@@ -85,7 +85,10 @@
           {{ $t('home.tracerouteHint') }}
         </div>
 
-        <div v-if="testType === 'traceroute'" class="probe-select">
+        <div
+          v-if="testType === 'traceroute'"
+          class="probe-select"
+        >
           <v-select
             v-model="selectedProbeIds"
             :items="availableProbeItems"
@@ -109,8 +112,14 @@
         <div class="results-header">
           <h2>{{ $t('results.results') }}</h2>
           <div class="results-actions">
-            <span v-if="taskStatusText" class="result-count">{{ taskStatusText }}</span>
-            <span v-else class="result-count">{{ filteredResults.length }} {{ $t('results.nodes') }}</span>
+            <span
+              v-if="taskStatusText"
+              class="result-count"
+            >{{ taskStatusText }}</span>
+            <span
+              v-else
+              class="result-count"
+            >{{ filteredResults.length }} {{ $t('results.nodes') }}</span>
           </div>
         </div>
 
@@ -151,29 +160,67 @@
           />
         </div>
 
-        <div v-if="filteredResults.length > 0" class="results-table">
+        <div
+          v-if="filteredResults.length > 0"
+          class="results-table"
+        >
           <v-table density="compact">
             <thead>
               <tr>
-                <th style="width: 240px">{{ $t('home.probeLabel') }}</th>
-                <th style="width: 160px">{{ $t('results.resolvedIP') }}</th>
-                <th style="width: 180px">{{ $t('results.targetISP') }}</th>
-                <th v-if="testType === 'http_test'" style="width: 110px; text-align: right">{{ $t('results.httpStatus') }}</th>
-                <th style="width: 110px; text-align: right">{{ $t('results.loss') }}</th>
-                <th style="width: 110px; text-align: right">{{ pageMode === 'continuous' ? $t('results.progress') : '' }}</th>
-                <th style="width: 120px; text-align: right">{{ $t('results.current') }}</th>
-                <th style="width: 120px; text-align: right">{{ $t('results.avg') }}</th>
-                <th style="width: 120px; text-align: right">{{ $t('results.min') }}</th>
-                <th style="width: 120px; text-align: right">{{ $t('results.max') }}</th>
-                <th style="width: 90px; text-align: right">{{ $t('results.chart') }}</th>
+                <th style="width: 240px">
+                  {{ $t('home.probeLabel') }}
+                </th>
+                <th style="width: 160px">
+                  {{ $t('results.resolvedIP') }}
+                </th>
+                <th style="width: 180px">
+                  {{ $t('results.targetISP') }}
+                </th>
+                <th
+                  v-if="testType === 'http_test'"
+                  style="width: 110px; text-align: right"
+                >
+                  {{ $t('results.httpStatus') }}
+                </th>
+                <th style="width: 110px; text-align: right">
+                  {{ $t('results.loss') }}
+                </th>
+                <th style="width: 110px; text-align: right">
+                  {{ pageMode === 'continuous' ? $t('results.progress') : '' }}
+                </th>
+                <th style="width: 120px; text-align: right">
+                  {{ $t('results.current') }}
+                </th>
+                <th style="width: 120px; text-align: right">
+                  {{ $t('results.avg') }}
+                </th>
+                <th style="width: 120px; text-align: right">
+                  {{ $t('results.min') }}
+                </th>
+                <th style="width: 120px; text-align: right">
+                  {{ $t('results.max') }}
+                </th>
+                <th style="width: 90px; text-align: right">
+                  {{ $t('results.chart') }}
+                </th>
               </tr>
             </thead>
 
             <tbody>
-              <template v-for="r in filteredResults" :key="r.probe_id">
-                <tr class="result-row" @click="toggleExpandedProbe(r.probe_id)" style="cursor: pointer">
+              <template
+                v-for="r in filteredResults"
+                :key="r.probe_id"
+              >
+                <tr
+                  class="result-row"
+                  style="cursor: pointer"
+                  @click="toggleExpandedProbe(r.probe_id)"
+                >
                   <td>
-                    <ProbeCell :location="r.location" :provider="r.provider" />
+                    <ProbeCell
+                      :location="r.location"
+                      :provider="r.provider"
+                    />
                   </td>
                   <td>{{ r.resolved_ip || '-' }}</td>
                   <td>
@@ -183,19 +230,32 @@
                       :target_isp="r.target_isp"
                     />
                   </td>
-                  <td v-if="testType === 'http_test'" style="text-align: right" :class="getHTTPStatusTextClass(r.http_status_code)">
+                  <td
+                    v-if="testType === 'http_test'"
+                    style="text-align: right"
+                    :class="getHTTPStatusTextClass(r.http_status_code)"
+                  >
                     {{ r.http_status_code !== undefined ? r.http_status_code : '-' }}
                   </td>
-                  <td style="text-align: right" :class="getLossClass(r.packet_loss)">
+                  <td
+                    style="text-align: right"
+                    :class="getLossClass(r.packet_loss)"
+                  >
                     {{ r.packet_loss !== undefined ? r.packet_loss.toFixed(1) + '%' : '-' }}
                   </td>
                   <td style="text-align: right">
                     {{ pageMode === 'continuous' ? `${r.send_count ?? 0}/${maxRuns}` : '-' }}
                   </td>
-                  <td style="text-align: right" :class="getLatencyTextClass(r.last_latency, r.status)">
+                  <td
+                    style="text-align: right"
+                    :class="getLatencyTextClass(r.last_latency, r.status)"
+                  >
                     {{ r.last_latency !== undefined ? r.last_latency.toFixed(1) + ' ' + $t('common.ms') : '-' }}
                   </td>
-                  <td style="text-align: right" :class="getLatencyTextClass(r.avg_latency)">
+                  <td
+                    style="text-align: right"
+                    :class="getLatencyTextClass(r.avg_latency)"
+                  >
                     {{ r.avg_latency !== undefined ? r.avg_latency.toFixed(1) + ' ' + $t('common.ms') : '-' }}
                   </td>
                   <td style="text-align: right">
@@ -204,30 +264,56 @@
                   <td style="text-align: right">
                     {{ r.max_latency !== undefined ? r.max_latency.toFixed(1) + ' ' + $t('common.ms') : '-' }}
                   </td>
-                  <td style="text-align: right" @click.stop>
-                    <canvas :ref="(el) => registerSparkCanvas(el, r.probe_id)" class="spark-canvas" />
+                  <td
+                    style="text-align: right"
+                    @click.stop
+                  >
+                    <canvas
+                      :ref="(el) => registerSparkCanvas(el, r.probe_id)"
+                      class="spark-canvas"
+                    />
                   </td>
                 </tr>
 
                 <tr v-if="expandedProbeIds.includes(r.probe_id)">
-                  <td :colspan="resultsColumnCount" class="detail-cell">
-                    <div v-if="tracerouteData[r.probe_id]?.hops?.length" class="row-detail">
-                      <h4 class="detail-title">{{ $t('results.tracerouteDetail') }}</h4>
+                  <td
+                    :colspan="resultsColumnCount"
+                    class="detail-cell"
+                  >
+                    <div
+                      v-if="tracerouteData[r.probe_id]?.hops?.length"
+                      class="row-detail"
+                    >
+                      <h4 class="detail-title">
+                        {{ $t('results.tracerouteDetail') }}
+                      </h4>
                       <v-table density="compact">
                         <thead>
                           <tr>
-                            <th style="width: 70px">{{ $t('home.route.hop') }}</th>
+                            <th style="width: 70px">
+                              {{ $t('home.route.hop') }}
+                            </th>
                             <th>{{ $t('home.route.ip') }}</th>
-                            <th style="width: 110px">{{ $t('home.route.rtt') }}</th>
-                            <th style="width: 90px">{{ $t('results.status') }}</th>
+                            <th style="width: 110px">
+                              {{ $t('home.route.rtt') }}
+                            </th>
+                            <th style="width: 90px">
+                              {{ $t('results.status') }}
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
-                          <tr v-for="hop in tracerouteData[r.probe_id].hops" :key="hop.hop">
+                          <tr
+                            v-for="hop in tracerouteData[r.probe_id].hops"
+                            :key="hop.hop"
+                          >
                             <td>{{ hop.hop }}</td>
                             <td>
                               <div>{{ hop.ip || '*' }}</div>
-                              <div v-if="hop.geo" class="hop-geo">
+                              <div
+                                v-if="hop.geo"
+                                class="hop-geo"
+                              >
                                 {{ [hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city].filter(Boolean).join(' ') }}
                               </div>
                             </td>
@@ -244,27 +330,47 @@
                       </v-table>
                     </div>
 
-                    <div v-else-if="testType === 'http_test' && getHTTPAttempts(httpDetails[r.probe_id]).length > 0" class="row-detail">
-                      <h4 class="detail-title">{{ $t('results.httpDetail') }}</h4>
+                    <div
+                      v-else-if="testType === 'http_test' && getHTTPAttempts(httpDetails[r.probe_id]).length > 0"
+                      class="row-detail"
+                    >
+                      <h4 class="detail-title">
+                        {{ $t('results.httpDetail') }}
+                      </h4>
 
                       <v-table density="compact">
                         <thead>
                           <tr>
-                            <th style="width: 70px">{{ $t('results.attempt') }}</th>
-                            <th style="width: 90px">{{ $t('results.statusCode') }}</th>
-                            <th style="width: 110px">{{ $t('singleResult.latency') }}</th>
-                            <th style="width: 150px">{{ $t('results.resolvedIP') }}</th>
+                            <th style="width: 70px">
+                              {{ $t('results.attempt') }}
+                            </th>
+                            <th style="width: 90px">
+                              {{ $t('results.statusCode') }}
+                            </th>
+                            <th style="width: 110px">
+                              {{ $t('singleResult.latency') }}
+                            </th>
+                            <th style="width: 150px">
+                              {{ $t('results.resolvedIP') }}
+                            </th>
                             <th>{{ $t('results.finalUrl') }}</th>
-                            <th style="width: 90px">{{ $t('results.status') }}</th>
+                            <th style="width: 90px">
+                              {{ $t('results.status') }}
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
-                          <tr v-for="attempt in getHTTPAttempts(httpDetails[r.probe_id])" :key="`${r.probe_id}-${attempt.seq ?? 0}`">
+                          <tr
+                            v-for="attempt in getHTTPAttempts(httpDetails[r.probe_id])"
+                            :key="`${r.probe_id}-${attempt.seq ?? 0}`"
+                          >
                             <td>{{ attempt.seq ?? '-' }}</td>
                             <td>{{ attempt.statusCode ?? '-' }}</td>
                             <td>{{ attempt.timeMs !== undefined ? attempt.timeMs.toFixed(1) + ' ' + $t('common.ms') : '-' }}</td>
                             <td>{{ attempt.resolvedIP || '-' }}</td>
-                            <td class="http-url-cell">{{ attempt.finalURL || '-' }}</td>
+                            <td class="http-url-cell">
+                              {{ attempt.finalURL || '-' }}
+                            </td>
                             <td>{{ attempt.status === 'success' ? $t('common.success') : attempt.status === 'failed' ? $t('common.failed') : $t('common.unknown') }}</td>
                           </tr>
                         </tbody>
@@ -276,7 +382,10 @@
                       />
                     </div>
 
-                    <div v-else class="row-detail-empty">
+                    <div
+                      v-else
+                      class="row-detail-empty"
+                    >
                       <span class="text-muted">
                         {{ testType === 'http_test' ? $t('results.noHttpData') : $t('results.noRouteData') }}
                       </span>
@@ -287,7 +396,6 @@
             </tbody>
           </v-table>
         </div>
-
       </div>
     </main>
   </div>

@@ -1,8 +1,15 @@
 <template>
   <div class="continuous-test-result">
     <div class="page-header">
-      <v-btn variant="text" @click="router.back()">{{ $t('common.back') }}</v-btn>
-      <div class="page-title">{{ $t('continuous.title') }} - {{ taskId }}</div>
+      <v-btn
+        variant="text"
+        @click="router.back()"
+      >
+        {{ $t('common.back') }}
+      </v-btn>
+      <div class="page-title">
+        {{ $t('continuous.title') }} - {{ taskId }}
+      </div>
 
       <v-chip
         size="small"
@@ -27,12 +34,19 @@
       </v-btn>
     </div>
 
-    <v-card class="result-card" variant="outlined">
+    <v-card
+      class="result-card"
+      variant="outlined"
+    >
       <v-card-title class="card-header">
         <span>{{ $t('taskTable.target') }}: {{ target }}</span>
       </v-card-title>
       <v-card-text>
-        <v-progress-linear v-if="loading" indeterminate class="mb-3" />
+        <v-progress-linear
+          v-if="loading"
+          indeterminate
+          class="mb-3"
+        />
 
         <div class="result-table">
           <v-alert
@@ -44,27 +58,56 @@
             {{ $t('continuous.noData') }}
           </v-alert>
 
-          <div v-else style="overflow-x: auto">
+          <div
+            v-else
+            style="overflow-x: auto"
+          >
             <v-table density="compact">
               <thead>
                 <tr>
-                  <th style="width: 220px">{{ $t('home.probeLabel') }}</th>
-                  <th style="width: 160px">{{ $t('results.resolvedIP') }}</th>
-                  <th style="width: 180px">{{ $t('results.targetISP') }}</th>
-                  <th style="width: 100px; text-align: center">{{ $t('results.loss') }}</th>
-                  <th style="width: 80px; text-align: center">{{ $t('continuous.count') }}</th>
-                  <th style="width: 100px; text-align: center">{{ $t('continuous.last') }}</th>
-                  <th style="width: 100px; text-align: center">{{ $t('results.avg') }}</th>
-                  <th style="width: 100px; text-align: center">{{ $t('results.min') }}</th>
-                  <th style="width: 100px; text-align: center">{{ $t('results.max') }}</th>
-                  <th style="width: 100px; text-align: center">{{ $t('continuous.stdev') }}</th>
+                  <th style="width: 220px">
+                    {{ $t('home.probeLabel') }}
+                  </th>
+                  <th style="width: 160px">
+                    {{ $t('results.resolvedIP') }}
+                  </th>
+                  <th style="width: 180px">
+                    {{ $t('results.targetISP') }}
+                  </th>
+                  <th style="width: 100px; text-align: center">
+                    {{ $t('results.loss') }}
+                  </th>
+                  <th style="width: 80px; text-align: center">
+                    {{ $t('continuous.count') }}
+                  </th>
+                  <th style="width: 100px; text-align: center">
+                    {{ $t('continuous.last') }}
+                  </th>
+                  <th style="width: 100px; text-align: center">
+                    {{ $t('results.avg') }}
+                  </th>
+                  <th style="width: 100px; text-align: center">
+                    {{ $t('results.min') }}
+                  </th>
+                  <th style="width: 100px; text-align: center">
+                    {{ $t('results.max') }}
+                  </th>
+                  <th style="width: 100px; text-align: center">
+                    {{ $t('continuous.stdev') }}
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
-                <tr v-for="probe in probeStats" :key="probe.probe_id">
+                <tr
+                  v-for="probe in probeStats"
+                  :key="probe.probe_id"
+                >
                   <td>
-                    <ProbeCell :location="probe.location" :provider="probe.provider" />
+                    <ProbeCell
+                      :location="probe.location"
+                      :provider="probe.provider"
+                    />
                   </td>
                   <td>{{ probe.resolved_ip || '-' }}</td>
                   <td>
@@ -75,12 +118,19 @@
                     />
                   </td>
                   <td style="text-align: center">
-                    <v-chip v-if="probe.packet_loss !== undefined" size="small" variant="tonal" :color="getLossColor(probe.packet_loss)">
+                    <v-chip
+                      v-if="probe.packet_loss !== undefined"
+                      size="small"
+                      variant="tonal"
+                      :color="getLossColor(probe.packet_loss)"
+                    >
                       {{ probe.packet_loss.toFixed(1) }}%
                     </v-chip>
                     <span v-else>-</span>
                   </td>
-                  <td style="text-align: center">{{ probe.test_count }}</td>
+                  <td style="text-align: center">
+                    {{ probe.test_count }}
+                  </td>
                   <td style="text-align: center">
                     <v-chip
                       v-if="probe.last_latency !== undefined"
@@ -93,7 +143,10 @@
                     <span v-else>-</span>
                   </td>
                   <td style="text-align: center">
-                    <span v-if="probe.avg_latency !== undefined" :class="getLatencyTextClass(probe.avg_latency, 'success')">
+                    <span
+                      v-if="probe.avg_latency !== undefined"
+                      :class="getLatencyTextClass(probe.avg_latency, 'success')"
+                    >
                       {{ probe.avg_latency.toFixed(2) }}
                     </span>
                     <span v-else>-</span>
@@ -131,7 +184,10 @@
         <span>{{ $t('continuous.latencyChart') }}</span>
       </v-card-title>
       <v-card-text>
-        <div ref="chartContainer" class="chart-container" />
+        <div
+          ref="chartContainer"
+          class="chart-container"
+        />
       </v-card-text>
     </v-card>
   </div>

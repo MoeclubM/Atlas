@@ -1,7 +1,14 @@
 <template>
-  <header class="topbar" v-if="showTopBar" data-testid="topbar">
+  <header
+    v-if="showTopBar"
+    class="topbar"
+    data-testid="topbar"
+  >
     <div class="topbar-inner">
-      <div class="brand" @click="router.push('/')">
+      <div
+        class="brand"
+        @click="router.push('/')"
+      >
         <span class="brand-text">Atlas</span>
       </div>
 
@@ -9,10 +16,10 @@
         <!-- 主题切换按钮 -->
         <v-btn
           icon
-          @click="toggleTheme"
           :title="isDark ? $t('home.themeLight') : $t('home.themeDark')"
           variant="text"
           size="small"
+          @click="toggleTheme"
         >
           <v-icon>{{ isDark ? 'mdi-weather-sunny' : 'mdi-weather-night' }}</v-icon>
         </v-btn>
@@ -29,7 +36,9 @@
             >
               <v-icon>mdi-translate</v-icon>
               <span class="locale-label">{{ currentLocaleLabel }}</span>
-              <v-icon size="18">mdi-chevron-down</v-icon>
+              <v-icon size="18">
+                mdi-chevron-down
+              </v-icon>
             </v-btn>
           </template>
 

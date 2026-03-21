@@ -2,40 +2,77 @@
   <div class="admin-page">
     <div class="admin-header">
       <h1>{{ $t('admin.title') }}</h1>
-      <v-btn variant="outlined" @click="logout">
+      <v-btn
+        variant="outlined"
+        @click="logout"
+      >
         {{ $t('admin.logout') }}
       </v-btn>
     </div>
 
-    <v-card class="admin-card" variant="outlined">
-      <v-tabs v-model="activeTab" color="primary">
-        <v-tab value="nodes">{{ $t('admin.nodes') }}</v-tab>
-        <v-tab value="keys">{{ $t('admin.keysTab') }}</v-tab>
-        <v-tab value="blocked">{{ $t('admin.blockedTab') }}</v-tab>
-        <v-tab value="test">{{ $t('admin.testTab') }}</v-tab>
+    <v-card
+      class="admin-card"
+      variant="outlined"
+    >
+      <v-tabs
+        v-model="activeTab"
+        color="primary"
+      >
+        <v-tab value="nodes">
+          {{ $t('admin.nodes') }}
+        </v-tab>
+        <v-tab value="keys">
+          {{ $t('admin.keysTab') }}
+        </v-tab>
+        <v-tab value="blocked">
+          {{ $t('admin.blockedTab') }}
+        </v-tab>
+        <v-tab value="test">
+          {{ $t('admin.testTab') }}
+        </v-tab>
       </v-tabs>
 
       <v-window v-model="activeTab">
         <!-- 节点列表 -->
         <v-window-item value="nodes">
           <div class="tab-content">
-            <v-progress-linear v-if="loading" indeterminate />
+            <v-progress-linear
+              v-if="loading"
+              indeterminate
+            />
 
             <v-table v-else>
               <thead>
                 <tr>
-                  <th style="width: 220px">{{ $t('admin.nodeName') }}</th>
-                  <th style="width: 320px">{{ $t('admin.nodeId') }}</th>
-                  <th style="width: 110px">{{ $t('admin.version') }}</th>
-                  <th style="width: 160px">{{ $t('admin.ipAddress') }}</th>
-                  <th style="width: 220px">{{ $t('admin.providerLabel') }}</th>
+                  <th style="width: 220px">
+                    {{ $t('admin.nodeName') }}
+                  </th>
+                  <th style="width: 320px">
+                    {{ $t('admin.nodeId') }}
+                  </th>
+                  <th style="width: 110px">
+                    {{ $t('admin.version') }}
+                  </th>
+                  <th style="width: 160px">
+                    {{ $t('admin.ipAddress') }}
+                  </th>
+                  <th style="width: 220px">
+                    {{ $t('admin.providerLabel') }}
+                  </th>
                   <th>{{ $t('admin.location') }}</th>
-                  <th style="width: 110px">{{ $t('admin.status') }}</th>
-                  <th style="width: 190px">{{ $t('admin.actions') }}</th>
+                  <th style="width: 110px">
+                    {{ $t('admin.status') }}
+                  </th>
+                  <th style="width: 190px">
+                    {{ $t('admin.actions') }}
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in probes" :key="row.probe_id">
+                <tr
+                  v-for="row in probes"
+                  :key="row.probe_id"
+                >
                   <td>
                     <v-text-field
                       v-model="row.name"
@@ -103,7 +140,9 @@
             <v-card variant="outlined">
               <v-card-title>{{ $t('admin.secretConfig') }}</v-card-title>
               <v-card-text>
-                <p class="hint">{{ $t('admin.secretHint') }}</p>
+                <p class="hint">
+                  {{ $t('admin.secretHint') }}
+                </p>
 
                 <v-textarea
                   v-model="config.shared_secret"
@@ -115,20 +154,41 @@
                 />
 
                 <div class="actions-row">
-                  <v-btn color="primary" @click="saveConfig">{{ $t('common.save') }}</v-btn>
-                  <v-btn variant="tonal" @click="generateSecret">{{ $t('admin.generate') }}</v-btn>
+                  <v-btn
+                    color="primary"
+                    @click="saveConfig"
+                  >
+                    {{ $t('common.save') }}
+                  </v-btn>
+                  <v-btn
+                    variant="tonal"
+                    @click="generateSecret"
+                  >
+                    {{ $t('admin.generate') }}
+                  </v-btn>
                 </div>
               </v-card-text>
             </v-card>
 
-            <v-card variant="outlined" style="margin-top: 20px">
+            <v-card
+              variant="outlined"
+              style="margin-top: 20px"
+            >
               <v-card-title>{{ $t('admin.address') }}</v-card-title>
               <v-card-text>
-                <p class="hint">{{ $t('admin.connectAddressHint') }}</p>
+                <p class="hint">
+                  {{ $t('admin.connectAddressHint') }}
+                </p>
 
                 <div class="code-box">
                   <code>{{ wsUrl }}</code>
-                  <v-btn size="small" variant="tonal" @click="copyAddress">{{ $t('admin.copyAddress') }}</v-btn>
+                  <v-btn
+                    size="small"
+                    variant="tonal"
+                    @click="copyAddress"
+                  >
+                    {{ $t('admin.copyAddress') }}
+                  </v-btn>
                 </div>
               </v-card-text>
             </v-card>
@@ -141,7 +201,9 @@
             <v-card variant="outlined">
               <v-card-title>{{ $t('admin.blockedConfig') }}</v-card-title>
               <v-card-text>
-                <p class="hint">{{ $t('admin.blockedHint') }}</p>
+                <p class="hint">
+                  {{ $t('admin.blockedHint') }}
+                </p>
 
                 <v-textarea
                   v-model="config.blocked_networks"
@@ -153,7 +215,12 @@
                 />
 
                 <div class="actions-row">
-                  <v-btn color="primary" @click="saveConfig">{{ $t('common.save') }}</v-btn>
+                  <v-btn
+                    color="primary"
+                    @click="saveConfig"
+                  >
+                    {{ $t('common.save') }}
+                  </v-btn>
                 </div>
               </v-card-text>
             </v-card>
@@ -166,7 +233,9 @@
             <v-card variant="outlined">
               <v-card-title>{{ $t('admin.testConfig') }}</v-card-title>
               <v-card-text>
-                <p class="hint">{{ $t('admin.testHint') }}</p>
+                <p class="hint">
+                  {{ $t('admin.testHint') }}
+                </p>
 
                 <div class="test-config-grid">
                   <v-text-field
@@ -199,7 +268,12 @@
                 </div>
 
                 <div class="actions-row">
-                  <v-btn color="primary" @click="saveConfig">{{ $t('common.save') }}</v-btn>
+                  <v-btn
+                    color="primary"
+                    @click="saveConfig"
+                  >
+                    {{ $t('common.save') }}
+                  </v-btn>
                 </div>
               </v-card-text>
             </v-card>

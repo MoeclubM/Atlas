@@ -1,6 +1,8 @@
 <template>
   <div class="provider-cell">
-    <div class="provider-line-1">{{ target_asn || '-' }}</div>
+    <div class="provider-line-1">
+      {{ target_asn || '-' }}
+    </div>
     <div class="provider-line-2">
       {{ line2 || '-' }}
     </div>
