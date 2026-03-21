@@ -154,19 +154,30 @@ Atlas/
 ### 安装/升级
 在 Ubuntu/Debian 机器上执行（以 root 运行）：
 
-- 安装 latest：
+- 一键安装并直接接入控制端：
 ```bash
-sudo bash probe/scripts/install.sh
+sudo bash probe/scripts/install.sh \
+  --server-url wss://atlas.example.com/ws \
+  --auth-token 'YOUR_SHARED_SECRET' \
+  --probe-name 'hk-probe-01'
+```
+
+- 安装 latest（仅安装，不启动；随后可手动编辑配置）：
+```bash
+sudo bash probe/scripts/install.sh --no-start
 ```
 
 - 安装指定版本（回滚）：
 ```bash
-sudo bash probe/scripts/install.sh --version vX.Y.Z
+sudo bash probe/scripts/install.sh \
+  --version vX.Y.Z \
+  --server-url wss://atlas.example.com/ws \
+  --auth-token 'YOUR_SHARED_SECRET'
 ```
 
 安装后：
 - 二进制：`/usr/local/bin/atlas-probe`
-- 配置：`/etc/atlas-probe/config.yaml`（仅首次创建；请编辑其中的 `server.url` 与 `server.auth_token`）
+- 配置：`/etc/atlas-probe/config.yaml`
 - 服务：`atlas-probe.service`
 
 常用命令：
@@ -179,6 +190,7 @@ sudo journalctl -u atlas-probe -f
 ### 校验与安全建议
 - 安装脚本会从 Release 下载 `checksums.txt` 并对 tar.gz 进行 SHA256 校验
 - systemd unit 默认启用 `NoNewPrivileges=true` 等基础加固项，并使用系统用户 `atlas-probe` 运行
+- 安装脚本支持通过环境变量非交互传参：`ATLAS_SERVER_URL`、`ATLAS_AUTH_TOKEN`、`ATLAS_PROBE_NAME`
 
 ## 📊 地图颜色说明
 

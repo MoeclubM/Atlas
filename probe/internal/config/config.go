@@ -13,7 +13,6 @@ type Config struct {
 	Server       ServerConfig   `yaml:"server"`
 	Capabilities []string       `yaml:"capabilities"`
 	Executor     ExecutorConfig `yaml:"executor"`
-	Logging      LoggingConfig  `yaml:"logging"`
 }
 
 // ProbeConfig 探针信息
@@ -27,22 +26,16 @@ type ProbeConfig struct {
 
 // ServerConfig 服务器连接配置
 type ServerConfig struct {
-	URL                   string `yaml:"url"`                     // WebSocket URL
-	AuthToken             string `yaml:"auth_token"`
-	ReconnectInterval     int    `yaml:"reconnect_interval"`      // 秒
-	MaxReconnectAttempts  int    `yaml:"max_reconnect_attempts"`  // 0表示无限重试
+	URL                  string `yaml:"url"` // WebSocket URL
+	AuthToken            string `yaml:"auth_token"`
+	ReconnectInterval    int    `yaml:"reconnect_interval"`     // 秒
+	MaxReconnectAttempts int    `yaml:"max_reconnect_attempts"` // 0表示无限重试
 }
 
 // ExecutorConfig 执行器配置
 type ExecutorConfig struct {
 	MaxConcurrentTasks int `yaml:"max_concurrent_tasks"`
 	TaskTimeout        int `yaml:"task_timeout"` // 秒
-}
-
-// LoggingConfig 日志配置
-type LoggingConfig struct {
-	Level string `yaml:"level"` // debug/info/warn/error
-	File  string `yaml:"file"`
 }
 
 // Load 加载配置文件
@@ -64,10 +57,6 @@ func Load(configPath string) (*Config, error) {
 		Executor: ExecutorConfig{
 			MaxConcurrentTasks: 5,
 			TaskTimeout:        300,
-		},
-		Logging: LoggingConfig{
-			Level: "info",
-			File:  "./logs/probe.log",
 		},
 	}
 

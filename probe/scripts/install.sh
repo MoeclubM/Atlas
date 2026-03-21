@@ -12,25 +12,28 @@ DEFAULT_STATE_DIR="/var/lib/atlas-probe"
 DEFAULT_SERVICE_NAME="atlas-probe.service"
 DEFAULT_USER="atlas-probe"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 usage() {
   cat <<'EOF'
 Atlas Probe installer (Debian/Ubuntu)
 
 Usage:
-  sudo ./install.sh [--version vX.Y.Z] [--repo owner/name]
+  sudo ./install.sh [--version vX.Y.Z] [--repo owner/name] [--server-url ws://host:18080/ws] [--auth-token xxx] [--probe-name name]
 
 Options:
-  --version <tag>    Install specific release tag (e.g. v1.2.3). Default: latest
-  --repo <owner/name>Override GitHub repo. Default: MoeclubM/Atlas
+  --version <tag>      Install specific release tag (e.g. v1.2.3). Default: latest
+  --repo <owner/name>  Override GitHub repo. Default: MoeclubM/Atlas
+  --server-url <url>   WebSocket controller URL, e.g. wss://atlas.example.com/ws
+  --auth-token <token> Probe auth token. Must equal Web SHARED_SECRET
+  --probe-name <name>  Probe name. Default: atlas-probe
+  --no-start           Install/update files only. Do not enable or start the service
 
 This script:
   - Installs required packages: iputils-ping, traceroute, ca-certificates, curl
   - Downloads atlas-probe from GitHub Releases and verifies SHA256 from checksums.txt
   - Creates user atlas-probe and required directories
-  - Writes config at /etc/atlas-probe/config.yaml (only if missing)
-  - Installs systemd unit and enables service
+  - Writes config at /etc/atlas-probe/config.yaml
+  - Installs systemd unit
+  - Starts service immediately when controller URL and auth token are configured
 EOF
 }
 
@@ -40,8 +43,6 @@ need_root() {
     exit 1
   fi
 }
-
-have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 apt_install_deps() {
   export DEBIAN_FRONTEND=noninteractive
@@ -90,9 +91,11 @@ download_release_assets() {
 
   local base_url="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${version}"
   local tgz="${DEFAULT_BIN_NAME}_${version}_linux_${arch}.tar.gz"
+  local work_dir
 
-  mkdir -p /tmp/atlas-probe-install
-  cd /tmp/atlas-probe-install
+  work_dir="$(mktemp -d /tmp/atlas-probe-install.XXXXXX)"
+  trap 'rm -rf "${work_dir}"' RETURN
+  cd "${work_dir}"
 
   curl -fsSLO "${base_url}/${tgz}"
   curl -fsSLO "${base_url}/checksums.txt"
@@ -122,29 +125,61 @@ ensure_user_and_dirs() {
   chown -R "${DEFAULT_USER}:${DEFAULT_USER}" "${DEFAULT_STATE_DIR}"
 }
 
-install_config_if_missing() {
-  if [[ -f "${DEFAULT_CONFIG_PATH}" ]]; then
+yaml_escape() {
+  local value="$1"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  printf '%s' "${value}"
+}
+
+read_config_value() {
+  local section="$1"
+  local key="$2"
+
+  if [[ ! -f "${DEFAULT_CONFIG_PATH}" ]]; then
     return
   fi
 
-  if [[ -f "${SCRIPT_DIR}/config.yaml.template" ]]; then
-    install -m 0644 "${SCRIPT_DIR}/config.yaml.template" "${DEFAULT_CONFIG_PATH}"
-  else
-    cat >"${DEFAULT_CONFIG_PATH}" <<'EOF'
+  awk -v section="${section}" -v key="${key}" '
+    $0 ~ ("^" section ":") { in_section = 1; next }
+    in_section && /^[^[:space:]]/ { in_section = 0 }
+    in_section && $1 == key ":" {
+      sub(/^[^:]+:[[:space:]]*/, "", $0)
+      gsub(/^"/, "", $0)
+      gsub(/"$/, "", $0)
+      print $0
+      exit
+    }
+  ' "${DEFAULT_CONFIG_PATH}"
+}
+
+is_placeholder_config() {
+  local server_url="$1"
+  local auth_token="$2"
+  [[ -z "${server_url}" || -z "${auth_token}" || "${server_url}" == *"YOUR_WEB_HOST"* || "${auth_token}" == "YOUR_SHARED_SECRET" ]]
+}
+
+write_config() {
+  local probe_name="$1"
+  local server_url="$2"
+  local auth_token="$3"
+
+  cat >"${DEFAULT_CONFIG_PATH}" <<EOF
 probe:
-  name: "atlas-probe"
+  name: "$(yaml_escape "${probe_name}")"
   # location/region/lat/lon are auto-detected by probe at runtime.
 
 server:
   # IMPORTANT: set to your web server WS endpoint
-  url: "ws://YOUR_WEB_HOST:18080/ws"
+  url: "$(yaml_escape "${server_url}")"
 
   # IMPORTANT: must equal Web SHARED_SECRET
-  auth_token: "YOUR_SHARED_SECRET"
+  auth_token: "$(yaml_escape "${auth_token}")"
 
   reconnect_interval: 5
   max_reconnect_attempts: 0
 
+capabilities:
   - icmp_ping
   - tcp_ping
   - traceroute
@@ -152,24 +187,15 @@ server:
 executor:
   max_concurrent_tasks: 5
   task_timeout: 300
-
-logging:
-  level: info
-  file: /var/log/atlas-probe/probe.log
 EOF
-  fi
 
-  mkdir -p /var/log/atlas-probe
-  chown -R "${DEFAULT_USER}:${DEFAULT_USER}" /var/log/atlas-probe
+  chmod 0640 "${DEFAULT_CONFIG_PATH}"
+  chown root:"${DEFAULT_USER}" "${DEFAULT_CONFIG_PATH}"
 }
 
 install_systemd_unit() {
   local unit_path="/etc/systemd/system/${DEFAULT_SERVICE_NAME}"
-
-  if [[ -f "${SCRIPT_DIR}/atlas-probe.service" ]]; then
-    install -m 0644 "${SCRIPT_DIR}/atlas-probe.service" "${unit_path}"
-  else
-    cat >"${unit_path}" <<EOF
+  cat >"${unit_path}" <<EOF
 [Unit]
 Description=Atlas Probe
 After=network-online.target
@@ -193,15 +219,56 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=${DEFAULT_STATE_DIR} /var/log/atlas-probe ${DEFAULT_CONFIG_DIR}
+ReadWritePaths=${DEFAULT_STATE_DIR} ${DEFAULT_CONFIG_DIR}
 
 [Install]
 WantedBy=multi-user.target
 EOF
+
+  chmod 0644 "${unit_path}"
+}
+
+apply_config() {
+  local requested_probe_name="$1"
+  local requested_server_url="$2"
+  local requested_auth_token="$3"
+
+  local current_probe_name current_server_url current_auth_token
+  local effective_probe_name effective_server_url effective_auth_token
+
+  current_probe_name="$(read_config_value probe name || true)"
+  current_server_url="$(read_config_value server url || true)"
+  current_auth_token="$(read_config_value server auth_token || true)"
+
+  effective_probe_name="${requested_probe_name:-${current_probe_name:-atlas-probe}}"
+  effective_server_url="${requested_server_url:-${current_server_url:-ws://YOUR_WEB_HOST:18080/ws}}"
+  effective_auth_token="${requested_auth_token:-${current_auth_token:-YOUR_SHARED_SECRET}}"
+
+  if [[ ! -f "${DEFAULT_CONFIG_PATH}" || -n "${requested_probe_name}" || -n "${requested_server_url}" || -n "${requested_auth_token}" ]]; then
+    if [[ -f "${DEFAULT_CONFIG_PATH}" ]]; then
+      cp -f "${DEFAULT_CONFIG_PATH}" "${DEFAULT_CONFIG_PATH}.bak"
+    fi
+    write_config "${effective_probe_name}" "${effective_server_url}" "${effective_auth_token}"
   fi
 
+  if is_placeholder_config "${effective_server_url}" "${effective_auth_token}"; then
+    return 1
+  fi
+  return 0
+}
+
+manage_service() {
+  local should_start="$1"
+
   systemctl daemon-reload
-  systemctl enable --now "${DEFAULT_SERVICE_NAME}"
+  if [[ "${should_start}" == "1" ]]; then
+    systemctl enable "${DEFAULT_SERVICE_NAME}" >/dev/null 2>&1 || true
+    if systemctl is-active --quiet "${DEFAULT_SERVICE_NAME}"; then
+      systemctl restart "${DEFAULT_SERVICE_NAME}"
+    else
+      systemctl start "${DEFAULT_SERVICE_NAME}"
+    fi
+  fi
 }
 
 main() {
@@ -209,6 +276,10 @@ main() {
 
   local version=""
   local repo_override=""
+  local server_url="${ATLAS_SERVER_URL:-}"
+  local auth_token="${ATLAS_AUTH_TOKEN:-}"
+  local probe_name="${ATLAS_PROBE_NAME:-}"
+  local no_start="0"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -216,6 +287,14 @@ main() {
         version="$2"; shift 2 ;;
       --repo)
         repo_override="$2"; shift 2 ;;
+      --server-url)
+        server_url="$2"; shift 2 ;;
+      --auth-token)
+        auth_token="$2"; shift 2 ;;
+      --probe-name)
+        probe_name="$2"; shift 2 ;;
+      --no-start)
+        no_start="1"; shift ;;
       -h|--help)
         usage; exit 0 ;;
       *)
@@ -250,17 +329,29 @@ main() {
   echo "Ensuring user and directories..."
   ensure_user_and_dirs
 
-  echo "Installing config if missing..."
-  install_config_if_missing
+  echo "Writing config..."
+  local config_ready="0"
+  if apply_config "${probe_name}" "${server_url}" "${auth_token}"; then
+    config_ready="1"
+  fi
 
   echo "Installing systemd unit..."
   install_systemd_unit
 
-  echo "Done. Service status:"
-  systemctl --no-pager --full status "${DEFAULT_SERVICE_NAME}" || true
-
-  echo "Note: edit ${DEFAULT_CONFIG_PATH} and set server.url + server.auth_token, then:"
-  echo "  sudo systemctl restart ${DEFAULT_SERVICE_NAME}"
+  if [[ "${no_start}" == "1" ]]; then
+    echo "Skipping service start because --no-start was provided."
+  elif [[ "${config_ready}" == "1" ]]; then
+    echo "Enabling and starting service..."
+    manage_service "1"
+    echo "Done. Service status:"
+    systemctl --no-pager --full status "${DEFAULT_SERVICE_NAME}" || true
+  else
+    echo "Controller URL / auth token are not configured; service was not started."
+    echo "Set them with one command, for example:"
+    echo "  sudo bash probe/scripts/install.sh --server-url wss://atlas.example.com/ws --auth-token YOUR_SHARED_SECRET --probe-name $(hostname -s)"
+    echo "Or edit ${DEFAULT_CONFIG_PATH}, then run:"
+    echo "  sudo systemctl enable --now ${DEFAULT_SERVICE_NAME}"
+  fi
 }
 
 main "$@"

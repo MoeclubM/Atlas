@@ -66,7 +66,6 @@ func (c *Connection) handleRegister(msg map[string]interface{}) error {
 		Status:        "online",
 		LastHeartbeat: time.Now(),
 		Metadata:      string(metadataJSON),
-		AuthToken:     registerMsg.AuthToken,
 	}
 
 	// 从 metadata 中提取经纬度(如果有)

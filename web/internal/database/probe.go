@@ -55,8 +55,7 @@ func (d *Database) SaveProbe(probe *model.Probe) error {
 
 // GetProbe 根据ProbeID获取探针信息
 func (d *Database) GetProbe(probeID string) (*model.Probe, error) {
-	query := `SELECT id, probe_id, name, location, region, latitude, longitude, ip_address, capabilities, status, last_heartbeat, registered_at, metadata,
-	          COALESCE(auth_token, '') AS auth_token
+	query := `SELECT id, probe_id, name, location, region, latitude, longitude, ip_address, capabilities, status, last_heartbeat, registered_at, metadata
 	          FROM probes WHERE probe_id = ?`
 
 	probe := &model.Probe{}
@@ -74,7 +73,6 @@ func (d *Database) GetProbe(probeID string) (*model.Probe, error) {
 		&probe.LastHeartbeat,
 		&probe.RegisteredAt,
 		&probe.Metadata,
-		&probe.AuthToken,
 	)
 
 	if err == sql.ErrNoRows {
@@ -184,16 +182,6 @@ func (d *Database) GetOnlineProbes() ([]*model.Probe, error) {
 	}
 
 	return probes, nil
-}
-
-// ValidateAuthToken 验证认证令牌
-func (d *Database) ValidateAuthToken(token string) (bool, error) {
-	var count int
-	err := d.db.QueryRow("SELECT COUNT(*) FROM probes WHERE auth_token = ?", token).Scan(&count)
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
 }
 
 // DeleteProbe 删除探针

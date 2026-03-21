@@ -11,13 +11,12 @@ import (
 // CreateTask 创建新任务
 func (d *Database) CreateTask(task *model.Task) error {
 	query := `
-		INSERT INTO tasks (task_id, user_id, task_type, mode, target, parameters, assigned_probes, status, schedule, priority, next_run_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO tasks (task_id, task_type, mode, target, parameters, assigned_probes, status, schedule, priority, next_run_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := d.db.Exec(query,
 		task.TaskID,
-		task.UserID,
 		task.TaskType,
 		task.Mode,
 		task.Target,
@@ -34,7 +33,7 @@ func (d *Database) CreateTask(task *model.Task) error {
 
 // GetTask 获取任务详情
 func (d *Database) GetTask(taskID string) (*model.Task, error) {
-	query := `SELECT id, task_id, user_id, task_type, mode, target, parameters, assigned_probes, status, schedule, priority,
+	query := `SELECT id, task_id, task_type, mode, target, parameters, assigned_probes, status, schedule, priority,
 	          created_at, started_at, completed_at, next_run_at
 	          FROM tasks WHERE task_id = ?`
 
@@ -42,7 +41,6 @@ func (d *Database) GetTask(taskID string) (*model.Task, error) {
 	err := d.db.QueryRow(query, taskID).Scan(
 		&task.ID,
 		&task.TaskID,
-		&task.UserID,
 		&task.TaskType,
 		&task.Mode,
 		&task.Target,
@@ -66,7 +64,7 @@ func (d *Database) GetTask(taskID string) (*model.Task, error) {
 
 // ListTasks 列出任务
 func (d *Database) ListTasks(status string, limit, offset int) ([]*model.Task, error) {
-	query := `SELECT id, task_id, user_id, task_type, mode, target, parameters, assigned_probes, status, schedule, priority,
+	query := `SELECT id, task_id, task_type, mode, target, parameters, assigned_probes, status, schedule, priority,
 	          created_at, started_at, completed_at, next_run_at
 	          FROM tasks`
 
@@ -91,7 +89,6 @@ func (d *Database) ListTasks(status string, limit, offset int) ([]*model.Task, e
 		err := rows.Scan(
 			&task.ID,
 			&task.TaskID,
-			&task.UserID,
 			&task.TaskType,
 			&task.Mode,
 			&task.Target,
@@ -137,7 +134,7 @@ func (d *Database) DeleteTask(taskID string) error {
 
 // GetPendingTasks 获取待执行的任务
 func (d *Database) GetPendingTasks(now time.Time) ([]*model.Task, error) {
-	query := `SELECT id, task_id, user_id, task_type, mode, target, parameters, assigned_probes, status, schedule, priority,
+	query := `SELECT id, task_id, task_type, mode, target, parameters, assigned_probes, status, schedule, priority,
 	          created_at, started_at, completed_at, next_run_at
 	          FROM tasks
 	          WHERE status = 'pending' AND mode != 'continuous'
@@ -155,7 +152,6 @@ func (d *Database) GetPendingTasks(now time.Time) ([]*model.Task, error) {
 		err := rows.Scan(
 			&task.ID,
 			&task.TaskID,
-			&task.UserID,
 			&task.TaskType,
 			&task.Mode,
 			&task.Target,
@@ -180,7 +176,7 @@ func (d *Database) GetPendingTasks(now time.Time) ([]*model.Task, error) {
 
 // GetDueContinuousTasks 获取应该执行的持续任务
 func (d *Database) GetDueContinuousTasks(now time.Time) ([]*model.Task, error) {
-	query := `SELECT id, task_id, user_id, task_type, mode, target, parameters, assigned_probes, status, schedule, priority,
+	query := `SELECT id, task_id, task_type, mode, target, parameters, assigned_probes, status, schedule, priority,
 	          created_at, started_at, completed_at, next_run_at
 	          FROM tasks
 	          WHERE mode = 'continuous' AND next_run_at <= ?
@@ -199,7 +195,6 @@ func (d *Database) GetDueContinuousTasks(now time.Time) ([]*model.Task, error) {
 		err := rows.Scan(
 			&task.ID,
 			&task.TaskID,
-			&task.UserID,
 			&task.TaskType,
 			&task.Mode,
 			&task.Target,

@@ -12,8 +12,7 @@ CREATE TABLE IF NOT EXISTS probes (
     status TEXT DEFAULT 'offline',            -- 状态: online/offline/busy
     last_heartbeat DATETIME,                  -- 最后心跳时间
     registered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    metadata TEXT,                            -- 额外信息 JSON: {"os":"linux","version":"1.0.0"}
-    auth_token TEXT UNIQUE                    -- 认证令牌
+    metadata TEXT                             -- 额外信息 JSON: {"os":"linux","version":"1.0.0"}
 );
 
 CREATE INDEX IF NOT EXISTS idx_probes_probe_id ON probes(probe_id);
@@ -23,7 +22,6 @@ CREATE INDEX IF NOT EXISTS idx_probes_status ON probes(status);
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id TEXT UNIQUE NOT NULL,             -- 任务UUID
-    user_id INTEGER,                          -- 创建用户ID (可选)
     task_type TEXT NOT NULL,                  -- 任务类型: icmp_ping/tcp_ping/traceroute/bird_route
     mode TEXT NOT NULL,                       -- 模式: single/continuous
     target TEXT NOT NULL,                     -- 测试目标 (IP/域名)
@@ -82,18 +80,7 @@ CREATE INDEX IF NOT EXISTS idx_results_task_id ON results(task_id);
 CREATE INDEX IF NOT EXISTS idx_results_probe_id ON results(probe_id);
 CREATE INDEX IF NOT EXISTS idx_results_created_at ON results(created_at);
 
--- 5. Users表 (用户管理,可选)
-CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    email TEXT,
-    role TEXT DEFAULT 'user',                 -- user/admin
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_login DATETIME
-);
-
--- 6. Config表 (系统配置)
+-- 5. Config表 (系统配置)
 CREATE TABLE IF NOT EXISTS config (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL,

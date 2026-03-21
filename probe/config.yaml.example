@@ -22,7 +22,3 @@ capabilities:
 executor:
   max_concurrent_tasks: 5
   task_timeout: 300  # seconds
-
-logging:
-  level: info
-  file: ./logs/probe.log
