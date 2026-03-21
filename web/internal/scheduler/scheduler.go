@@ -242,12 +242,6 @@ func (s *Scheduler) selectProbes(task *model.Task) ([]*model.Probe, error) {
 		}
 	}
 
-	// 默认选择前3个探针
-	maxProbes := 3
-	if len(compatibleProbes) > maxProbes {
-		compatibleProbes = compatibleProbes[:maxProbes]
-	}
-
 	return compatibleProbes, nil
 }
 

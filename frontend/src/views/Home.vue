@@ -260,6 +260,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, type Compon
 import { useI18n } from 'vue-i18n'
 import api from '@/utils/request'
 import { parseMaybeJSON } from '@/utils/parse'
+import { getFiniteCoordinate, hasValidCoordinates } from '@/utils/coordinate'
 import { getAvgLatency, getMaxLatency, getMinLatency, getPacketLossPercent, getResolvedIP, getTargetNetworkInfo } from '@/utils/result'
 import { getProviderLabelFromMetadata } from '@/utils/provider'
 import WorldMap, { type ProbeMarker } from '@/components/WorldMap.vue'
@@ -278,8 +279,6 @@ const pageMode = ref<'single' | 'continuous'>('single')
 
 type HomeResultRow = {
   probe_id: string
-  // 前台不展示节点昵称，统一使用 location
-  probe_name: string
   location: string
   provider?: string
   avg_latency?: number
@@ -304,6 +303,7 @@ type ProbeRecord = {
   location: string
   latitude?: number | null
   longitude?: number | null
+  capabilities?: unknown
   metadata?: unknown
   status?: string
 }
@@ -392,6 +392,7 @@ function toggleExpandedProbe(probeId: string) {
 }
 
 const tracerouteData = ref<Record<string, TracerouteResult>>({})
+const activeProbeIds = ref<string[]>([])
 
 // 保留原始任务结果，用于绘制每包的柱状图
 const rawTaskResults = ref<TaskResult[]>([])
@@ -579,6 +580,54 @@ function getSparkSamplesFromResult(result: TaskResult, taskType: string): Array<
   return result.status === 'failed' ? [null] : []
 }
 
+function getProbeCapabilities(probe: ProbeRecord): string[] {
+  if (Array.isArray(probe.capabilities)) {
+    return probe.capabilities.filter((item): item is string => typeof item === 'string')
+  }
+
+  if (typeof probe.capabilities === 'string') {
+    try {
+      const parsed = JSON.parse(probe.capabilities)
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === 'string')
+      }
+    } catch {
+      return []
+    }
+  }
+
+  return []
+}
+
+function probeSupportsTaskType(probe: ProbeRecord, taskTypeValue: string): boolean {
+  const capabilities = getProbeCapabilities(probe)
+  if (capabilities.length === 0) {
+    return true
+  }
+
+  return capabilities.includes('all') || capabilities.includes(taskTypeValue)
+}
+
+function getAutoSelectedProbeIds(taskTypeValue: string): string[] {
+  return availableProbes.value
+    .filter((probe) => probeSupportsTaskType(probe, taskTypeValue))
+    .map((probe) => probe.probe_id)
+}
+
+function getTargetedProbeIds(taskTypeValue: string): string[] {
+  if (taskTypeValue === 'traceroute' && selectedProbeIds.value.length > 0) {
+    return selectedProbeIds.value
+  }
+
+  return getAutoSelectedProbeIds(taskTypeValue)
+}
+
+function getPlaceholderStatus(): string {
+  return taskStatus.value === 'completed' || taskStatus.value === 'failed' || taskStatus.value === 'cancelled'
+    ? 'timeout'
+    : 'pending'
+}
+
 
 function deriveHomeRows(taskResults: TaskResult[]): HomeResultRow[] {
   const byProbe = new Map<string, TaskResult[]>()
@@ -622,7 +671,6 @@ function deriveHomeRows(taskResults: TaskResult[]): HomeResultRow[] {
 
     rows.push({
       probe_id: probeId,
-      probe_name: probe?.location || String($t('common.unknown')),
       location: probe?.location || String($t('common.unknown')),
       provider: getProviderLabelFromMetadata(probe?.metadata) || '-',
       avg_latency: avgLatency,
@@ -638,6 +686,24 @@ function deriveHomeRows(taskResults: TaskResult[]): HomeResultRow[] {
       target_as_name: targetNetwork.asName,
     })
   })
+
+  for (const probeId of activeProbeIds.value) {
+    if (rows.some((row) => row.probe_id === probeId)) {
+      continue
+    }
+
+    const probe = probesData.value.get(probeId)
+    rows.push({
+      probe_id: probeId,
+      location: probe?.location || String($t('common.unknown')),
+      provider: getProviderLabelFromMetadata(probe?.metadata) || '-',
+      send_count: 0,
+      status: getPlaceholderStatus(),
+      resolved_ip: getResolvedIP({}, {}, target.value),
+    })
+  }
+
+  rows.sort((left, right) => left.location.localeCompare(right.location))
 
   return rows
 }
@@ -818,11 +884,11 @@ async function loadAvailableProbes() {
       const latitude =
         typeof p.latitude === 'number'
           ? p.latitude
-          : (metadata['latitude'] ? Number(metadata['latitude']) : null)
+          : getFiniteCoordinate(metadata['latitude'])
       const longitude =
         typeof p.longitude === 'number'
           ? p.longitude
-          : (metadata['longitude'] ? Number(metadata['longitude']) : null)
+          : getFiniteCoordinate(metadata['longitude'])
 
       const next: ProbeRecord = {
         ...p,
@@ -866,6 +932,7 @@ async function startTest(modeValue: 'single' | 'continuous') {
   sparkCanvasByProbeId.value = {}
   accumulatedPacketData.value = {}
   tracerouteData.value = {}
+  activeProbeIds.value = []
   currentTaskId.value = ''
   initialMapMarkers.value = null
 
@@ -889,6 +956,7 @@ async function startTest(modeValue: 'single' | 'continuous') {
     }
 
     const assignedProbes = testType.value === 'traceroute' ? selectedProbeIds.value : []
+    activeProbeIds.value = getTargetedProbeIds(testType.value)
 
     const task = await api.post<TaskResponse>('/tasks', {
       task_type: testType.value,
@@ -1050,6 +1118,7 @@ async function startTest(modeValue: 'single' | 'continuous') {
   } catch (e) {
     console.error(e)
     testing.value = false
+    activeProbeIds.value = []
     taskStatus.value = 'failed'
     cleanupPolling()
   }
@@ -1094,12 +1163,16 @@ const probeMarkers = computed<ProbeMarker[]>(() => {
     .map((r) => {
       const probe = probesData.value.get(r.probe_id)
 
-      const latitude = probe?.latitude || 0
-      const longitude = probe?.longitude || 0
+      const latitude = probe?.latitude ?? null
+      const longitude = probe?.longitude ?? null
 
-      const status = r.status || 'timeout'
-      const validStatus: 'success' | 'failed' | 'timeout' =
-        status === 'success' || status === 'failed' ? status : 'timeout'
+      if (!hasValidCoordinates(latitude, longitude)) {
+        return null
+      }
+
+      const status = r.status || 'pending'
+      const validStatus: 'success' | 'failed' | 'timeout' | 'pending' =
+        status === 'success' || status === 'failed' || status === 'timeout' ? status : 'pending'
 
       return {
         probe_id: r.probe_id,
@@ -1112,7 +1185,7 @@ const probeMarkers = computed<ProbeMarker[]>(() => {
         packetLoss: r.packet_loss,
       } as ProbeMarker
     })
-    .filter((marker) => marker.latitude !== 0 && marker.longitude !== 0)
+    .filter((marker): marker is ProbeMarker => marker !== null)
 
   if ((supportsContinuous.value || isStreamingRouteDetails.value) && markers.length > 0 && !initialMapMarkers.value) {
     initialMapMarkers.value = markers
@@ -1142,6 +1215,17 @@ watch(
     }
   },
   { deep: true }
+)
+
+watch(
+  () => taskStatus.value,
+  () => {
+    if (rawTaskResults.value.length === 0 && activeProbeIds.value.length === 0) {
+      return
+    }
+
+    results.value = deriveHomeRows(rawTaskResults.value)
+  }
 )
 
 

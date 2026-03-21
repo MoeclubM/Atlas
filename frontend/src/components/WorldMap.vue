@@ -20,6 +20,7 @@ import { useI18n } from 'vue-i18n'
 import { useTheme } from 'vuetify'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { hasValidCoordinates } from '@/utils/coordinate'
 
 // 修复 Leaflet 默认图标路径问题
 import icon from 'leaflet/dist/images/marker-icon.png'
@@ -39,7 +40,7 @@ export interface ProbeMarker {
   latitude: number
   longitude: number
   latency?: number // 延迟（毫秒）
-  status?: 'success' | 'failed' | 'timeout'
+  status?: 'success' | 'failed' | 'timeout' | 'pending'
   packetLoss?: number
 }
 
@@ -48,7 +49,7 @@ type MapMarkerGroup = {
   longitude: number
   probes: ProbeMarker[]
   latency?: number
-  status?: 'success' | 'failed' | 'timeout'
+  status?: 'success' | 'failed' | 'timeout' | 'pending'
   packetLoss?: number
 }
 
@@ -81,6 +82,10 @@ function getColorByLatency(latency?: number, status?: string): string {
     return '#F56C6C' // 红色 - 失败/超时
   }
 
+  if (status === 'pending') {
+    return '#E6A23C' // 黄色 - 等待结果
+  }
+
   if (latency === undefined || latency === null || Number.isNaN(latency)) {
     return '#E6A23C' // 黄色 - 未知/无延迟数据
   }
@@ -99,6 +104,8 @@ function updateTileLayer() {
     tileLayer.remove()
   }
 
+  loading.value = true
+
   // 根据主题选择不同的瓦片图层
   const tileUrl = isDark.value
     ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
@@ -112,7 +119,17 @@ function updateTileLayer() {
   tileLayer = L.tileLayer(tileUrl, {
     attribution,
     maxZoom: 19,
-  }).addTo(map)
+  })
+
+  tileLayer.on('load', () => {
+    loading.value = false
+  })
+
+  tileLayer.on('tileerror', () => {
+    loading.value = false
+  })
+
+  tileLayer.addTo(map)
 }
 
 // 初始化地图
@@ -131,7 +148,6 @@ function initMap() {
 
   // 地图加载完成
   map.whenReady(() => {
-    loading.value = false
     updateMarkers()
   })
 }
@@ -147,7 +163,7 @@ function updateMarkers() {
   // 合并同坐标的节点
   const groupMap = new Map<string, MapMarkerGroup>()
   for (const probe of props.probes) {
-    if (!probe.latitude || !probe.longitude) continue
+    if (!hasValidCoordinates(probe.latitude, probe.longitude)) continue
 
     const key = `${probe.latitude.toFixed(5)},${probe.longitude.toFixed(5)}`
     const existing = groupMap.get(key)
@@ -216,6 +232,7 @@ function updateMarkers() {
         success: String($t('common.success')),
         failed: String($t('common.failed')),
         timeout: String($t('common.timeout')),
+        pending: String($t('common.pending')),
       }[group.status]
 
       popupHtml += `
@@ -300,6 +317,7 @@ onBeforeUnmount(() => {
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid var(--border);
+  background: var(--surface-2);
 }
 
 .map-loading {
@@ -338,6 +356,17 @@ onBeforeUnmount(() => {
 .leaflet-popup-tip {
   background: var(--surface) !important;
   border: 1px solid var(--border) !important;
+}
+
+.leaflet-container,
+.leaflet-pane,
+.leaflet-tile-container,
+.leaflet-layer {
+  background: transparent !important;
+}
+
+.map-container .leaflet-container {
+  background: var(--surface-2) !important;
 }
 
 .leaflet-popup-close-button {
