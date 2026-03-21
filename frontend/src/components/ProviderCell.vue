@@ -1,7 +1,7 @@
 <template>
   <div class="provider-cell">
     <div class="provider-line-1">
-      {{ target_asn || '-' }}
+      {{ targetAsn || '-' }}
     </div>
     <div class="provider-line-2">
       {{ line2 || '-' }}
@@ -13,13 +13,13 @@
 import { computed } from 'vue'
 
 const props = defineProps<{
-  target_asn?: string
-  target_as_name?: string
-  target_isp?: string
+  targetAsn?: string
+  targetAsName?: string
+  targetIsp?: string
 }>()
 
 const line2 = computed(() => {
-  return [props.target_as_name, props.target_isp].filter(Boolean).join(' / ')
+  return [props.targetAsName, props.targetIsp].filter(Boolean).join(' / ')
 })
 </script>
 

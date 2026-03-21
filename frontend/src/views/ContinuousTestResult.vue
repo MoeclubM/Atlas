@@ -112,9 +112,9 @@
                   <td>{{ probe.resolved_ip || '-' }}</td>
                   <td>
                     <ProviderCell
-                      :target_asn="probe.target_asn"
-                      :target_as_name="probe.target_as_name"
-                      :target_isp="probe.target_isp"
+                      :target-asn="probe.target_asn"
+                      :target-as-name="probe.target_as_name"
+                      :target-isp="probe.target_isp"
                     />
                   </td>
                   <td style="text-align: center">

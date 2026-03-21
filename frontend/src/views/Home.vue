@@ -225,9 +225,9 @@
                   <td>{{ r.resolved_ip || '-' }}</td>
                   <td>
                     <ProviderCell
-                      :target_asn="r.target_asn"
-                      :target_as_name="r.target_as_name"
-                      :target_isp="r.target_isp"
+                      :target-asn="r.target_asn"
+                      :target-as-name="r.target_as_name"
+                      :target-isp="r.target_isp"
                     />
                   </td>
                   <td

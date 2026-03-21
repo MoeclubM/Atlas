@@ -104,9 +104,9 @@
               <td>{{ row.ip_address }}</td>
               <td>
                 <ProviderCell
-                  :target_asn="row.target_asn"
-                  :target_as_name="row.target_as_name"
-                  :target_isp="row.target_isp"
+                  :target-asn="row.target_asn"
+                  :target-as-name="row.target_as_name"
+                  :target-isp="row.target_isp"
                 />
               </td>
               <td v-if="isHTTPTask">
@@ -202,9 +202,9 @@
                 <th>{{ $t('results.targetISP') }}</th>
                 <td>
                   <ProviderCell
-                    :target_asn="currentDetail.target_asn"
-                    :target_as_name="currentDetail.target_as_name"
-                    :target_isp="currentDetail.target_isp"
+                    :target-asn="currentDetail.target_asn"
+                    :target-as-name="currentDetail.target_as_name"
+                    :target-isp="currentDetail.target_isp"
                   />
                 </td>
               </tr>
