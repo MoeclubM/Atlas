@@ -21,7 +21,7 @@ func SetupRoutes(r *gin.Engine, db *database.Database, hub *websocket.Hub, cfg *
 	// API路由组
 	api := r.Group("/api")
 	{
-		adminHandler := handler.NewAdminHandler(db, cfg)
+		adminHandler := handler.NewAdminHandler(db, hub, cfg)
 		admin := api.Group("/admin")
 		{
 			admin.POST("/login", adminHandler.Login)
@@ -33,6 +33,7 @@ func SetupRoutes(r *gin.Engine, db *database.Database, hub *websocket.Hub, cfg *
 				authed.GET("/config", adminHandler.GetConfig)
 				authed.PUT("/config", adminHandler.UpdateConfig)
 				authed.PUT("/probes/:id", adminHandler.UpdateProbe)
+				authed.POST("/probes/:id/upgrade", adminHandler.UpgradeProbe)
 				authed.DELETE("/probes/:id", adminHandler.DeleteProbe)
 			}
 		}

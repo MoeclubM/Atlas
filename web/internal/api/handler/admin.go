@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"strconv"
@@ -16,11 +17,13 @@ import (
 
 	"atlas/web/internal/config"
 	"atlas/web/internal/database"
+	"atlas/web/internal/websocket"
 )
 
 type AdminHandler struct {
 	db  *database.Database
 	cfg *config.Config
+	hub *websocket.Hub
 }
 
 type adminConfigDTO struct {
@@ -28,9 +31,9 @@ type adminConfigDTO struct {
 	BlockedNetworks string `json:"blocked_networks"`
 
 	// 测试参数
-	PingMaxRuns               int `json:"ping_max_runs"`
-	TCPPingMaxRuns            int `json:"tcp_ping_max_runs"`
-	TracerouteTimeoutSeconds  int `json:"traceroute_timeout_seconds"`
+	PingMaxRuns              int `json:"ping_max_runs"`
+	TCPPingMaxRuns           int `json:"tcp_ping_max_runs"`
+	TracerouteTimeoutSeconds int `json:"traceroute_timeout_seconds"`
 }
 
 type adminLoginRequest struct {
@@ -42,8 +45,8 @@ type adminTokenPayload struct {
 	Exp int64  `json:"exp"`
 }
 
-func NewAdminHandler(db *database.Database, cfg *config.Config) *AdminHandler {
-	return &AdminHandler{db: db, cfg: cfg}
+func NewAdminHandler(db *database.Database, hub *websocket.Hub, cfg *config.Config) *AdminHandler {
+	return &AdminHandler{db: db, cfg: cfg, hub: hub}
 }
 
 func (h *AdminHandler) Login(c *gin.Context) {
@@ -159,13 +162,48 @@ func (h *AdminHandler) UpdateProbe(c *gin.Context) {
 		probe.Name = strings.TrimSpace(req.Name)
 	}
 
-
 	if err := h.db.SaveProbe(probe); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update probe"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"success": true})
+}
+
+func (h *AdminHandler) UpgradeProbe(c *gin.Context) {
+	probeID := c.Param("id")
+
+	if _, err := h.db.GetProbe(probeID); err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Probe not found"})
+		return
+	}
+
+	var req struct {
+		Version string `json:"version"`
+	}
+	if c.Request.ContentLength > 0 {
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+			return
+		}
+	}
+
+	version := strings.TrimSpace(req.Version)
+	if err := h.hub.SendToProbe(probeID, "probe_upgrade", map[string]string{
+		"version": version,
+	}); err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, websocket.ErrProbeNotConnected) {
+			status = http.StatusConflict
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusAccepted, gin.H{
+		"success": true,
+		"version": version,
+	})
 }
 
 func (h *AdminHandler) DeleteProbe(c *gin.Context) {

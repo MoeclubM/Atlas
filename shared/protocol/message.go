@@ -16,6 +16,7 @@ const (
 	MsgTypeHeartbeatAck = "heartbeat_ack"
 	MsgTypeTaskAssign   = "task_assign"
 	MsgTypeTaskCancel   = "task_cancel"
+	MsgTypeProbeUpgrade = "probe_upgrade"
 
 	// 双向
 	MsgTypePing = "ping"
@@ -79,6 +80,11 @@ type TaskCancelMessage struct {
 	ExecutionID string `json:"execution_id"` // 执行ID
 	TaskID      string `json:"task_id"`      // 任务ID
 	Reason      string `json:"reason"`       // 取消原因
+}
+
+// ProbeUpgradeMessage 远程升级消息
+type ProbeUpgradeMessage struct {
+	Version string `json:"version,omitempty"` // 为空时升级到 latest release
 }
 
 // TaskResultMessage 任务结果上报消息

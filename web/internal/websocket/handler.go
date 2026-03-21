@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,7 +44,27 @@ func (c *Connection) handleRegister(msg map[string]interface{}) error {
 
 	// 保存探针信息
 	capabilitiesJSON, _ := json.Marshal(registerMsg.Capabilities)
-	metadataJSON, _ := json.Marshal(registerMsg.Metadata)
+	metadata := make(map[string]string, len(registerMsg.Metadata)+2)
+	for k, v := range registerMsg.Metadata {
+		metadata[k] = v
+	}
+	if registerMsg.Version != "" {
+		metadata["version"] = registerMsg.Version
+	}
+	if reportedName := strings.TrimSpace(registerMsg.Name); reportedName != "" {
+		metadata["reported_name"] = reportedName
+	}
+
+	existingProbe, _ := c.hub.db.GetProbe(registerMsg.ProbeID)
+	probeName := strings.TrimSpace(registerMsg.Name)
+	if existingProbe != nil {
+		probeName = preserveProbeName(existingProbe, probeName)
+	}
+	if probeName == "" {
+		probeName = registerMsg.ProbeID
+	}
+
+	metadataJSON, _ := json.Marshal(metadata)
 
 	// 提取 IP 地址(去除端口)
 	probeIP := c.RemoteIP
@@ -58,7 +79,7 @@ func (c *Connection) handleRegister(msg map[string]interface{}) error {
 
 	probe := &model.Probe{
 		ProbeID:       registerMsg.ProbeID,
-		Name:          registerMsg.Name,
+		Name:          probeName,
 		Location:      registerMsg.Location,
 		Region:        registerMsg.Region,
 		IPAddress:     probeIP,
@@ -139,8 +160,34 @@ func (c *Connection) handleRegister(msg map[string]interface{}) error {
 		Message: "Registration successful",
 	})
 
-	log.Printf("[Handler] Probe registered successfully: %s", registerMsg.Name)
+	log.Printf("[Handler] Probe registered successfully: %s", probe.Name)
 	return nil
+}
+
+func preserveProbeName(existing *model.Probe, reportedName string) string {
+	reportedName = strings.TrimSpace(reportedName)
+	if existing == nil {
+		return reportedName
+	}
+
+	currentName := strings.TrimSpace(existing.Name)
+	if currentName == "" {
+		return reportedName
+	}
+
+	var metadata map[string]string
+	if err := json.Unmarshal([]byte(existing.Metadata), &metadata); err == nil {
+		previousReportedName := strings.TrimSpace(metadata["reported_name"])
+		if previousReportedName != "" && currentName != previousReportedName {
+			return currentName
+		}
+	}
+
+	if reportedName == "" {
+		return currentName
+	}
+
+	return reportedName
 }
 
 func parseFloat64(s string) (float64, error) {

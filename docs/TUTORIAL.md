@@ -46,20 +46,23 @@ curl http://localhost:18080/api/health
 ```bash
 sudo bash probe/scripts/install.sh \
   --server-url wss://atlas.example.com/ws \
-  --auth-token 'YOUR_SHARED_SECRET' \
-  --probe-name 'hk-probe-01'
+  --auth-token 'YOUR_SHARED_SECRET'
 ```
 
 要求：
 
 - `AUTH_TOKEN` 必须与 Web 端 `SHARED_SECRET` 完全一致
 - 节点需要 `ping` / `traceroute` 等系统命令
+- `--probe-name` 可省略，默认使用系统主机名
 
 安装后：
 
 - 二进制：`/usr/local/bin/atlas-probe`
 - 配置：`/etc/atlas-probe/config.yaml`
 - 服务：`atlas-probe.service`
+- 远程升级辅助脚本：`/usr/local/lib/atlas-probe/upgrade.sh`
+- 远程升级监听：`atlas-probe-upgrade.path` + `atlas-probe-upgrade.service`
+- 状态目录：`/var/lib/atlas-probe`
 
 常用命令：
 
@@ -71,20 +74,22 @@ sudo journalctl -u atlas-probe -f
 
 ### 1.3 升级或回滚 Probe
 
-安装 latest，但先不启动：
+升级到 latest：
 
 ```bash
-sudo bash probe/scripts/install.sh --no-start
+curl -fsSL https://raw.githubusercontent.com/MoeclubM/Atlas/main/probe/scripts/install.sh | sudo bash
 ```
 
 安装指定版本：
 
 ```bash
-sudo bash probe/scripts/install.sh \
+curl -fsSL https://raw.githubusercontent.com/MoeclubM/Atlas/vX.Y.Z/probe/scripts/install.sh | sudo bash -s -- \
   --version vX.Y.Z \
   --server-url wss://atlas.example.com/ws \
   --auth-token 'YOUR_SHARED_SECRET'
 ```
+
+如果节点已经由脚本安装，并且后台在线，也可以在管理面板对单个 Probe 下发远程升级命令。升级会拉取 release 二进制并自动重启服务。
 
 ## 2. 本地联调
 

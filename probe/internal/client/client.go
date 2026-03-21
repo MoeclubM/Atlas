@@ -126,8 +126,9 @@ func (c *Client) register() error {
 	log.Println("[Client] Registering probe...")
 
 	metadata := map[string]string{
-		"os":   runtime.GOOS,
-		"arch": runtime.GOARCH,
+		"os":      runtime.GOOS,
+		"arch":    runtime.GOARCH,
+		"version": Version,
 	}
 
 	// 可选：上报 ASN/ISP（用于在服务端 UI 展示运营商信息）
@@ -262,6 +263,16 @@ func (c *Client) handleMessage(message []byte) error {
 
 		// 取消任务
 		c.taskManager.CancelTask(cancelMsg.ExecutionID)
+
+	case "probe_upgrade":
+		var upgradeMsg protocol.ProbeUpgradeMessage
+		dataBytes, _ := json.Marshal(msg.Data)
+		json.Unmarshal(dataBytes, &upgradeMsg)
+
+		log.Printf("[Client] Received upgrade request to version: %s", strings.TrimSpace(upgradeMsg.Version))
+		if err := c.requestUpgrade(upgradeMsg); err != nil {
+			return err
+		}
 
 	case "pong":
 		// Pong响应

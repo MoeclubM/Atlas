@@ -2,20 +2,9 @@
 
 轻量化网络测试平台，提供 Web 控制端与可独立部署的 Probe 节点。
 
-## 部署路径
-
-### 生产部署
-
-- `web` 使用 `docker compose` 启动
-- `probe` 在独立 Debian/Ubuntu 节点上通过安装脚本接入
-
-### 本地联调
-
-- 使用 `docker-compose.yml` + `docker-compose.dev.yml` 一起启动 `web + dev probe`
-
 ## 快速开始
 
-### Web
+### 启动 Web
 
 ```bash
 cp .env.example .env
@@ -24,18 +13,29 @@ docker compose up -d --build
 curl http://localhost:18080/api/health
 ```
 
-默认访问地址：
+默认访问地址：`http://localhost:18080`
 
-- `http://localhost:18080`
-
-### Probe
+### 接入 Probe
 
 ```bash
 sudo bash probe/scripts/install.sh \
   --server-url wss://atlas.example.com/ws \
-  --auth-token 'YOUR_SHARED_SECRET' \
-  --probe-name 'hk-probe-01'
+  --auth-token 'YOUR_SHARED_SECRET'
 ```
+
+`--probe-name` 可省略，默认使用系统主机名。节点接入后也可以在后台面板改显示名。
+
+## 开发
+
+本地联调会一起启动 `web + dev probe`：
+
+```bash
+cp .env.example .env
+# 编辑 .env，至少设置 SHARED_SECRET
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+```
+
+本地联调地址：`http://localhost:18080`
 
 ## 文档
 

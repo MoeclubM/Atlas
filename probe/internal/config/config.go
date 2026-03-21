@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -40,10 +41,17 @@ type ExecutorConfig struct {
 
 // Load 加载配置文件
 func Load(configPath string) (*Config, error) {
+	defaultName := "atlas-probe"
+	if hostname, err := os.Hostname(); err == nil {
+		if hostname = strings.TrimSpace(hostname); hostname != "" {
+			defaultName = hostname
+		}
+	}
+
 	// 设置默认配置
 	config := &Config{
 		Probe: ProbeConfig{
-			Name:     "Default Probe",
+			Name:     defaultName,
 			Location: "", // 留空以自动检测
 			Region:   "", // 留空以自动检测
 		},

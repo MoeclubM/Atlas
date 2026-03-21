@@ -26,11 +26,12 @@
                 <tr>
                   <th style="width: 220px">{{ $t('admin.nodeName') }}</th>
                   <th style="width: 320px">{{ $t('admin.nodeId') }}</th>
+                  <th style="width: 110px">{{ $t('admin.version') }}</th>
                   <th style="width: 160px">{{ $t('admin.ipAddress') }}</th>
                   <th style="width: 220px">{{ $t('admin.providerLabel') }}</th>
                   <th>{{ $t('admin.location') }}</th>
                   <th style="width: 110px">{{ $t('admin.status') }}</th>
-                  <th style="width: 110px">{{ $t('admin.actions') }}</th>
+                  <th style="width: 190px">{{ $t('admin.actions') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -46,6 +47,9 @@
                   </td>
                   <td>
                     <code class="probe-id">{{ row.probe_id }}</code>
+                  </td>
+                  <td>
+                    <span class="mono">{{ row.version || '-' }}</span>
                   </td>
                   <td>
                     <span class="mono">{{ row.ip_address || '-' }}</span>
@@ -67,14 +71,25 @@
                     </v-chip>
                   </td>
                   <td>
-                    <v-btn
-                      variant="text"
-                      color="error"
-                      density="compact"
-                      @click="deleteProbe(row.probe_id)"
-                    >
-                      {{ $t('admin.delete') }}
-                    </v-btn>
+                    <div class="row-actions">
+                      <v-btn
+                        variant="tonal"
+                        color="primary"
+                        density="compact"
+                        :loading="isProbeUpgrading(row.probe_id)"
+                        @click="upgradeProbe(row)"
+                      >
+                        {{ $t('admin.upgrade') }}
+                      </v-btn>
+                      <v-btn
+                        variant="text"
+                        color="error"
+                        density="compact"
+                        @click="deleteProbe(row.probe_id)"
+                      >
+                        {{ $t('admin.delete') }}
+                      </v-btn>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -201,6 +216,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUiStore } from '@/stores/ui'
 import api from '@/utils/request'
+import { parseMaybeJSON } from '@/utils/parse'
 import { getProviderLabelFromMetadata } from '@/utils/provider'
 
 const router = useRouter()
@@ -213,6 +229,7 @@ const loading = ref(false)
 type AdminProbeRow = {
   probe_id: string
   name: string
+  version?: string
   location?: string
   status?: string
   ip_address?: string
@@ -232,6 +249,7 @@ type AdminConfig = {
 }
 
 const probes = ref<AdminProbeRow[]>([])
+const upgradingProbeIds = ref<string[]>([])
 const config = ref<AdminConfig>({
   shared_secret: '',
   blocked_networks: '',
@@ -259,8 +277,10 @@ async function loadProbes() {
     }
     const response = await api.get<ProbesResponse>('/probes')
     probes.value = (response.probes as AdminProbeRow[]).map((p) => {
+      const metadata = parseMaybeJSON(p.metadata)
       const next: AdminProbeRow = {
         ...p,
+        version: typeof metadata.version === 'string' ? metadata.version : '',
         provider_label: getProviderLabelFromMetadata(p.metadata),
       }
       return next
@@ -308,6 +328,45 @@ async function updateProbe(probe: AdminProbeRow) {
     ui.notify(String($t('admin.updateSuccess')), 'success')
   } catch (error) {
     ui.notify(String($t('admin.updateFailed')), 'error')
+  }
+}
+
+function isProbeUpgrading(probeId: string) {
+  return upgradingProbeIds.value.includes(probeId)
+}
+
+async function upgradeProbe(probe: AdminProbeRow) {
+  const requestedVersion = globalThis.prompt(String($t('admin.upgradePrompt')), '')?.trim()
+  if (requestedVersion === undefined) {
+    return
+  }
+
+  const target = probe.name || probe.probe_id
+  const confirmed = await ui.confirm(
+    requestedVersion
+      ? String($t('admin.upgradeConfirmVersion', { target, version: requestedVersion }))
+      : String($t('admin.upgradeConfirmLatest', { target })),
+    {
+      title: String($t('common.confirm')),
+    }
+  )
+  if (!confirmed) {
+    return
+  }
+
+  upgradingProbeIds.value = [...upgradingProbeIds.value, probe.probe_id]
+  try {
+    await api.post(`/admin/probes/${probe.probe_id}/upgrade`, requestedVersion ? { version: requestedVersion } : {})
+    ui.notify(
+      requestedVersion
+        ? String($t('admin.upgradeQueuedVersion', { version: requestedVersion }))
+        : String($t('admin.upgradeQueuedLatest')),
+      'success'
+    )
+  } catch (error) {
+    ui.notify(String($t('admin.upgradeFailed')), 'error')
+  } finally {
+    upgradingProbeIds.value = upgradingProbeIds.value.filter((id) => id !== probe.probe_id)
   }
 }
 
@@ -419,6 +478,12 @@ onMounted(() => {
   display: flex;
   gap: 12px;
   margin-top: 12px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .test-config-grid {
