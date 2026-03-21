@@ -234,3 +234,175 @@ export function getTargetNetworkInfo(summaryValue: unknown, resultDataValue: unk
     asName: getNonEmptyString(summary['target_as_name'], data['target_as_name']),
   }
 }
+
+export type HTTPHeaders = Record<string, string[]>
+
+export type HTTPAttempt = {
+  seq?: number
+  status?: string
+  timeMs?: number
+  statusCode?: number
+  responseStatus?: string
+  resolvedIP?: string
+  finalURL?: string
+  requestHeaders?: HTTPHeaders
+  responseHeaders?: HTTPHeaders
+  error?: string
+}
+
+function normalizeHTTPHeaders(value: unknown): HTTPHeaders | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined
+  }
+
+  const headers: HTTPHeaders = {}
+  for (const [key, rawValue] of Object.entries(value as Record<string, unknown>)) {
+    if (Array.isArray(rawValue)) {
+      const values = rawValue
+        .map((item) => {
+          if (typeof item === 'string') return item
+          if (typeof item === 'number' || typeof item === 'boolean') return String(item)
+          return ''
+        })
+        .filter((item) => item !== '')
+
+      if (values.length > 0) {
+        headers[key] = values
+      }
+      continue
+    }
+
+    if (typeof rawValue === 'string') {
+      headers[key] = [rawValue]
+      continue
+    }
+
+    if (typeof rawValue === 'number' || typeof rawValue === 'boolean') {
+      headers[key] = [String(rawValue)]
+    }
+  }
+
+  return Object.keys(headers).length > 0 ? headers : undefined
+}
+
+function normalizeHTTPAttempt(value: unknown): HTTPAttempt | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined
+  }
+
+  const attempt = value as Record<string, unknown>
+
+  return {
+    seq: getFiniteNumber(attempt['seq']),
+    status: getNonEmptyString(attempt['status']),
+    timeMs: getFiniteNumber(attempt['time_ms']),
+    statusCode: getFiniteNumber(attempt['status_code']),
+    responseStatus: getNonEmptyString(attempt['response_status']),
+    resolvedIP: getNonEmptyString(attempt['resolved_ip']),
+    finalURL: getNonEmptyString(attempt['final_url']),
+    requestHeaders: normalizeHTTPHeaders(attempt['request_headers']),
+    responseHeaders: normalizeHTTPHeaders(attempt['response_headers']),
+    error: getNonEmptyString(attempt['error']),
+  }
+}
+
+export function getHTTPAttempts(resultDataValue: unknown): HTTPAttempt[] {
+  const data = parseMaybeJSON(resultDataValue)
+  if (!Array.isArray(data['attempts'])) {
+    return []
+  }
+
+  return data['attempts']
+    .map((attempt) => normalizeHTTPAttempt(attempt))
+    .filter((attempt): attempt is HTTPAttempt => attempt !== undefined)
+}
+
+export function getLatestHTTPAttempt(resultDataValue: unknown): HTTPAttempt | undefined {
+  const attempts = getHTTPAttempts(resultDataValue)
+  if (attempts.length > 0) {
+    return attempts[attempts.length - 1]
+  }
+
+  const data = parseMaybeJSON(resultDataValue)
+  return normalizeHTTPAttempt({
+    status: data['status'],
+    time_ms: data['last_time_ms'],
+    status_code: data['status_code'],
+    response_status: data['response_status'],
+    resolved_ip: data['resolved_ip'],
+    final_url: data['final_url'],
+    request_headers: data['request_headers'],
+    response_headers: data['response_headers'],
+    error: data['error'],
+  })
+}
+
+export function getHTTPStatusCode(summaryValue: unknown, resultDataValue: unknown): number | undefined {
+  const summary = parseMaybeJSON(summaryValue)
+  const summaryStatusCode = getFiniteNumber(summary['http_status_code'], summary['status_code'])
+  if (summaryStatusCode !== undefined) {
+    return summaryStatusCode
+  }
+
+  const latestAttempt = getLatestHTTPAttempt(resultDataValue)
+  if (latestAttempt?.statusCode !== undefined) {
+    return latestAttempt.statusCode
+  }
+
+  const data = parseMaybeJSON(resultDataValue)
+  return getFiniteNumber(data['status_code'])
+}
+
+export type HTTPStatusTone = 'success' | 'warning' | 'error' | 'info'
+
+export function getHTTPStatusTone(statusCode?: number): HTTPStatusTone {
+  if (statusCode === undefined) {
+    return 'info'
+  }
+  if (statusCode >= 200 && statusCode < 300) {
+    return 'success'
+  }
+  if (statusCode >= 300 && statusCode < 400) {
+    return 'warning'
+  }
+  return 'error'
+}
+
+export function getHTTPStatusTextClass(statusCode?: number): string {
+  const tone = getHTTPStatusTone(statusCode)
+  if (tone === 'success') {
+    return 'good'
+  }
+  if (tone === 'warning') {
+    return 'warn'
+  }
+  if (tone === 'error') {
+    return 'bad'
+  }
+  return ''
+}
+
+export function getHTTPStatusChipColor(statusCode?: number): string {
+  return getHTTPStatusTone(statusCode)
+}
+
+export function getHeaderEntries(headers: HTTPHeaders | undefined): Array<{ name: string, value: string }> {
+  if (!headers) {
+    return []
+  }
+
+  return Object.entries(headers)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([name, values]) => ({
+      name,
+      value: values.join(', '),
+    }))
+}
+
+export function getLatestHTTPRequestHeaderEntries(resultDataValue: unknown): Array<{ name: string, value: string }> {
+  return getHeaderEntries(getLatestHTTPAttempt(resultDataValue)?.requestHeaders)
+}
+
+export function getLatestHTTPResponseHeaderEntries(resultDataValue: unknown): Array<{ name: string, value: string }> {
+  return getHeaderEntries(getLatestHTTPAttempt(resultDataValue)?.responseHeaders)
+}

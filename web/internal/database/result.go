@@ -128,49 +128,6 @@ func (d *Database) ListResultsByProbe(probeID string, limit, offset int) ([]*mod
 	return results, nil
 }
 
-// ListResultsByExecution 列出执行记录的所有结果
-func (d *Database) ListResultsByExecution(executionID string) ([]*model.Result, error) {
-	query := `SELECT id, result_id, execution_id, task_id, probe_id, target, test_type, COALESCE(status, 'success') as status, result_data, summary, created_at
-	          FROM results WHERE execution_id = ? ORDER BY created_at DESC`
-
-	rows, err := d.db.Query(query, executionID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var results []*model.Result
-	for rows.Next() {
-		result := &model.Result{}
-		err := rows.Scan(
-			&result.ID,
-			&result.ResultID,
-			&result.ExecutionID,
-			&result.TaskID,
-			&result.ProbeID,
-			&result.Target,
-			&result.TestType,
-			&result.Status,
-			&result.ResultData,
-			&result.Summary,
-			&result.CreatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		results = append(results, result)
-	}
-
-	return results, nil
-}
-
-// DeleteResult 删除结果
-func (d *Database) DeleteResult(resultID string) error {
-	query := `DELETE FROM results WHERE result_id = ?`
-	_, err := d.db.Exec(query, resultID)
-	return err
-}
-
 // GetConfig 获取配置值
 func (d *Database) GetConfig(key string) (string, error) {
 	var value string

@@ -394,6 +394,12 @@ func extractSummary(resultData interface{}) map[string]interface{} {
 	if avgConnTime, ok := dataMap["avg_connect_time_ms"]; ok {
 		summary["avg_latency"] = avgConnTime
 	}
+	if statusCode, ok := dataMap["status_code"]; ok {
+		summary["http_status_code"] = statusCode
+	}
+	if finalURL, ok := dataMap["final_url"]; ok {
+		summary["http_final_url"] = finalURL
+	}
 	if packetLoss, ok := dataMap["packet_loss_percent"]; ok {
 		summary["packet_loss_percent"] = packetLoss
 		summary["packet_loss"] = packetLoss

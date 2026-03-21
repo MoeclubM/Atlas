@@ -129,41 +129,10 @@ func (h *Hub) SendToProbe(probeID, msgType string, data interface{}) error {
 	}
 }
 
-// GetConnection 获取探针连接
-func (h *Hub) GetConnection(probeID string) (*Connection, bool) {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-	conn, ok := h.connections[probeID]
-	return conn, ok
-}
-
-// GetOnlineProbes 获取在线探针列表
-func (h *Hub) GetOnlineProbes() []string {
-	h.mu.RLock()
-	defer h.mu.RUnlock()
-
-	probes := make([]string, 0, len(h.connections))
-	for probeID := range h.connections {
-		probes = append(probes, probeID)
-	}
-	return probes
-}
-
 // IsProbeOnline 检查探针是否在线
 func (h *Hub) IsProbeOnline(probeID string) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	_, ok := h.connections[probeID]
 	return ok
-}
-
-// Close 关闭Hub
-func (h *Hub) Close() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	for _, conn := range h.connections {
-		conn.ws.Close()
-		close(conn.send)
-	}
 }

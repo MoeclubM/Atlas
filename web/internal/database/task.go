@@ -133,7 +133,7 @@ func (d *Database) DeleteTask(taskID string) error {
 }
 
 // GetPendingTasks 获取待执行的任务
-func (d *Database) GetPendingTasks(now time.Time) ([]*model.Task, error) {
+func (d *Database) GetPendingTasks() ([]*model.Task, error) {
 	query := `SELECT id, task_id, task_type, mode, target, parameters, assigned_probes, status, schedule, priority,
 	          created_at, started_at, completed_at, next_run_at
 	          FROM tasks

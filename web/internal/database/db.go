@@ -161,8 +161,3 @@ func (d *Database) markMigrationApplied(tx *sql.Tx, filename string) error {
 func (d *Database) Close() error {
 	return d.db.Close()
 }
-
-// DB 返回底层数据库连接
-func (d *Database) DB() *sql.DB {
-	return d.db
-}

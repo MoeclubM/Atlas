@@ -59,7 +59,7 @@ func (s *Scheduler) Stop() {
 // scanAndSchedule 扫描并调度任务
 func (s *Scheduler) scanAndSchedule() {
 	// 1. 获取待执行的单次任务
-	tasks, err := s.db.GetPendingTasks(time.Now())
+	tasks, err := s.db.GetPendingTasks()
 	if err != nil {
 		log.Printf("[Scheduler] Failed to get pending tasks: %v", err)
 		return
@@ -103,7 +103,6 @@ func (s *Scheduler) scanAndSchedule() {
 	}
 }
 
-
 // assignTask 分配任务到探针
 func (s *Scheduler) assignTask(task *model.Task) error {
 	// 获取可用的探针
@@ -142,7 +141,7 @@ func (s *Scheduler) assignTask(task *model.Task) error {
 			parameters = map[string]interface{}{}
 		}
 
-			// continuous ping/tcp：每次只做 1 次（调度器负责 1s 间隔和最多 N 次）
+		// continuous ping/tcp：每次只做 1 次（调度器负责 1s 间隔和最多 N 次）
 		if task.Mode == "continuous" && (task.TaskType == "icmp_ping" || task.TaskType == "tcp_ping") {
 			parameters["count"] = 1
 		}

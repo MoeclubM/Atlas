@@ -1,6 +1,6 @@
 module atlas/probe
 
-go 1.21
+go 1.25.0
 
 require (
 	atlas/shared v0.0.0-00010101000000-000000000000

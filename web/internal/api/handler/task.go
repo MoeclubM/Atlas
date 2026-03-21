@@ -130,6 +130,10 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		}
 	}
 
+	if req.TaskType == "http_test" {
+		req.Target = targetutil.NormalizeHTTPURL(req.Target)
+	}
+
 	blocked, _ := h.db.GetConfig("blocked_networks")
 	blocked = normalizeBlockedNetworks(blocked)
 	if blocked != "" {

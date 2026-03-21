@@ -135,4 +135,10 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+.latency-excellent { color: #20b26b; font-weight: 600; }
+.latency-good { color: #67c23a; font-weight: 600; }
+.latency-fair { color: #c9cf3f; font-weight: 600; }
+.latency-warn { color: #f2a93b; font-weight: 600; }
+.latency-bad { color: #e05a5a; font-weight: 600; }
 </style>

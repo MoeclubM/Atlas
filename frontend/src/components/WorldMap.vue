@@ -21,6 +21,7 @@ import { useTheme } from 'vuetify'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { hasValidCoordinates } from '@/utils/coordinate'
+import { getLatencyHex } from '@/utils/latency'
 
 // 修复 Leaflet 默认图标路径问题
 import icon from 'leaflet/dist/images/marker-icon.png'
@@ -67,6 +68,7 @@ const loading = ref(true)
 let map: L.Map | null = null
 let tileLayer: L.TileLayer | null = null
 const markers: L.CircleMarker[] = []
+let lastBoundsKey = ''
 
 const { t: $t, locale } = useI18n()
 
@@ -75,24 +77,33 @@ const theme = useTheme()
 // 检测当前主题（需要可响应地随 Vuetify 主题切换而更新）
 const isDark = computed(() => theme.global.current.value.dark)
 
-// 根据延迟获取颜色
-function getColorByLatency(latency?: number, status?: string): string {
-  // 仅使用绿/黄/红，优先按连接状态判断
-  if (status === 'failed' || status === 'timeout') {
-    return '#F56C6C' // 红色 - 失败/超时
+function summarizeGroup(group: MapMarkerGroup): MapMarkerGroup {
+  const latencies = group.probes
+    .map((probe) => probe.latency)
+    .filter((latency): latency is number => latency !== undefined && Number.isFinite(latency))
+  const packetLossValues = group.probes
+    .map((probe) => probe.packetLoss)
+    .filter((loss): loss is number => loss !== undefined && Number.isFinite(loss))
+
+  let status: ProbeMarker['status'] = 'pending'
+  if (group.probes.some((probe) => probe.status === 'success')) {
+    status = 'success'
+  } else if (group.probes.some((probe) => probe.status === 'failed')) {
+    status = 'failed'
+  } else if (group.probes.some((probe) => probe.status === 'timeout')) {
+    status = 'timeout'
   }
 
-  if (status === 'pending') {
-    return '#E6A23C' // 黄色 - 等待结果
+  return {
+    ...group,
+    latency: latencies.length > 0
+      ? latencies.reduce((sum, latency) => sum + latency, 0) / latencies.length
+      : undefined,
+    packetLoss: packetLossValues.length > 0
+      ? packetLossValues.reduce((sum, loss) => sum + loss, 0) / packetLossValues.length
+      : undefined,
+    status,
   }
-
-  if (latency === undefined || latency === null || Number.isNaN(latency)) {
-    return '#E6A23C' // 黄色 - 未知/无延迟数据
-  }
-
-  if (latency < 100) return '#67C23A' // 绿色
-  if (latency < 200) return '#E6A23C' // 黄色
-  return '#F56C6C' // 红色
 }
 
 // 更新地图瓦片图层
@@ -182,11 +193,11 @@ function updateMarkers() {
     })
   }
 
-  const groups = Array.from(groupMap.values())
+  const groups = Array.from(groupMap.values()).map((group) => summarizeGroup(group))
 
   // 添加新标记
   groups.forEach((group) => {
-    const color = getColorByLatency(group.latency, group.status)
+    const color = getLatencyHex(group.latency, group.status)
 
     const radius = Math.min(16, 10 + Math.max(0, group.probes.length - 1) * 2)
 
@@ -247,7 +258,7 @@ function updateMarkers() {
         <div class="probe-list">
           ${group.probes
             .map((p) => {
-              const c = getColorByLatency(p.latency, p.status)
+              const c = getLatencyHex(p.latency, p.status)
               const latency = p.latency !== undefined ? `${p.latency.toFixed(1)} ${String($t('common.ms'))}` : '-'
               return `
                 <div class="probe-list-item">
@@ -271,14 +282,22 @@ function updateMarkers() {
 
   // 自动调整视图以显示所有标记
   if (groups.length > 0) {
+    const boundsKey = groups
+      .map((group) => `${group.latitude.toFixed(5)},${group.longitude.toFixed(5)}`)
+      .sort()
+      .join('|')
+
     const bounds = L.latLngBounds(groups.map((g) => [g.latitude, g.longitude]))
 
-    if (bounds.isValid()) {
+    if (bounds.isValid() && boundsKey !== lastBoundsKey) {
+      lastBoundsKey = boundsKey
       map.fitBounds(bounds, {
         padding: [50, 50],
         maxZoom: 8,
       })
     }
+  } else {
+    lastBoundsKey = ''
   }
 }
 

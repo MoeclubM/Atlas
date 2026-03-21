@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -79,6 +80,11 @@ func Load(configPath string) (*Config, error) {
 	// 从环境变量覆盖
 	if port := os.Getenv("SERVER_PORT"); port != "" {
 		fmt.Sscanf(port, "%d", &config.Server.Port)
+	}
+	if mode := strings.TrimSpace(os.Getenv("GIN_MODE")); mode != "" {
+		config.Server.Mode = mode
+	} else if mode := strings.TrimSpace(os.Getenv("SERVER_MODE")); mode != "" {
+		config.Server.Mode = mode
 	}
 	if dbPath := os.Getenv("DB_PATH"); dbPath != "" {
 		config.Database.Path = dbPath

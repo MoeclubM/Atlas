@@ -73,7 +73,7 @@ async function handleLogin() {
     } else {
       error.value = data.error || String($t('login.wrongPassword'))
     }
-  } catch (err) {
+  } catch {
     error.value = String($t('login.loginFailed'))
   }
 }

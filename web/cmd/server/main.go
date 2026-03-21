@@ -95,8 +95,8 @@ func main() {
 	// 启动服务器
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	log.Printf("Server starting on %s", addr)
-	log.Printf("WebSocket endpoint: ws://localhost%s/ws", addr)
-	log.Printf("API endpoint: http://localhost%s/api", addr)
+	log.Printf("WebSocket route: /ws")
+	log.Printf("API route: /api")
 
 	if err := r.Run(addr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)

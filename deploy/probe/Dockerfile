@@ -1,8 +1,9 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /src/probe
 
-ENV GOPROXY=https://proxy.golang.org,direct
+ARG GOPROXY=https://proxy.golang.org,direct
+ENV GOPROXY=${GOPROXY}
 
 COPY shared/ /src/shared/
 COPY probe/go.mod probe/go.sum ./

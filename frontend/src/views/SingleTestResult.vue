@@ -34,6 +34,7 @@
               <th style="width: 220px">{{ $t('home.probeLabel') }}</th>
               <th style="width: 160px">{{ $t('results.resolvedIP') }}</th>
               <th style="width: 160px">{{ $t('results.targetISP') }}</th>
+              <th v-if="isHTTPTask" style="width: 110px">{{ $t('results.httpStatus') }}</th>
               <th style="width: 130px">{{ $t('singleResult.latency') }}</th>
               <th style="width: 100px">{{ $t('singleResult.lossRate') }}</th>
               <th>{{ $t('singleResult.stats') }}</th>
@@ -54,12 +55,23 @@
                   :target_isp="row.target_isp"
                 />
               </td>
+              <td v-if="isHTTPTask">
+                <v-chip
+                  v-if="row.http_status_code !== undefined"
+                  size="small"
+                  variant="tonal"
+                  :color="getHTTPStatusChipColor(row.http_status_code)"
+                >
+                  {{ row.http_status_code }}
+                </v-chip>
+                <span v-else>-</span>
+              </td>
               <td>
                 <v-chip
                   v-if="row.avg_latency !== undefined"
                   size="small"
                   variant="tonal"
-                  :color="getLatencyColor(row.avg_latency)"
+                  :color="getLatencyHex(row.avg_latency, 'success')"
                 >
                   {{ row.avg_latency.toFixed(2) }} {{ $t('common.ms') }}
                 </v-chip>
@@ -133,12 +145,31 @@
                 <th>{{ $t('results.status') }}</th>
                 <td>
                   <v-chip size="small" variant="tonal" :color="getResultStatusColor(currentDetail.status)">
-                    {{ currentDetail.status === 'success' ? $t('common.success') : $t('common.failed') }}
+                    {{ currentDetail.status === 'success' ? $t('common.success') : currentDetail.status === 'failed' ? $t('common.failed') : $t('common.unknown') }}
                   </v-chip>
                 </td>
               </tr>
+              <tr v-if="currentDetail.http_status_code !== undefined">
+                <th>{{ $t('results.httpStatus') }}</th>
+                <td>
+                  <v-chip size="small" variant="tonal" :color="getHTTPStatusChipColor(currentDetail.http_status_code)">
+                    {{ currentDetail.http_status_code }}
+                  </v-chip>
+                  <span v-if="currentDetail.http_response_status" style="margin-left: 8px">{{ currentDetail.http_response_status }}</span>
+                </td>
+              </tr>
+              <tr v-if="currentDetail.http_final_url">
+                <th>{{ $t('results.finalUrl') }}</th>
+                <td class="detail-url">{{ currentDetail.http_final_url }}</td>
+              </tr>
             </tbody>
           </v-table>
+
+          <HttpHeadersGrid
+            v-if="currentDetail.test_type === 'http_test'"
+            :result-data="currentDetail.raw_data"
+            key-prefix="single-detail"
+          />
 
           <div v-if="currentDetail.raw_data" style="margin-top: 20px">
             <h4>{{ $t('resultsPage.rawData') }}</h4>
@@ -160,12 +191,16 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import WorldMap from '@/components/WorldMap.vue'
 import type { ProbeMarker } from '@/components/WorldMap.vue'
+import HttpHeadersGrid from '@/components/HttpHeadersGrid.vue'
 import ProviderCell from '@/components/ProviderCell.vue'
 import ProbeCell from '@/components/ProbeCell.vue'
 import { useUiStore } from '@/stores/ui'
 import { parseMaybeJSON } from '@/utils/parse'
+import { hasValidCoordinates } from '@/utils/coordinate'
+import { getLatencyHex } from '@/utils/latency'
 import api from '@/utils/request'
-import { getAvgLatency, getMaxLatency, getPacketLossPercent, getResolvedIP, getStddevLatency, getTargetNetworkInfo, getMinLatency } from '@/utils/result'
+import { getAvgLatency, getHTTPStatusChipColor, getHTTPStatusCode, getLatestHTTPAttempt, getMaxLatency, getPacketLossPercent, getResolvedIP, getStddevLatency, getTargetNetworkInfo, getMinLatency } from '@/utils/result'
+import { getProbeMetadataSummary, normalizeProbeCoordinates } from '@/utils/probe'
 
 type TaskInfo = {
   status?: string
@@ -203,6 +238,9 @@ type ProbeResultRow = {
   target_isp?: string
 
   avg_latency?: number
+  http_status_code?: number
+  http_final_url?: string
+  http_response_status?: string
   min_latency?: number
   max_latency?: number
   stddev?: number
@@ -233,16 +271,18 @@ const detailVisible = ref(false)
 const currentDetail = ref<ProbeResultRow | null>(null)
 const taskInfo = ref<TaskInfo | null>(null)
 const results = ref<ResultView[]>([])
+const isHTTPTask = computed(() => results.value.some((result) => result.test_type === 'http_test'))
 
 // 地图标记点数据
 const probeMarkers = computed<ProbeMarker[]>(() => {
   return results.value
     .map((result) => {
       const probe = result.probe
-      if (!probe?.latitude || !probe?.longitude) return null
+      if (!probe || !hasValidCoordinates(probe.latitude, probe.longitude)) return null
 
       const summary = parseMaybeJSON(result.summary)
-      const status = result.status || 'timeout'
+      const latestHTTPAttempt = getLatestHTTPAttempt(result.result_data)
+      const status = latestHTTPAttempt?.status || result.status || 'timeout'
       const validStatus: 'success' | 'failed' | 'timeout' =
         status === 'success' || status === 'failed' ? status : 'timeout'
 
@@ -252,7 +292,7 @@ const probeMarkers = computed<ProbeMarker[]>(() => {
         location: probe.location,
         latitude: probe.latitude,
         longitude: probe.longitude,
-        latency: getAvgLatency(summary, result.result_data),
+        latency: latestHTTPAttempt?.timeMs ?? getAvgLatency(summary, result.result_data),
         status: validStatus,
         packetLoss: getPacketLossPercent(result.summary, result.result_data),
       } as ProbeMarker
@@ -265,26 +305,29 @@ const probeResults = computed<ProbeResultRow[]>(() => {
   return results.value.map((result) => {
     const summary = parseMaybeJSON(result.summary)
     const data = parseMaybeJSON(result.result_data)
-    const metadata = parseMaybeJSON(result.probe?.metadata)
-    const provider = (metadata['provider'] as string) || (metadata['isp'] as string) || undefined
+    const metadata = getProbeMetadataSummary(result.probe?.metadata)
     const targetNetwork = getTargetNetworkInfo(summary, data)
+    const latestHTTPAttempt = getLatestHTTPAttempt(data)
 
     return {
       probe_id: result.probe?.probe_id,
       probe_name: result.probe?.name || String($t('common.unknown')),
       location: result.probe?.location || String($t('common.unknown')),
-      provider,
+      provider: metadata.providerLabel,
       target: result.target,
       ip_address: getResolvedIP(summary, data, result.target) || '-',
       target_asn: targetNetwork.asn,
       target_as_name: targetNetwork.asName,
       target_isp: targetNetwork.isp,
-      avg_latency: getAvgLatency(summary, data),
+      avg_latency: latestHTTPAttempt?.timeMs ?? getAvgLatency(summary, data),
+      http_status_code: getHTTPStatusCode(summary, data),
+      http_final_url: latestHTTPAttempt?.finalURL,
+      http_response_status: latestHTTPAttempt?.responseStatus,
       min_latency: getMinLatency(summary, data),
       max_latency: getMaxLatency(summary, data),
       stddev: getStddevLatency(summary, data),
       packet_loss: getPacketLossPercent(summary, data),
-      status: result.status || 'unknown',
+      status: latestHTTPAttempt?.status || result.status || 'unknown',
       test_type: result.test_type,
       raw_data: result.result_data,
     }
@@ -315,13 +358,6 @@ const statusColor = computed(() => {
   }
   return map[s] || 'info'
 })
-
-function getLatencyColor(latency?: number): string {
-  if (latency === undefined) return 'info'
-  if (latency < 100) return 'success'
-  if (latency < 200) return 'warning'
-  return 'error'
-}
 
 function getResultStatusColor(status: string): string {
   if (status === 'success') return 'success'
@@ -361,17 +397,7 @@ async function loadData() {
 
     const probesMap = new Map<string, ProbeView>(
       (probesRes.probes as RawProbeRow[]).map((p) => {
-        // 解析 metadata 字段，提取坐标信息
-        let metadata: Record<string, unknown> = {}
-        try {
-          metadata = typeof p.metadata === 'string'
-            ? (JSON.parse(p.metadata) as Record<string, unknown>)
-            : ((p.metadata || {}) as Record<string, unknown>)
-        } catch (e) {
-          console.error('Failed to parse metadata:', e)
-        }
-
-        // 将坐标信息提升到 probe 对象的顶层
+        const normalized = normalizeProbeCoordinates(p)
         return [
           p.probe_id,
           {
@@ -379,8 +405,8 @@ async function loadData() {
             name: (p.name as string) || String($t('common.unknown')),
             location: (p.location as string) || String($t('common.unknown')),
             metadata: p.metadata,
-            latitude: metadata?.latitude ? Number(metadata.latitude) : null,
-            longitude: metadata?.longitude ? Number(metadata.longitude) : null,
+            latitude: normalized.latitude,
+            longitude: normalized.longitude,
           },
         ]
       })
@@ -440,30 +466,12 @@ onMounted(() => {
   font-size: 12px;
 }
 
-.provider-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.provider-line-1 {
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.provider-line-2 {
-  font-size: 12px;
-  color: #999;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.detail-url {
+  word-break: break-all;
 }
 
 .json-data {
-  background: #f5f5f5;
+  background: var(--surface-2);
   padding: 10px;
   border-radius: 4px;
   overflow-x: auto;
@@ -471,4 +479,5 @@ onMounted(() => {
   max-height: 400px;
   overflow-y: auto;
 }
+
 </style>

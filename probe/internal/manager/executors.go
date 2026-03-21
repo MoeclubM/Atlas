@@ -7,6 +7,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"os/exec"
 	"regexp"
 	"strconv"
@@ -314,7 +315,6 @@ func resolveHostIPForVersion(host, ipVersion string) (string, error) {
 	}
 }
 
-
 // executeTraceroute 执行Traceroute测试
 func executeTraceroute(ctx context.Context, target string, params map[string]interface{}) (*protocol.TracerouteResult, error) {
 	ipVersion, _ := params["ip_version"].(string)
@@ -413,7 +413,15 @@ func executeHTTPTest(target string, params map[string]interface{}) (map[string]i
 		count = 1
 	}
 
-	client := &http.Client{Timeout: 10 * time.Second}
+	target = normalizeHTTPTarget(target)
+
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			applyChromeLikeHeaders(req)
+			return nil
+		},
+	}
 
 	attempts := make([]map[string]interface{}, 0, count)
 	success := 0
@@ -421,6 +429,13 @@ func executeHTTPTest(target string, params map[string]interface{}) (map[string]i
 	var totalMs float64
 	var minMs float64
 	var maxMs float64
+	var lastStatusCode int
+	var lastResolvedIP string
+	var lastFinalURL string
+	var lastTimeMs float64
+	var lastResponseStatus string
+	var lastRequestHeaders map[string][]string
+	var lastResponseHeaders map[string][]string
 
 	for i := 1; i <= count; i++ {
 		start := time.Now()
@@ -435,6 +450,22 @@ func executeHTTPTest(target string, params map[string]interface{}) (map[string]i
 			continue
 		}
 
+		applyChromeLikeHeaders(req)
+
+		resolvedIP := fallbackResolvedHTTPIP(req.URL.Hostname())
+		trace := &httptrace.ClientTrace{
+			GotConn: func(info httptrace.GotConnInfo) {
+				if info.Conn == nil {
+					return
+				}
+				host, _, err := net.SplitHostPort(info.Conn.RemoteAddr().String())
+				if err == nil && host != "" {
+					resolvedIP = strings.Trim(host, "[]")
+				}
+			},
+		}
+		req = req.WithContext(httptrace.WithClientTrace(req.Context(), trace))
+
 		resp, err := client.Do(req)
 		elapsed := time.Since(start)
 		ms := float64(elapsed.Milliseconds())
@@ -442,12 +473,23 @@ func executeHTTPTest(target string, params map[string]interface{}) (map[string]i
 		if err != nil {
 			failed++
 			attempts = append(attempts, map[string]interface{}{
-				"seq":    i,
-				"status": "failed",
-				"error":  err.Error(),
+				"seq":             i,
+				"status":          "failed",
+				"time_ms":         ms,
+				"error":           err.Error(),
+				"resolved_ip":     resolvedIP,
+				"request_headers": cloneHeaderMap(req.Header),
 			})
 			continue
 		}
+
+		lastResolvedIP = resolvedIP
+		lastFinalURL = resp.Request.URL.String()
+		lastTimeMs = ms
+		lastResponseStatus = resp.Status
+		lastRequestHeaders = cloneHeaderMap(resp.Request.Header)
+		lastResponseHeaders = cloneHeaderMap(resp.Header)
+		lastStatusCode = resp.StatusCode
 
 		_ = resp.Body.Close()
 
@@ -462,27 +504,37 @@ func executeHTTPTest(target string, params map[string]interface{}) (map[string]i
 				maxMs = ms
 			}
 			attempts = append(attempts, map[string]interface{}{
-				"seq":         i,
-				"status":      "success",
-				"time_ms":     ms,
-				"status_code": resp.StatusCode,
+				"seq":              i,
+				"status":           "success",
+				"time_ms":          ms,
+				"status_code":      resp.StatusCode,
+				"response_status":  resp.Status,
+				"resolved_ip":      resolvedIP,
+				"final_url":        lastFinalURL,
+				"request_headers":  lastRequestHeaders,
+				"response_headers": lastResponseHeaders,
 			})
 		} else {
 			failed++
 			attempts = append(attempts, map[string]interface{}{
-				"seq":         i,
-				"status":      "failed",
-				"time_ms":     ms,
-				"status_code": resp.StatusCode,
+				"seq":              i,
+				"status":           "failed",
+				"time_ms":          ms,
+				"status_code":      resp.StatusCode,
+				"response_status":  resp.Status,
+				"resolved_ip":      resolvedIP,
+				"final_url":        lastFinalURL,
+				"request_headers":  lastRequestHeaders,
+				"response_headers": lastResponseHeaders,
 			})
 		}
 	}
 
 	result := map[string]interface{}{
-		"target":               target,
-		"attempts":             attempts,
-		"successful_requests":  success,
-		"failed_requests":      failed,
+		"target":              target,
+		"attempts":            attempts,
+		"successful_requests": success,
+		"failed_requests":     failed,
 	}
 
 	if success > 0 {
@@ -491,7 +543,76 @@ func executeHTTPTest(target string, params map[string]interface{}) (map[string]i
 		result["max_connect_time_ms"] = maxMs
 	}
 
+	if lastStatusCode > 0 {
+		result["status_code"] = lastStatusCode
+	}
+	if lastTimeMs > 0 {
+		result["last_time_ms"] = lastTimeMs
+	}
+	if lastResponseStatus != "" {
+		result["response_status"] = lastResponseStatus
+	}
+	if lastResolvedIP != "" {
+		result["resolved_ip"] = lastResolvedIP
+	}
+	if lastFinalURL != "" {
+		result["final_url"] = lastFinalURL
+	}
+	if len(lastRequestHeaders) > 0 {
+		result["request_headers"] = lastRequestHeaders
+	}
+	if len(lastResponseHeaders) > 0 {
+		result["response_headers"] = lastResponseHeaders
+	}
+
 	return result, nil
+}
+
+func normalizeHTTPTarget(target string) string {
+	target = strings.TrimSpace(target)
+	if target == "" || strings.Contains(target, "://") {
+		return target
+	}
+	return "http://" + target
+}
+
+func fallbackResolvedHTTPIP(host string) string {
+	host = strings.Trim(strings.TrimSpace(host), "[]")
+	if host == "" {
+		return ""
+	}
+	if ip := net.ParseIP(stripIPv6Zone(host)); ip != nil {
+		return host
+	}
+	return ""
+}
+
+func applyChromeLikeHeaders(req *http.Request) {
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
+	req.Header.Set("Cache-Control", "no-cache")
+	req.Header.Set("Pragma", "no-cache")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
+}
+
+func cloneHeaderMap(header http.Header) map[string][]string {
+	if len(header) == 0 {
+		return nil
+	}
+
+	cloned := make(map[string][]string, len(header))
+	for key, values := range header {
+		if len(values) == 0 {
+			continue
+		}
+		next := make([]string, 0, len(values))
+		for _, value := range values {
+			next = append(next, value)
+		}
+		cloned[key] = next
+	}
+	return cloned
 }
 
 // executeBirdRoute 执行Bird路由查询测试

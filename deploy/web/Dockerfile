@@ -1,4 +1,4 @@
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 
 WORKDIR /src/frontend
 
@@ -8,11 +8,12 @@ RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build
 
-FROM golang:1.21-alpine AS backend-builder
+FROM golang:1.25-alpine AS backend-builder
 
 WORKDIR /src/web
 
-ENV GOPROXY=https://proxy.golang.org,direct
+ARG GOPROXY=https://proxy.golang.org,direct
+ENV GOPROXY=${GOPROXY}
 
 COPY shared/ /src/shared/
 COPY web/go.mod web/go.sum ./

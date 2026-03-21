@@ -86,14 +86,14 @@
                       v-if="probe.last_latency !== undefined"
                       size="small"
                       variant="tonal"
-                      :color="getLatencyColor(probe.last_latency)"
+                      :color="getLatencyHex(probe.last_latency, 'success')"
                     >
                       {{ probe.last_latency.toFixed(2) }}
                     </v-chip>
                     <span v-else>-</span>
                   </td>
                   <td style="text-align: center">
-                    <span v-if="probe.avg_latency !== undefined" :class="getAvgClass(probe.avg_latency)">
+                    <span v-if="probe.avg_latency !== undefined" :class="getLatencyTextClass(probe.avg_latency, 'success')">
                       {{ probe.avg_latency.toFixed(2) }}
                     </span>
                     <span v-else>-</span>
@@ -146,7 +146,9 @@ import * as echarts from 'echarts'
 import type { ECharts } from 'echarts'
 import api from '@/utils/request'
 import { parseMaybeJSON } from '@/utils/parse'
+import { getLatencyHex, getLatencyTextClass } from '@/utils/latency'
 import { getAvgLatency, getPacketLossPercent, getPacketLossStats, getResolvedIP, getTargetNetworkInfo } from '@/utils/result'
+import { getProbeMetadataSummary } from '@/utils/probe'
 import ProviderCell from '@/components/ProviderCell.vue'
 import ProbeCell from '@/components/ProbeCell.vue'
 
@@ -212,24 +214,11 @@ type ProbeStatsRow = {
 
 const probeStats = ref<ProbeStatsRow[]>([])
 
-function getLatencyColor(latency?: number): string {
-  if (latency === undefined) return 'info'
-  if (latency < 100) return 'success'
-  if (latency < 200) return 'warning'
-  return 'error'
-}
-
 function getLossColor(loss?: number): string {
   if (loss === undefined) return 'info'
   if (loss === 0) return 'success'
   if (loss < 10) return 'warning'
   return 'error'
-}
-
-function getAvgClass(latency: number): string {
-  if (latency < 100) return 'latency-good'
-  if (latency < 200) return 'latency-normal'
-  return 'latency-bad'
 }
 
 // 初始化图表
@@ -373,9 +362,10 @@ function updateProbeStats(results: ResultRow[]) {
   // 计算统计数据
   probeResultsMap.forEach((groupedResults, probeId) => {
     const latencies = probeLatenciesMap.get(probeId) || []
-    const latest = [...groupedResults]
-      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-      .at(-1)
+    const sortedResults = [...groupedResults].sort(
+      (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+    )
+    const latest = sortedResults[sortedResults.length - 1]
     const probe = latest?.probe
     const parsedSummary = parseMaybeJSON(latest?.summary)
     const parsedData = parseMaybeJSON(latest?.result_data)
@@ -448,26 +438,15 @@ async function loadData() {
     const probesRes = await api.get<ProbesResponse>('/probes')
     const probesMap = new Map<string, ProbeView>(
       (probesRes.probes || []).map((p: ProbeView) => {
-        let metadata: Record<string, unknown> = {}
-        try {
-          metadata = typeof p.metadata === 'string'
-            ? (JSON.parse(p.metadata) as Record<string, unknown>)
-            : ((p.metadata || {}) as Record<string, unknown>)
-        } catch (e) {
-          console.error('Failed to parse probe metadata:', e)
-        }
+        const metadata = getProbeMetadataSummary(p.metadata)
 
         return [
           p.probe_id,
           {
             ...p,
-            city: (metadata['city'] as string) || (metadata['location_city'] as string) || '',
-            country:
-              (metadata['country'] as string) ||
-              (metadata['country_code'] as string) ||
-              (metadata['countryCode'] as string) ||
-              '',
-            provider: (metadata['provider'] as string) || (metadata['isp'] as string) || '',
+            city: metadata.city || '',
+            country: metadata.country || '',
+            provider: metadata.providerLabel || '',
           },
         ]
       })
@@ -565,20 +544,5 @@ onBeforeUnmount(() => {
 .chart-container {
   width: 100%;
   height: 400px;
-}
-
-/* 保留原来的颜色逻辑（用于平均值 class） */
-.latency-good {
-  color: #67c23a;
-  font-weight: bold;
-}
-
-.latency-normal {
-  color: #e6a23c;
-}
-
-.latency-bad {
-  color: #f56c6c;
-  font-weight: bold;
 }
 </style>

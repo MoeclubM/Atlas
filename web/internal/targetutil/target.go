@@ -6,6 +6,19 @@ import (
 	"strings"
 )
 
+func NormalizeHTTPURL(target string) string {
+	target = strings.TrimSpace(target)
+	if target == "" {
+		return ""
+	}
+
+	if strings.Contains(target, "://") {
+		return target
+	}
+
+	return "http://" + target
+}
+
 func StripIPv6Zone(host string) string {
 	if i := strings.IndexByte(host, '%'); i > 0 {
 		return host[:i]

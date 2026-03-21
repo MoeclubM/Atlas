@@ -216,8 +216,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUiStore } from '@/stores/ui'
 import api from '@/utils/request'
-import { parseMaybeJSON } from '@/utils/parse'
-import { getProviderLabelFromMetadata } from '@/utils/provider'
+import { getProbeMetadataSummary } from '@/utils/probe'
 
 const router = useRouter()
 const ui = useUiStore()
@@ -277,11 +276,11 @@ async function loadProbes() {
     }
     const response = await api.get<ProbesResponse>('/probes')
     probes.value = (response.probes as AdminProbeRow[]).map((p) => {
-      const metadata = parseMaybeJSON(p.metadata)
+      const metadata = getProbeMetadataSummary(p.metadata)
       const next: AdminProbeRow = {
         ...p,
-        version: typeof metadata.version === 'string' ? metadata.version : '',
-        provider_label: getProviderLabelFromMetadata(p.metadata),
+        version: metadata.version || '',
+        provider_label: metadata.providerLabel || '',
       }
       return next
     })
@@ -326,7 +325,7 @@ async function updateProbe(probe: AdminProbeRow) {
       name: probe.name,
     })
     ui.notify(String($t('admin.updateSuccess')), 'success')
-  } catch (error) {
+  } catch {
     ui.notify(String($t('admin.updateFailed')), 'error')
   }
 }
@@ -363,7 +362,7 @@ async function upgradeProbe(probe: AdminProbeRow) {
         : String($t('admin.upgradeQueuedLatest')),
       'success'
     )
-  } catch (error) {
+  } catch {
     ui.notify(String($t('admin.upgradeFailed')), 'error')
   } finally {
     upgradingProbeIds.value = upgradingProbeIds.value.filter((id) => id !== probe.probe_id)
@@ -380,7 +379,7 @@ async function deleteProbe(probeId: string) {
     await api.delete(`/admin/probes/${probeId}`)
     ui.notify(String($t('admin.deleteSuccess')), 'success')
     loadProbes()
-  } catch (error) {
+  } catch {
     ui.notify(String($t('admin.deleteFailed')), 'error')
   }
 }
@@ -394,7 +393,7 @@ async function saveConfig() {
       traceroute_timeout_seconds: String(config.value.traceroute_timeout_seconds),
     })
     ui.notify(String($t('admin.saveSuccess')), 'success')
-  } catch (error) {
+  } catch {
     ui.notify(String($t('admin.saveFailed')), 'error')
   }
 }
@@ -409,7 +408,7 @@ async function generateSecret() {
       config.value.shared_secret = response.shared_secret
       ui.notify(String($t('admin.generateSuccess')), 'success')
     }
-  } catch (e) {
+  } catch {
     ui.notify(String($t('admin.generateFailed')), 'error')
   }
 }

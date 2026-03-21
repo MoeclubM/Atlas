@@ -63,11 +63,3 @@ type Result struct {
 	Summary     string    `json:"summary,omitempty" db:"summary"` // JSON
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 }
-
-// Config 系统配置
-type Config struct {
-	Key         string    `json:"key" db:"key"`
-	Value       string    `json:"value" db:"value"`
-	Description string    `json:"description" db:"description"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
-}

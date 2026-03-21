@@ -158,6 +158,7 @@
                 <th style="width: 240px">{{ $t('home.probeLabel') }}</th>
                 <th style="width: 160px">{{ $t('results.resolvedIP') }}</th>
                 <th style="width: 180px">{{ $t('results.targetISP') }}</th>
+                <th v-if="testType === 'http_test'" style="width: 110px; text-align: right">{{ $t('results.httpStatus') }}</th>
                 <th style="width: 110px; text-align: right">{{ $t('results.loss') }}</th>
                 <th style="width: 110px; text-align: right">{{ pageMode === 'continuous' ? $t('results.progress') : '' }}</th>
                 <th style="width: 120px; text-align: right">{{ $t('results.current') }}</th>
@@ -182,16 +183,19 @@
                       :target_isp="r.target_isp"
                     />
                   </td>
+                  <td v-if="testType === 'http_test'" style="text-align: right" :class="getHTTPStatusTextClass(r.http_status_code)">
+                    {{ r.http_status_code !== undefined ? r.http_status_code : '-' }}
+                  </td>
                   <td style="text-align: right" :class="getLossClass(r.packet_loss)">
                     {{ r.packet_loss !== undefined ? r.packet_loss.toFixed(1) + '%' : '-' }}
                   </td>
                   <td style="text-align: right">
                     {{ pageMode === 'continuous' ? `${r.send_count ?? 0}/${maxRuns}` : '-' }}
                   </td>
-                  <td style="text-align: right" :class="getLatencyClass(r.last_latency)">
+                  <td style="text-align: right" :class="getLatencyTextClass(r.last_latency, r.status)">
                     {{ r.last_latency !== undefined ? r.last_latency.toFixed(1) + ' ' + $t('common.ms') : '-' }}
                   </td>
-                  <td style="text-align: right" :class="getLatencyClass(r.avg_latency)">
+                  <td style="text-align: right" :class="getLatencyTextClass(r.avg_latency)">
                     {{ r.avg_latency !== undefined ? r.avg_latency.toFixed(1) + ' ' + $t('common.ms') : '-' }}
                   </td>
                   <td style="text-align: right">
@@ -206,7 +210,7 @@
                 </tr>
 
                 <tr v-if="expandedProbeIds.includes(r.probe_id)">
-                  <td colspan="10" class="detail-cell">
+                  <td :colspan="resultsColumnCount" class="detail-cell">
                     <div v-if="tracerouteData[r.probe_id]?.hops?.length" class="row-detail">
                       <h4 class="detail-title">{{ $t('results.tracerouteDetail') }}</h4>
                       <v-table density="compact">
@@ -240,8 +244,42 @@
                       </v-table>
                     </div>
 
-                    <div v-if="!tracerouteData[r.probe_id]?.hops?.length" class="row-detail-empty">
-                      <span class="text-muted">{{ $t('results.noRouteData') }}</span>
+                    <div v-else-if="testType === 'http_test' && getHTTPAttempts(httpDetails[r.probe_id]).length > 0" class="row-detail">
+                      <h4 class="detail-title">{{ $t('results.httpDetail') }}</h4>
+
+                      <v-table density="compact">
+                        <thead>
+                          <tr>
+                            <th style="width: 70px">{{ $t('results.attempt') }}</th>
+                            <th style="width: 90px">{{ $t('results.statusCode') }}</th>
+                            <th style="width: 110px">{{ $t('singleResult.latency') }}</th>
+                            <th style="width: 150px">{{ $t('results.resolvedIP') }}</th>
+                            <th>{{ $t('results.finalUrl') }}</th>
+                            <th style="width: 90px">{{ $t('results.status') }}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="attempt in getHTTPAttempts(httpDetails[r.probe_id])" :key="`${r.probe_id}-${attempt.seq ?? 0}`">
+                            <td>{{ attempt.seq ?? '-' }}</td>
+                            <td>{{ attempt.statusCode ?? '-' }}</td>
+                            <td>{{ attempt.timeMs !== undefined ? attempt.timeMs.toFixed(1) + ' ' + $t('common.ms') : '-' }}</td>
+                            <td>{{ attempt.resolvedIP || '-' }}</td>
+                            <td class="http-url-cell">{{ attempt.finalURL || '-' }}</td>
+                            <td>{{ attempt.status === 'success' ? $t('common.success') : attempt.status === 'failed' ? $t('common.failed') : $t('common.unknown') }}</td>
+                          </tr>
+                        </tbody>
+                      </v-table>
+
+                      <HttpHeadersGrid
+                        :result-data="httpDetails[r.probe_id]"
+                        :key-prefix="r.probe_id"
+                      />
+                    </div>
+
+                    <div v-else class="row-detail-empty">
+                      <span class="text-muted">
+                        {{ testType === 'http_test' ? $t('results.noHttpData') : $t('results.noRouteData') }}
+                      </span>
                     </div>
                   </td>
                 </tr>
@@ -260,9 +298,11 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, type Compon
 import { useI18n } from 'vue-i18n'
 import api from '@/utils/request'
 import { parseMaybeJSON } from '@/utils/parse'
-import { getFiniteCoordinate, hasValidCoordinates } from '@/utils/coordinate'
-import { getAvgLatency, getMaxLatency, getMinLatency, getPacketLossPercent, getResolvedIP, getTargetNetworkInfo } from '@/utils/result'
-import { getProviderLabelFromMetadata } from '@/utils/provider'
+import { hasValidCoordinates } from '@/utils/coordinate'
+import { buildLatencyScale, getLatencyHex, getLatencyTextClass } from '@/utils/latency'
+import { getAvgLatency, getHTTPAttempts, getHTTPStatusCode, getHTTPStatusTextClass, getLatestHTTPAttempt, getMaxLatency, getMinLatency, getPacketLossPercent, getResolvedIP, getTargetNetworkInfo, type HTTPAttempt } from '@/utils/result'
+import { getProbeProviderLabel, normalizeProbeCoordinates } from '@/utils/probe'
+import HttpHeadersGrid from '@/components/HttpHeadersGrid.vue'
 import WorldMap, { type ProbeMarker } from '@/components/WorldMap.vue'
 import ProviderCell from '@/components/ProviderCell.vue'
 import ProbeCell from '@/components/ProbeCell.vue'
@@ -281,6 +321,7 @@ type HomeResultRow = {
   probe_id: string
   location: string
   provider?: string
+  http_status_code?: number
   avg_latency?: number
   min_latency?: number
   max_latency?: number
@@ -358,6 +399,15 @@ type TracerouteResult = {
   success?: boolean
 }
 
+type HTTPTestResult = {
+  target?: string
+  final_url?: string
+  resolved_ip?: string
+  request_headers?: Record<string, string[]>
+  response_headers?: Record<string, string[]>
+  attempts?: HTTPAttempt[]
+}
+
 const results = ref<HomeResultRow[]>([])
 const probesData = ref<Map<string, ProbeRecord>>(new Map())
 const availableProbes = ref<ProbeRecord[]>([])
@@ -392,6 +442,7 @@ function toggleExpandedProbe(probeId: string) {
 }
 
 const tracerouteData = ref<Record<string, TracerouteResult>>({})
+const httpDetails = ref<Record<string, HTTPTestResult>>({})
 const activeProbeIds = ref<string[]>([])
 
 // 保留原始任务结果，用于绘制每包的柱状图
@@ -448,27 +499,20 @@ const canStart = computed(() => {
   return true
 })
 
-function startSingleFromUI() {
-  if (!canStart.value) return
-  pageMode.value = 'single'
-  void startSingle()
+function isContinuousTaskType(taskTypeValue: string): boolean {
+  return taskTypeValue === 'icmp_ping' || taskTypeValue === 'tcp_ping'
 }
 
-// 注意：UI 只保留一个“开始测试”按钮，按 testType 自动选择 single/continuous
-function startContinuousFromUI() {
-  if (!supportsContinuous.value) return
-  if (!canStart.value) return
-  pageMode.value = 'continuous'
-  void startContinuous()
+function getPageModeForTaskType(taskTypeValue: string): 'single' | 'continuous' {
+  return isContinuousTaskType(taskTypeValue) ? 'continuous' : 'single'
 }
 
 function startFromMode() {
-  // Enter key behavior: Ping/TCP 走持续；Traceroute/HTTP 走单次
-  if (testType.value === 'icmp_ping' || testType.value === 'tcp_ping') {
-    startContinuousFromUI()
-    return
-  }
-  startSingleFromUI()
+  if (!canStart.value) return
+
+  const nextMode = getPageModeForTaskType(testType.value)
+  pageMode.value = nextMode
+  void startTest(nextMode)
 }
 
 const targetPlaceholder = computed(() => {
@@ -482,9 +526,7 @@ const targetPlaceholder = computed(() => {
 })
 
 // continuous 模式：仅 Ping/TCP
-const supportsContinuous = computed(() => testType.value === 'icmp_ping' || testType.value === 'tcp_ping')
-
-const isStreamingRouteDetails = computed(() => testType.value === 'traceroute')
+const supportsContinuous = computed(() => isContinuousTaskType(testType.value))
 
 // 已启动过任务就保持显示（任务结束后也保留最终结果）
 const hasStartedTask = computed(() => currentTaskId.value !== '' || results.value.length > 0)
@@ -497,6 +539,8 @@ const taskStatusText = computed(() => {
   if (taskStatus.value === 'cancelled') return String($t('common.cancelled'))
   return ''
 })
+
+const resultsColumnCount = computed(() => testType.value === 'http_test' ? 11 : 10)
 
 function markTaskCompletedAndStopPolling(status: DisplayTaskStatus) {
   taskStatus.value = status
@@ -515,10 +559,7 @@ function onSelectType(value: string) {
     selectedProbeIds.value = []
   }
 
-  // continuous 仅支持 Ping/TCP
-  if (pageMode.value === 'continuous' && !supportsContinuous.value) {
-    pageMode.value = 'single'
-  }
+  pageMode.value = getPageModeForTaskType(value)
 }
 
 function getSparkSamplesFromResult(result: TaskResult, taskType: string): Array<number | null> {
@@ -660,8 +701,9 @@ function deriveHomeRows(taskResults: TaskResult[]): HomeResultRow[] {
     const avgLatency = latencies.length ? latencies.reduce((a, b) => a + b, 0) / latencies.length : undefined
     const minLatency = mins.length ? Math.min(...mins) : undefined
     const maxLatency = maxs.length ? Math.max(...maxs) : undefined
-    const lastLatency = last ? getAvgLatency(last.summary, last.result_data) : undefined
-    const latestStatus = last?.status || (latencies.length > 0 ? 'success' : 'unknown')
+    const latestHTTPAttempt = last ? getLatestHTTPAttempt(last.result_data) : undefined
+    const lastLatency = latestHTTPAttempt?.timeMs ?? (last ? getAvgLatency(last.summary, last.result_data) : undefined)
+    const latestStatus = latestHTTPAttempt?.status || last?.status || (latencies.length > 0 ? 'success' : 'unknown')
 
     const lastSummary = last ? parseMaybeJSON(last.summary) : {}
     const lastData = last ? parseMaybeJSON(last.result_data) : {}
@@ -672,7 +714,8 @@ function deriveHomeRows(taskResults: TaskResult[]): HomeResultRow[] {
     rows.push({
       probe_id: probeId,
       location: probe?.location || String($t('common.unknown')),
-      provider: getProviderLabelFromMetadata(probe?.metadata) || '-',
+      provider: getProbeProviderLabel(probe?.metadata) || '-',
+      http_status_code: last ? getHTTPStatusCode(lastSummary, lastData) : undefined,
       avg_latency: avgLatency,
       min_latency: minLatency,
       max_latency: maxLatency,
@@ -696,7 +739,7 @@ function deriveHomeRows(taskResults: TaskResult[]): HomeResultRow[] {
     rows.push({
       probe_id: probeId,
       location: probe?.location || String($t('common.unknown')),
-      provider: getProviderLabelFromMetadata(probe?.metadata) || '-',
+      provider: getProbeProviderLabel(probe?.metadata) || '-',
       send_count: 0,
       status: getPlaceholderStatus(),
       resolved_ip: getResolvedIP({}, {}, target.value),
@@ -728,14 +771,6 @@ function registerSparkCanvas(el: Element | ComponentPublicInstance | null, probe
 }
 
 
-function sparkColor(latency?: number, status?: string): string {
-  if (status === 'failed') return '#F56C6C'
-  if (latency === undefined || !Number.isFinite(latency)) return '#E6A23C'
-  if (latency < 100) return '#67C23A'
-  if (latency < 200) return '#E6A23C'
-  return '#F56C6C'
-}
-
 function drawSparkOnCanvas(canvas: HTMLCanvasElement, latency?: number, status?: string) {
   const cssWidth = canvas.clientWidth || 90
   const cssHeight = canvas.clientHeight || 10
@@ -752,19 +787,18 @@ function drawSparkOnCanvas(canvas: HTMLCanvasElement, latency?: number, status?:
 
   ctx.clearRect(0, 0, width, height)
 
-  // 0~300ms 映射到 20%~100%
   let percent = 0.3
-  if (status === 'failed') {
+  if (status === 'failed' || status === 'timeout') {
     percent = 1
   } else if (latency !== undefined && Number.isFinite(latency)) {
-    const clamped = Math.max(0, Math.min(300, latency))
-    percent = 0.2 + (clamped / 300) * 0.8
+    const clamped = Math.max(0, Math.min(250, latency))
+    percent = 0.18 + (clamped / 250) * 0.82
   }
 
   const fillW = Math.max(1, Math.floor(width * percent))
   const radius = height / 2
 
-  ctx.fillStyle = sparkColor(latency, status)
+  ctx.fillStyle = getLatencyHex(latency, status)
 
   // 圆角条
   ctx.beginPath()
@@ -806,7 +840,8 @@ function drawSparkForProbe(probeId: string) {
  * 绘制类似 ping.pe 的最近包延迟柱状图：
  * - 每个 execution/attempt 至少占一栏
  * - 展示全部历史，随样本数增多自动压缩到画布宽度内
- * - 颜色: <100ms绿色, <200ms橙色, >=200ms红色, null(丢包/失败)红色满高
+ * - 颜色和表格/地图共享统一延迟阈值
+ * - 纵向使用自适应量程，默认按历史延迟分布缩放，微小抖动也能看出来
  */
 function drawPacketBars(canvas: HTMLCanvasElement, latencies: (number | null)[]) {
   const cssWidth = canvas.clientWidth || 90
@@ -826,6 +861,7 @@ function drawPacketBars(canvas: HTMLCanvasElement, latencies: (number | null)[])
 
   const barCount = latencies.length
   if (barCount === 0) return
+  const scale = buildLatencyScale(latencies)
 
   latencies.forEach((latency, i) => {
     const x = Math.floor((i * width) / barCount)
@@ -833,22 +869,16 @@ function drawPacketBars(canvas: HTMLCanvasElement, latencies: (number | null)[])
     const fillWidth = Math.max(1, nextX - x)
 
     let barHeight = 0
-    let color = '#F56C6C'
+    let color = getLatencyHex(undefined, 'failed')
 
     if (latency !== null && Number.isFinite(latency)) {
-      // 延迟映射到高度：0ms 也给一定可见高度；越慢越接近满高
-      const clamped = Math.max(0, Math.min(300, latency))
-      const percent = 0.15 + (clamped / 300) * 0.85
+      const scaleFloor = scale?.floor ?? 0
+      const scaleCeiling = scale?.ceiling ?? Math.max(latency, 1)
+      const scaleRange = Math.max(1, scaleCeiling - scaleFloor)
+      const clamped = Math.max(scaleFloor, Math.min(scaleCeiling, latency))
+      const percent = 0.15 + ((clamped - scaleFloor) / scaleRange) * 0.85
       barHeight = Math.max(1, Math.floor(height * percent))
-
-      // 颜色
-      if (latency < 100) {
-        color = '#67C23A' // 绿色
-      } else if (latency < 200) {
-        color = '#E6A23C' // 橙色
-      } else {
-        color = '#F56C6C' // 红色
-      }
+      color = getLatencyHex(latency, 'success')
     } else {
       // 失败/超时/丢包: 显示红色满高度
       barHeight = height
@@ -862,13 +892,6 @@ function drawPacketBars(canvas: HTMLCanvasElement, latencies: (number | null)[])
 }
 
 
-function getLatencyClass(latency?: number): string {
-  if (latency === undefined) return ''
-  if (latency < 50) return 'good'
-  if (latency < 150) return 'warn'
-  return 'bad'
-}
-
 async function loadAvailableProbes() {
   try {
     type ProbesResponse = {
@@ -879,23 +902,7 @@ async function loadAvailableProbes() {
 
     const map = new Map<string, ProbeRecord>()
     const normalized = list.map((p) => {
-      const metadata = parseMaybeJSON(p.metadata)
-
-      const latitude =
-        typeof p.latitude === 'number'
-          ? p.latitude
-          : getFiniteCoordinate(metadata['latitude'])
-      const longitude =
-        typeof p.longitude === 'number'
-          ? p.longitude
-          : getFiniteCoordinate(metadata['longitude'])
-
-      const next: ProbeRecord = {
-        ...p,
-        latitude: Number.isFinite(latitude) ? (latitude as number) : null,
-        longitude: Number.isFinite(longitude) ? (longitude as number) : null,
-      }
-
+      const next: ProbeRecord = normalizeProbeCoordinates(p)
       map.set(next.probe_id, next)
       return next
     })
@@ -932,9 +939,9 @@ async function startTest(modeValue: 'single' | 'continuous') {
   sparkCanvasByProbeId.value = {}
   accumulatedPacketData.value = {}
   tracerouteData.value = {}
+  httpDetails.value = {}
   activeProbeIds.value = []
   currentTaskId.value = ''
-  initialMapMarkers.value = null
 
   if (probesData.value.size === 0) {
     await loadAvailableProbes()
@@ -943,7 +950,7 @@ async function startTest(modeValue: 'single' | 'continuous') {
   try {
     const params: Record<string, unknown> = { ip_version: ipVersion.value }
 
-    if (modeValue === 'continuous' && supportsContinuous.value) {
+    if (modeValue === 'continuous') {
       // continuous 模式统一固定 maxRuns 次（调度器每秒触发一次）
       params.count = maxRuns.value
     } else {
@@ -1086,6 +1093,15 @@ async function startTest(modeValue: 'single' | 'continuous') {
           tracerouteData.value = next
         }
 
+        if (testType.value === 'http_test') {
+          const next: Record<string, HTTPTestResult> = {}
+          for (const r of taskResults) {
+            const data = r.result_data as unknown as HTTPTestResult
+            if (data) next[r.probe_id] = data
+          }
+          httpDetails.value = next
+        }
+
 
         if (effectiveStatus === 'completed' || effectiveStatus === 'failed' || effectiveStatus === 'cancelled') {
           markTaskCompletedAndStopPolling(effectiveStatus as DisplayTaskStatus)
@@ -1124,16 +1140,6 @@ async function startTest(modeValue: 'single' | 'continuous') {
   }
 }
 
-async function startSingle() {
-  await startTest('single')
-}
-
-async function startContinuous() {
-  // 不支持持续监控的类型（HTTP/Traceroute）直接忽略
-  if (!supportsContinuous.value) return
-  await startTest('continuous')
-}
-
 async function stopContinuousTest() {
   if (!currentTaskId.value) return
   try {
@@ -1150,16 +1156,8 @@ async function stopContinuousTest() {
   }
 }
 
-const initialMapMarkers = ref<ProbeMarker[] | null>(null)
-
 const probeMarkers = computed<ProbeMarker[]>(() => {
-  // 持续模式下：避免每秒刷新地图（WorldMap 重绘/重算开销较大）
-  // 同时：Traceroute 也可能每秒刷新，因此同样固定地图标记避免卡顿
-  if ((supportsContinuous.value || isStreamingRouteDetails.value) && initialMapMarkers.value) {
-    return initialMapMarkers.value
-  }
-
-  const markers = results.value
+  return results.value
     .map((r) => {
       const probe = probesData.value.get(r.probe_id)
 
@@ -1180,40 +1178,31 @@ const probeMarkers = computed<ProbeMarker[]>(() => {
         location: r.location,
         latitude,
         longitude,
-        latency: r.avg_latency,
+        latency: r.last_latency ?? r.avg_latency,
         status: validStatus,
         packetLoss: r.packet_loss,
       } as ProbeMarker
     })
     .filter((marker): marker is ProbeMarker => marker !== null)
-
-  if ((supportsContinuous.value || isStreamingRouteDetails.value) && markers.length > 0 && !initialMapMarkers.value) {
-    initialMapMarkers.value = markers
-  }
-
-  return markers
 })
+
+async function redrawSparkCharts() {
+  await nextTick()
+  for (const r of results.value) {
+    drawSparkForProbe(r.probe_id)
+  }
+}
 
 watch(
   () => results.value,
-  async () => {
-    await nextTick()
-    for (const r of results.value) {
-      drawSparkForProbe(r.probe_id)
-    }
-  },
+  redrawSparkCharts,
   { deep: true }
 )
 
 // 监听累积数据变化，触发柱状图重绘
 watch(
   () => accumulatedPacketData.value,
-  async () => {
-    await nextTick()
-    for (const r of results.value) {
-      drawSparkForProbe(r.probe_id)
-    }
-  },
+  redrawSparkCharts,
   { deep: true }
 )
 
@@ -1235,7 +1224,7 @@ onMounted(async () => {
   // 默认模式：
   // - Ping/TCP 走持续（监控）
   // - Traceroute/HTTP 走单次
-  pageMode.value = supportsContinuous.value ? 'continuous' : 'single'
+  pageMode.value = getPageModeForTaskType(testType.value)
 
   // 默认测试类型为 Ping
   testType.value = 'icmp_ping'
@@ -1292,11 +1281,6 @@ onBeforeUnmount(() => {
   align-items: stretch;
 }
 
-.target-row .target-input {
-  flex: 1;
-  min-width: 0;
-}
-
 .target-row :deep(.v-btn) {
   height: 40px;
 }
@@ -1310,16 +1294,15 @@ onBeforeUnmount(() => {
 }
 
 
-.target-input {
-  flex: 1;
-  min-width: 0;
-}
-
-
 .param-hint {
   margin-top: 10px;
   font-size: 12px;
   color: var(--text-2);
+}
+
+.target-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .probe-select {
@@ -1452,5 +1435,11 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.http-url-cell {
+  font-size: 12px;
+  color: var(--text-2);
+  word-break: break-all;
 }
 </style>

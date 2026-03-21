@@ -7,7 +7,7 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
-    PingChart: typeof import('./components/PingChart.vue')['default']
+    HttpHeadersGrid: typeof import('./components/HttpHeadersGrid.vue')['default']
     ProbeCell: typeof import('./components/ProbeCell.vue')['default']
     ProviderCell: typeof import('./components/ProviderCell.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
