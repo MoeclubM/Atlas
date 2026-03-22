@@ -66,16 +66,7 @@ func (c *Connection) handleRegister(msg map[string]interface{}) error {
 
 	metadataJSON, _ := json.Marshal(metadata)
 
-	// 提取 IP 地址(去除端口)
-	probeIP := c.RemoteIP
-	if idx := len(probeIP) - 1; idx >= 0 {
-		for i := idx; i >= 0; i-- {
-			if probeIP[i] == ':' {
-				probeIP = probeIP[:i]
-				break
-			}
-		}
-	}
+	probeIP := normalizeRemoteIP(c.RemoteIP)
 
 	probe := &model.Probe{
 		ProbeID:       registerMsg.ProbeID,

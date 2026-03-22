@@ -17,6 +17,7 @@
       <v-tabs
         v-model="activeTab"
         color="primary"
+        show-arrows
       >
         <v-tab value="nodes">
           {{ $t('admin.nodes') }}
@@ -41,64 +42,126 @@
               indeterminate
             />
 
-            <v-table v-else>
-              <thead>
-                <tr>
-                  <th style="width: 220px">
-                    {{ $t('admin.nodeName') }}
-                  </th>
-                  <th style="width: 320px">
-                    {{ $t('admin.nodeId') }}
-                  </th>
-                  <th style="width: 110px">
-                    {{ $t('admin.version') }}
-                  </th>
-                  <th style="width: 160px">
-                    {{ $t('admin.ipAddress') }}
-                  </th>
-                  <th style="width: 220px">
-                    {{ $t('admin.providerLabel') }}
-                  </th>
-                  <th>{{ $t('admin.location') }}</th>
-                  <th style="width: 110px">
-                    {{ $t('admin.status') }}
-                  </th>
-                  <th style="width: 190px">
-                    {{ $t('admin.actions') }}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
+            <div
+              v-else
+              class="admin-probes-section"
+            >
+              <div class="admin-table-wrap desktop-only">
+                <v-table>
+                  <thead>
+                    <tr>
+                      <th style="width: 220px">
+                        {{ $t('admin.nodeName') }}
+                      </th>
+                      <th style="width: 320px">
+                        {{ $t('admin.nodeId') }}
+                      </th>
+                      <th style="width: 110px">
+                        {{ $t('admin.version') }}
+                      </th>
+                      <th style="width: 160px">
+                        {{ $t('admin.connectionIp') }}
+                      </th>
+                      <th style="width: 220px">
+                        {{ $t('admin.providerLabel') }}
+                      </th>
+                      <th>{{ $t('admin.location') }}</th>
+                      <th style="width: 110px">
+                        {{ $t('admin.status') }}
+                      </th>
+                      <th style="width: 250px">
+                        {{ $t('admin.actions') }}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="row in probes"
+                      :key="row.probe_id"
+                    >
+                      <td>
+                        <v-text-field
+                          v-model="row.name"
+                          density="compact"
+                          variant="outlined"
+                          hide-details
+                          @keyup.enter="updateProbe(row)"
+                        />
+                      </td>
+                      <td>
+                        <code class="probe-id">{{ row.probe_id }}</code>
+                      </td>
+                      <td>
+                        <span class="mono">{{ row.version || '-' }}</span>
+                      </td>
+                      <td>
+                        <span class="mono">{{ row.ip_address || '-' }}</span>
+                      </td>
+                      <td>
+                        <span v-if="row.provider_label">
+                          {{ $te(`admin.provider.${row.provider_label}`) ? $t(`admin.provider.${row.provider_label}`) : row.provider_label }}
+                        </span>
+                        <span v-else>-</span>
+                      </td>
+                      <td>{{ row.location || '-' }}</td>
+                      <td>
+                        <v-chip
+                          size="small"
+                          variant="tonal"
+                          :color="row.status === 'online' ? 'success' : 'secondary'"
+                        >
+                          {{ row.status === 'online' ? $t('admin.statusOnline') : $t('admin.statusOffline') }}
+                        </v-chip>
+                      </td>
+                      <td>
+                        <div class="row-actions">
+                          <v-btn
+                            variant="tonal"
+                            color="primary"
+                            density="compact"
+                            :loading="isProbeSaving(row.probe_id)"
+                            @click="updateProbe(row)"
+                          >
+                            {{ $t('common.save') }}
+                          </v-btn>
+                          <v-btn
+                            variant="tonal"
+                            color="primary"
+                            density="compact"
+                            :loading="isProbeUpgrading(row.probe_id)"
+                            @click="upgradeProbe(row)"
+                          >
+                            {{ $t('admin.upgrade') }}
+                          </v-btn>
+                          <v-btn
+                            variant="text"
+                            color="error"
+                            density="compact"
+                            @click="deleteProbe(row.probe_id)"
+                          >
+                            {{ $t('admin.delete') }}
+                          </v-btn>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </v-table>
+              </div>
+
+              <div class="mobile-probe-list">
+                <v-card
                   v-for="row in probes"
-                  :key="row.probe_id"
+                  :key="`${row.probe_id}-mobile`"
+                  variant="outlined"
+                  class="probe-card"
                 >
-                  <td>
-                    <v-text-field
-                      v-model="row.name"
-                      density="compact"
-                      variant="outlined"
-                      hide-details
-                      @blur="updateProbe(row)"
-                    />
-                  </td>
-                  <td>
-                    <code class="probe-id">{{ row.probe_id }}</code>
-                  </td>
-                  <td>
-                    <span class="mono">{{ row.version || '-' }}</span>
-                  </td>
-                  <td>
-                    <span class="mono">{{ row.ip_address || '-' }}</span>
-                  </td>
-                  <td>
-                    <span v-if="row.provider_label">
-                      {{ $te(`admin.provider.${row.provider_label}`) ? $t(`admin.provider.${row.provider_label}`) : row.provider_label }}
-                    </span>
-                    <span v-else>-</span>
-                  </td>
-                  <td>{{ row.location }}</td>
-                  <td>
+                  <div class="probe-card-header">
+                    <div class="probe-card-title-wrap">
+                      <div class="probe-card-title">
+                        {{ row.name || row.probe_id }}
+                      </div>
+                      <code class="probe-id">{{ row.probe_id }}</code>
+                    </div>
                     <v-chip
                       size="small"
                       variant="tonal"
@@ -106,31 +169,70 @@
                     >
                       {{ row.status === 'online' ? $t('admin.statusOnline') : $t('admin.statusOffline') }}
                     </v-chip>
-                  </td>
-                  <td>
-                    <div class="row-actions">
-                      <v-btn
-                        variant="tonal"
-                        color="primary"
-                        density="compact"
-                        :loading="isProbeUpgrading(row.probe_id)"
-                        @click="upgradeProbe(row)"
-                      >
-                        {{ $t('admin.upgrade') }}
-                      </v-btn>
-                      <v-btn
-                        variant="text"
-                        color="error"
-                        density="compact"
-                        @click="deleteProbe(row.probe_id)"
-                      >
-                        {{ $t('admin.delete') }}
-                      </v-btn>
+                  </div>
+
+                  <v-text-field
+                    v-model="row.name"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    class="probe-name-field"
+                    :label="$t('admin.nodeName')"
+                    @keyup.enter="updateProbe(row)"
+                  />
+
+                  <div class="probe-meta-grid">
+                    <div class="probe-meta-item">
+                      <span class="probe-meta-label">{{ $t('admin.version') }}</span>
+                      <span class="mono">{{ row.version || '-' }}</span>
                     </div>
-                  </td>
-                </tr>
-              </tbody>
-            </v-table>
+                    <div class="probe-meta-item">
+                      <span class="probe-meta-label">{{ $t('admin.connectionIp') }}</span>
+                      <span class="mono">{{ row.ip_address || '-' }}</span>
+                    </div>
+                    <div class="probe-meta-item">
+                      <span class="probe-meta-label">{{ $t('admin.providerLabel') }}</span>
+                      <span>
+                        {{ row.provider_label ? ($te(`admin.provider.${row.provider_label}`) ? $t(`admin.provider.${row.provider_label}`) : row.provider_label) : '-' }}
+                      </span>
+                    </div>
+                    <div class="probe-meta-item">
+                      <span class="probe-meta-label">{{ $t('admin.location') }}</span>
+                      <span>{{ row.location || '-' }}</span>
+                    </div>
+                  </div>
+
+                  <div class="row-actions">
+                    <v-btn
+                      variant="tonal"
+                      color="primary"
+                      density="compact"
+                      :loading="isProbeSaving(row.probe_id)"
+                      @click="updateProbe(row)"
+                    >
+                      {{ $t('common.save') }}
+                    </v-btn>
+                    <v-btn
+                      variant="tonal"
+                      color="primary"
+                      density="compact"
+                      :loading="isProbeUpgrading(row.probe_id)"
+                      @click="upgradeProbe(row)"
+                    >
+                      {{ $t('admin.upgrade') }}
+                    </v-btn>
+                    <v-btn
+                      variant="text"
+                      color="error"
+                      density="compact"
+                      @click="deleteProbe(row.probe_id)"
+                    >
+                      {{ $t('admin.delete') }}
+                    </v-btn>
+                  </div>
+                </v-card>
+              </div>
+            </div>
           </div>
         </v-window-item>
 
@@ -322,6 +424,7 @@ type AdminConfig = {
 }
 
 const probes = ref<AdminProbeRow[]>([])
+const savingProbeIds = ref<string[]>([])
 const upgradingProbeIds = ref<string[]>([])
 const config = ref<AdminConfig>({
   shared_secret: '',
@@ -340,6 +443,9 @@ const wsUrl = computed(() => {
   return `${scheme}://${host}/ws`
 })
 
+function normalizePositiveInt(value: number, fallback: number) {
+  return Number.isFinite(value) && value > 0 ? Math.trunc(value) : fallback
+}
 
 
 async function loadProbes() {
@@ -348,7 +454,7 @@ async function loadProbes() {
     type ProbesResponse = {
       probes: AdminProbeRow[]
     }
-    const response = await api.get<ProbesResponse>('/probes')
+    const response = await api.get<ProbesResponse>('/admin/probes')
     probes.value = (response.probes as AdminProbeRow[]).map((p) => {
       const metadata = getProbeMetadataSummary(p.metadata)
       const next: AdminProbeRow = {
@@ -394,14 +500,22 @@ async function loadConfig() {
 }
 
 async function updateProbe(probe: AdminProbeRow) {
+  savingProbeIds.value = [...savingProbeIds.value, probe.probe_id]
   try {
     await api.put(`/admin/probes/${probe.probe_id}`, {
       name: probe.name,
     })
+    await loadProbes()
     ui.notify(String($t('admin.updateSuccess')), 'success')
   } catch {
     ui.notify(String($t('admin.updateFailed')), 'error')
+  } finally {
+    savingProbeIds.value = savingProbeIds.value.filter((id) => id !== probe.probe_id)
   }
+}
+
+function isProbeSaving(probeId: string) {
+  return savingProbeIds.value.includes(probeId)
 }
 
 function isProbeUpgrading(probeId: string) {
@@ -461,11 +575,13 @@ async function deleteProbe(probeId: string) {
 async function saveConfig() {
   try {
     await api.put('/admin/config', {
-      ...config.value,
-      ping_max_runs: String(config.value.ping_max_runs),
-      tcp_ping_max_runs: String(config.value.tcp_ping_max_runs),
-      traceroute_timeout_seconds: String(config.value.traceroute_timeout_seconds),
+      shared_secret: config.value.shared_secret,
+      blocked_networks: config.value.blocked_networks,
+      ping_max_runs: normalizePositiveInt(config.value.ping_max_runs, 100),
+      tcp_ping_max_runs: normalizePositiveInt(config.value.tcp_ping_max_runs, 100),
+      traceroute_timeout_seconds: normalizePositiveInt(config.value.traceroute_timeout_seconds, 60),
     })
+    await loadConfig()
     ui.notify(String($t('admin.saveSuccess')), 'success')
   } catch {
     ui.notify(String($t('admin.saveFailed')), 'error')
@@ -522,6 +638,8 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 16px;
 }
 
@@ -541,6 +659,15 @@ onMounted(() => {
   padding: 20px;
 }
 
+.admin-probes-section {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-table-wrap {
+  overflow-x: auto;
+}
+
 .hint {
   color: var(--text-2);
   font-size: 14px;
@@ -557,6 +684,55 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.mobile-probe-list {
+  display: none;
+}
+
+.probe-card {
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.probe-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.probe-card-title-wrap {
+  min-width: 0;
+}
+
+.probe-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.probe-name-field {
+  margin-top: 12px;
+}
+
+.probe-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.probe-meta-item {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.probe-meta-label {
+  font-size: 12px;
+  color: var(--text-2);
 }
 
 .test-config-grid {
@@ -592,10 +768,48 @@ onMounted(() => {
   font-size: 12px;
   color: var(--text-2);
   white-space: nowrap;
+  display: inline-block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .admin-page {
+    padding: 16px 12px;
+  }
+
+  .tab-content {
+    padding: 16px 12px;
+  }
+
+  .actions-row,
+  .code-box {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .code-box code {
+    word-break: break-all;
+  }
+}
+
+@media (max-width: 720px) {
+  .desktop-only {
+    display: none;
+  }
+
+  .mobile-probe-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .probe-meta-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

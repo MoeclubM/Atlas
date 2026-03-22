@@ -29,6 +29,7 @@ func SetupRoutes(r *gin.Engine, db *database.Database, hub *websocket.Hub, cfg *
 			authed := admin.Group("")
 			authed.Use(middleware.AdminAuth(cfg.Security.JWTSecret))
 			{
+				authed.GET("/probes", adminHandler.ListProbes)
 				authed.GET("/generate-secret", adminHandler.GenerateSharedSecret)
 				authed.GET("/config", adminHandler.GetConfig)
 				authed.PUT("/config", adminHandler.UpdateConfig)

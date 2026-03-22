@@ -57,117 +57,122 @@
           class="mb-3"
         />
 
-        <v-table v-else>
-          <thead>
-            <tr>
-              <th style="width: 220px">
-                {{ $t('home.probeLabel') }}
-              </th>
-              <th style="width: 160px">
-                {{ $t('results.resolvedIP') }}
-              </th>
-              <th style="width: 160px">
-                {{ $t('results.targetISP') }}
-              </th>
-              <th
-                v-if="isHTTPTask"
-                style="width: 110px"
+        <div
+          v-else
+          class="table-scroll"
+        >
+          <v-table>
+            <thead>
+              <tr>
+                <th style="width: 220px">
+                  {{ $t('home.probeLabel') }}
+                </th>
+                <th style="width: 160px">
+                  {{ $t('results.resolvedIP') }}
+                </th>
+                <th style="width: 160px">
+                  {{ $t('results.targetISP') }}
+                </th>
+                <th
+                  v-if="isHTTPTask"
+                  style="width: 110px"
+                >
+                  {{ $t('results.httpStatus') }}
+                </th>
+                <th style="width: 130px">
+                  {{ $t('singleResult.latency') }}
+                </th>
+                <th style="width: 100px">
+                  {{ $t('singleResult.lossRate') }}
+                </th>
+                <th>{{ $t('singleResult.stats') }}</th>
+                <th style="width: 110px">
+                  {{ $t('results.status') }}
+                </th>
+                <th style="width: 110px">
+                  {{ $t('common.actions') }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in probeResults"
+                :key="row.probe_id || row.probe_name"
               >
-                {{ $t('results.httpStatus') }}
-              </th>
-              <th style="width: 130px">
-                {{ $t('singleResult.latency') }}
-              </th>
-              <th style="width: 100px">
-                {{ $t('singleResult.lossRate') }}
-              </th>
-              <th>{{ $t('singleResult.stats') }}</th>
-              <th style="width: 110px">
-                {{ $t('results.status') }}
-              </th>
-              <th style="width: 110px">
-                {{ $t('common.actions') }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="row in probeResults"
-              :key="row.probe_id || row.probe_name"
-            >
-              <td>
-                <ProbeCell
-                  :location="row.location"
-                  :provider="row.provider"
-                />
-              </td>
-              <td>{{ row.ip_address }}</td>
-              <td>
-                <ProviderCell
-                  :target-asn="row.target_asn"
-                  :target-as-name="row.target_as_name"
-                  :target-isp="row.target_isp"
-                />
-              </td>
-              <td v-if="isHTTPTask">
-                <v-chip
-                  v-if="row.http_status_code !== undefined"
-                  size="small"
-                  variant="tonal"
-                  :color="getHTTPStatusChipColor(row.http_status_code)"
-                >
-                  {{ row.http_status_code }}
-                </v-chip>
-                <span v-else>-</span>
-              </td>
-              <td>
-                <v-chip
-                  v-if="row.avg_latency !== undefined"
-                  size="small"
-                  variant="tonal"
-                  :color="getLatencyHex(row.avg_latency, 'success')"
-                >
-                  {{ row.avg_latency.toFixed(2) }} {{ $t('common.ms') }}
-                </v-chip>
-                <span v-else>-</span>
-              </td>
-              <td>
-                <span v-if="row.packet_loss !== undefined">{{ row.packet_loss.toFixed(1) }}%</span>
-                <span v-else>-</span>
-              </td>
-              <td>
-                <div
-                  v-if="row.min_latency !== undefined"
-                  class="stats-cell"
-                >
-                  <span>{{ $t('singleResult.min') }}: {{ row.min_latency.toFixed(2) }} {{ $t('common.ms') }}</span>
-                  <span>{{ $t('singleResult.max') }}: {{ row.max_latency?.toFixed(2) || '-' }} {{ $t('common.ms') }}</span>
-                  <span>{{ $t('singleResult.stdev') }}: {{ row.stddev?.toFixed(2) || '-' }} {{ $t('common.ms') }}</span>
-                </div>
-                <span v-else>-</span>
-              </td>
-              <td>
-                <v-chip
-                  size="small"
-                  variant="tonal"
-                  :color="getResultStatusColor(row.status)"
-                >
-                  {{ row.status === 'success' ? $t('common.success') : row.status === 'failed' ? $t('common.failed') : $t('common.unknown') }}
-                </v-chip>
-              </td>
-              <td>
-                <v-btn
-                  variant="text"
-                  color="primary"
-                  density="compact"
-                  @click="showDetail(row)"
-                >
-                  {{ $t('common.detail') }}
-                </v-btn>
-              </td>
-            </tr>
-          </tbody>
-        </v-table>
+                <td>
+                  <ProbeCell
+                    :location="row.location"
+                    :provider="row.provider"
+                  />
+                </td>
+                <td>{{ row.ip_address }}</td>
+                <td>
+                  <ProviderCell
+                    :target-asn="row.target_asn"
+                    :target-as-name="row.target_as_name"
+                    :target-isp="row.target_isp"
+                  />
+                </td>
+                <td v-if="isHTTPTask">
+                  <v-chip
+                    v-if="row.http_status_code !== undefined"
+                    size="small"
+                    variant="tonal"
+                    :color="getHTTPStatusChipColor(row.http_status_code)"
+                  >
+                    {{ row.http_status_code }}
+                  </v-chip>
+                  <span v-else>-</span>
+                </td>
+                <td>
+                  <v-chip
+                    v-if="row.avg_latency !== undefined"
+                    size="small"
+                    variant="tonal"
+                    :color="getLatencyHex(row.avg_latency, 'success')"
+                  >
+                    {{ row.avg_latency.toFixed(2) }} {{ $t('common.ms') }}
+                  </v-chip>
+                  <span v-else>-</span>
+                </td>
+                <td>
+                  <span v-if="row.packet_loss !== undefined">{{ row.packet_loss.toFixed(1) }}%</span>
+                  <span v-else>-</span>
+                </td>
+                <td>
+                  <div
+                    v-if="row.min_latency !== undefined"
+                    class="stats-cell"
+                  >
+                    <span>{{ $t('singleResult.min') }}: {{ row.min_latency.toFixed(2) }} {{ $t('common.ms') }}</span>
+                    <span>{{ $t('singleResult.max') }}: {{ row.max_latency?.toFixed(2) || '-' }} {{ $t('common.ms') }}</span>
+                    <span>{{ $t('singleResult.stdev') }}: {{ row.stddev?.toFixed(2) || '-' }} {{ $t('common.ms') }}</span>
+                  </div>
+                  <span v-else>-</span>
+                </td>
+                <td>
+                  <v-chip
+                    size="small"
+                    variant="tonal"
+                    :color="getResultStatusColor(row.status)"
+                  >
+                    {{ row.status === 'success' ? $t('common.success') : row.status === 'failed' ? $t('common.failed') : $t('common.unknown') }}
+                  </v-chip>
+                </td>
+                <td>
+                  <v-btn
+                    variant="text"
+                    color="primary"
+                    density="compact"
+                    @click="showDetail(row)"
+                  >
+                    {{ $t('common.detail') }}
+                  </v-btn>
+                </td>
+              </tr>
+            </tbody>
+          </v-table>
+        </div>
       </v-card-text>
     </v-card>
 
@@ -533,6 +538,7 @@ onMounted(() => {
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .page-title {
@@ -542,6 +548,10 @@ onMounted(() => {
 
 .result-card {
   border-radius: 8px;
+}
+
+.table-scroll {
+  overflow-x: auto;
 }
 
 .card-header {
@@ -570,6 +580,17 @@ onMounted(() => {
   font-size: 12px;
   max-height: 400px;
   overflow-y: auto;
+}
+
+@media (max-width: 720px) {
+  .single-test-result {
+    padding: 12px;
+  }
+
+  .page-title {
+    font-size: 16px;
+    word-break: break-word;
+  }
 }
 
 </style>

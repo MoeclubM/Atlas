@@ -13,10 +13,9 @@
               density="compact"
               hide-details
               single-line
-              class="type-select-md3"
+              class="type-select-md3 control-field"
               data-testid="home-type-select"
               :label="$t('home.type')"
-              style="width: 140px"
               @update:model-value="onSelectType"
             />
 
@@ -43,14 +42,14 @@
               density="compact"
               hide-details
               single-line
-              class="ip-select-md3"
+              class="ip-select-md3 control-field"
               data-testid="home-ip-select"
               :label="$t('home.ip')"
-              style="width: 120px"
             />
 
             <v-btn
               color="primary"
+              class="action-btn"
               data-testid="home-start"
               :disabled="!canStart"
               :loading="testing"
@@ -63,6 +62,7 @@
               v-if="currentTaskId && (taskStatus === 'scheduling' || taskStatus === 'running')"
               color="error"
               variant="tonal"
+              class="action-btn"
               data-testid="home-stop-test"
               @click="stopContinuousTest"
             >
@@ -1401,6 +1401,9 @@ onBeforeUnmount(() => {
   min-width: 120px;
 }
 
+.control-field {
+  width: 100%;
+}
 
 .param-hint {
   margin-top: 10px;
@@ -1428,12 +1431,39 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 720px) {
+  .main {
+    padding: 20px 12px;
+  }
+
+  .input-wrapper {
+    padding: 12px;
+  }
+
   .target-row {
     flex-wrap: wrap;
   }
 
+  .type-select-md3,
+  .ip-select-md3,
   .target-input {
     flex: 1 1 100%;
+  }
+
+  .action-btn {
+    width: 100%;
+  }
+
+  .results-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .map-section {
+    padding: 12px;
+  }
+
+  .results-filters {
+    padding: 10px 12px;
   }
 }
 

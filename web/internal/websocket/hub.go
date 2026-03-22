@@ -79,20 +79,11 @@ func (h *Hub) HandleConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 获取客户端 IP 地址
-	remoteIP := r.Header.Get("X-Forwarded-For")
-	if remoteIP == "" {
-		remoteIP = r.Header.Get("X-Real-IP")
-	}
-	if remoteIP == "" {
-		remoteIP = r.RemoteAddr
-	}
-
 	conn := &Connection{
 		hub:      h,
 		ws:       ws,
 		send:     make(chan []byte, 256),
-		RemoteIP: remoteIP,
+		RemoteIP: extractRemoteIP(r),
 	}
 
 	// 启动读写协程

@@ -17,6 +17,7 @@ import (
 
 	"atlas/web/internal/config"
 	"atlas/web/internal/database"
+	"atlas/web/internal/model"
 	"atlas/web/internal/websocket"
 )
 
@@ -100,6 +101,30 @@ func (h *AdminHandler) GetConfig(c *gin.Context) {
 		"ping_max_runs":              pingMaxRuns,
 		"tcp_ping_max_runs":          tcpPingMaxRuns,
 		"traceroute_timeout_seconds": trTimeout,
+	})
+}
+
+func (h *AdminHandler) ListProbes(c *gin.Context) {
+	status := strings.TrimSpace(c.Query("status"))
+
+	var (
+		probes []*model.Probe
+		err    error
+	)
+
+	if status == "online" {
+		probes, err = h.db.GetOnlineProbes()
+	} else {
+		probes, err = h.db.ListProbes(status)
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list probes"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"probes": probes,
+		"total":  len(probes),
 	})
 }
 

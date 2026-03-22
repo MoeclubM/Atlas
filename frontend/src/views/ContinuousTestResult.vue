@@ -60,7 +60,7 @@
 
           <div
             v-else
-            style="overflow-x: auto"
+            class="table-scroll"
           >
             <v-table density="compact">
               <thead>
@@ -579,6 +579,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 12px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .page-title {
@@ -600,5 +601,24 @@ onBeforeUnmount(() => {
 .chart-container {
   width: 100%;
   height: 400px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+@media (max-width: 720px) {
+  .continuous-test-result {
+    padding: 12px;
+  }
+
+  .page-title {
+    font-size: 16px;
+    word-break: break-word;
+  }
+
+  .chart-container {
+    height: 320px;
+  }
 }
 </style>
