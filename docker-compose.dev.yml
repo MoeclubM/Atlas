@@ -8,6 +8,7 @@ services:
       - WEB_SERVER_URL=ws://web:8080/ws
       - AUTH_TOKEN=${SHARED_SECRET}
       - PROBE_NAME=Dev Probe
+      - PROBE_DEPLOY_MODE=dev-docker
       - PROBE_ID_DIR=/app/probe-id
       - PROBE_ID_FILE=/app/probe-id/probe_id_dev.txt
     volumes:

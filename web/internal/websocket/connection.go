@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+
+	"atlas/shared/protocol"
 )
 
 const (
@@ -22,7 +24,6 @@ const (
 	// 最大消息大小
 	maxMessageSize = 1024 * 1024 // 1MB
 )
-
 
 var (
 	ErrProbeNotConnected = errors.New("probe not connected")
@@ -114,17 +115,19 @@ func (c *Connection) handleMessage(message []byte) error {
 
 	// 根据消息类型路由到相应的处理器
 	switch msgType {
-	case "register":
+	case protocol.MsgTypeRegister:
 		return c.handleRegister(msg)
-	case "heartbeat":
+	case protocol.MsgTypeHeartbeat:
 		return c.handleHeartbeat(msg)
-	case "task_result":
+	case protocol.MsgTypeTaskResult:
 		return c.handleTaskResult(msg)
-	case "task_status":
+	case protocol.MsgTypeTaskStatus:
 		return c.handleTaskStatus(msg)
-	case "error":
+	case protocol.MsgTypeProbeUpgradeAck:
+		return c.handleProbeUpgradeAck(msg)
+	case protocol.MsgTypeError:
 		return c.handleError(msg)
-	case "ping":
+	case protocol.MsgTypePing:
 		return c.handlePing(msg)
 	default:
 		log.Printf("[Connection] Unknown message type: %s", msgType)

@@ -9,6 +9,7 @@ DEFAULT_BIN_NAME="atlas-probe"
 DEFAULT_CONFIG_DIR="/etc/atlas-probe"
 DEFAULT_CONFIG_PATH="${DEFAULT_CONFIG_DIR}/config.yaml"
 DEFAULT_STATE_DIR="/var/lib/atlas-probe"
+DEFAULT_UPGRADE_REQUEST_DIR="${DEFAULT_STATE_DIR}/upgrade-requests"
 DEFAULT_SUPPORT_DIR="/usr/local/lib/atlas-probe"
 DEFAULT_SERVICE_NAME="atlas-probe.service"
 DEFAULT_UPGRADE_HELPER_PATH="${DEFAULT_SUPPORT_DIR}/upgrade.sh"
@@ -33,7 +34,7 @@ Options:
   --no-start           Install/update files only. Do not enable or start the service
 
 This script:
-  - Installs required packages: iputils-ping, traceroute, ca-certificates, curl
+  - Installs required packages: iputils-ping, traceroute, mtr-tiny, ca-certificates, curl
   - Downloads atlas-probe from GitHub Releases and verifies SHA256 from checksums.txt
   - Creates user atlas-probe and required directories
   - Writes config at /etc/atlas-probe/config.yaml
@@ -56,7 +57,8 @@ apt_install_deps() {
     ca-certificates \
     curl \
     iputils-ping \
-    traceroute
+    traceroute \
+    mtr-tiny
 }
 
 get_arch() {
@@ -140,7 +142,7 @@ ensure_user_and_dirs() {
     useradd --system --home "${DEFAULT_STATE_DIR}" --shell /usr/sbin/nologin "${DEFAULT_USER}"
   fi
 
-  mkdir -p "${DEFAULT_CONFIG_DIR}" "${DEFAULT_STATE_DIR}"
+  mkdir -p "${DEFAULT_CONFIG_DIR}" "${DEFAULT_STATE_DIR}" "${DEFAULT_UPGRADE_REQUEST_DIR}"
   chown -R "${DEFAULT_USER}:${DEFAULT_USER}" "${DEFAULT_STATE_DIR}"
 }
 
@@ -202,6 +204,7 @@ capabilities:
   - icmp_ping
   - tcp_ping
   - traceroute
+  - mtr
 
 executor:
   max_concurrent_tasks: 5
@@ -228,9 +231,11 @@ WorkingDirectory=${DEFAULT_STATE_DIR}
 ExecStart=${DEFAULT_INSTALL_DIR}/${DEFAULT_BIN_NAME} -config ${DEFAULT_CONFIG_PATH}
 Restart=always
 RestartSec=3
+Environment=PROBE_DEPLOY_MODE=systemd
+Environment=ATLAS_UPGRADE_REQUEST_DIR=${DEFAULT_UPGRADE_REQUEST_DIR}
 Environment=ATLAS_UPGRADE_REQUEST_FILE=${DEFAULT_UPGRADE_REQUEST_PATH}
 
-# Capabilities for ping/traceroute
+# Capabilities for ping/traceroute/mtr
 AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
 CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
 NoNewPrivileges=true
@@ -259,8 +264,9 @@ REPO_OWNER="${REPO_OWNER}"
 REPO_NAME="${REPO_NAME}"
 INSTALL_DIR="${DEFAULT_INSTALL_DIR}"
 BIN_NAME="${DEFAULT_BIN_NAME}"
+REQUEST_DIR="${DEFAULT_UPGRADE_REQUEST_DIR}"
 REQUEST_FILE="${DEFAULT_UPGRADE_REQUEST_PATH}"
-ACTIVE_REQUEST_FILE="${DEFAULT_UPGRADE_REQUEST_PATH}.active"
+ACTIVE_REQUEST_FILE=""
 SERVICE_NAME="${DEFAULT_SERVICE_NAME}"
 WORK_DIR=""
 
@@ -268,7 +274,9 @@ cleanup() {
   if [[ -n "\${WORK_DIR}" && -d "\${WORK_DIR}" ]]; then
     rm -rf "\${WORK_DIR}"
   fi
-  rm -f "\${ACTIVE_REQUEST_FILE}"
+  if [[ -n "\${ACTIVE_REQUEST_FILE}" ]]; then
+    rm -f "\${ACTIVE_REQUEST_FILE}"
+  fi
 }
 trap cleanup EXIT
 
@@ -316,6 +324,27 @@ read_request_value() {
   sed -n "s/^\${key}=//p" "\${ACTIVE_REQUEST_FILE}" | head -n 1
 }
 
+pickup_request() {
+  mkdir -p "\${REQUEST_DIR}"
+
+  local next_request=""
+  next_request="\$(find "\${REQUEST_DIR}" -maxdepth 1 -type f -name '*.env' -print | sort | head -n 1)"
+  if [[ -n "\${next_request}" ]]; then
+    ACTIVE_REQUEST_FILE="\${next_request}.active"
+    mv -f "\${next_request}" "\${ACTIVE_REQUEST_FILE}"
+    return 0
+  fi
+
+  if [[ -f "\${REQUEST_FILE}" ]]; then
+    ACTIVE_REQUEST_FILE="\${REQUEST_FILE}.active"
+    mv -f "\${REQUEST_FILE}" "\${ACTIVE_REQUEST_FILE}"
+    return 0
+  fi
+
+  ACTIVE_REQUEST_FILE=""
+  return 1
+}
+
 download_release_assets() {
   local version="\$1"
   local arch="\$2"
@@ -346,13 +375,7 @@ download_release_assets() {
   install -m 0755 "\${BIN_NAME}" "\${INSTALL_DIR}/\${BIN_NAME}"
 }
 
-main() {
-  if [[ ! -f "\${REQUEST_FILE}" ]]; then
-    exit 0
-  fi
-
-  mv -f "\${REQUEST_FILE}" "\${ACTIVE_REQUEST_FILE}"
-
+process_active_request() {
   local version resolved_version arch
   version="\$(read_request_value version)"
   if [[ -n "\${version}" ]]; then
@@ -368,6 +391,20 @@ main() {
 
   download_release_assets "\${resolved_version}" "\${arch}"
   systemctl restart "\${SERVICE_NAME}"
+}
+
+main() {
+  local processed="0"
+  while pickup_request; do
+    processed="1"
+    process_active_request
+    rm -f "\${ACTIVE_REQUEST_FILE}"
+    ACTIVE_REQUEST_FILE=""
+  done
+
+  if [[ "\${processed}" == "0" ]]; then
+    exit 0
+  fi
 }
 
 main "\$@"
@@ -393,6 +430,7 @@ EOF
 Description=Watch Atlas Probe Upgrade Requests
 
 [Path]
+DirectoryNotEmpty=${DEFAULT_UPGRADE_REQUEST_DIR}
 PathExists=${DEFAULT_UPGRADE_REQUEST_PATH}
 Unit=${DEFAULT_UPGRADE_SERVICE_NAME}
 

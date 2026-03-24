@@ -2,23 +2,13 @@
   <div class="admin-page">
     <div class="admin-header">
       <h1>{{ $t('admin.title') }}</h1>
-      <v-btn
-        variant="outlined"
-        @click="logout"
-      >
+      <v-btn variant="outlined" @click="logout">
         {{ $t('admin.logout') }}
       </v-btn>
     </div>
 
-    <v-card
-      class="admin-card"
-      variant="outlined"
-    >
-      <v-tabs
-        v-model="activeTab"
-        color="primary"
-        show-arrows
-      >
+    <v-card class="admin-card" variant="outlined">
+      <v-tabs v-model="activeTab" color="primary" show-arrows>
         <v-tab value="nodes">
           {{ $t('admin.nodes') }}
         </v-tab>
@@ -37,15 +27,9 @@
         <!-- 节点列表 -->
         <v-window-item value="nodes">
           <div class="tab-content">
-            <v-progress-linear
-              v-if="loading"
-              indeterminate
-            />
+            <v-progress-linear v-if="loading" indeterminate />
 
-            <div
-              v-else
-              class="admin-probes-section"
-            >
+            <div v-else class="admin-probes-section">
               <div class="admin-table-wrap desktop-only">
                 <v-table>
                   <thead>
@@ -75,10 +59,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    <tr
-                      v-for="row in probes"
-                      :key="row.probe_id"
-                    >
+                    <tr v-for="row in probes" :key="row.probe_id">
                       <td>
                         <v-text-field
                           v-model="row.name"
@@ -92,14 +73,28 @@
                         <code class="probe-id">{{ row.probe_id }}</code>
                       </td>
                       <td>
-                        <span class="mono">{{ row.version || '-' }}</span>
+                        <div class="version-cell">
+                          <span class="mono">{{ row.version || '-' }}</span>
+                          <v-chip
+                            v-if="row.latest_upgrade"
+                            size="x-small"
+                            variant="tonal"
+                            :color="getUpgradeStatusColor(row.latest_upgrade.status)"
+                          >
+                            {{ getUpgradeStatusLabel(row.latest_upgrade.status) }}
+                          </v-chip>
+                        </div>
                       </td>
                       <td>
                         <span class="mono">{{ row.ip_address || '-' }}</span>
                       </td>
                       <td>
                         <span v-if="row.provider_label">
-                          {{ $te(`admin.provider.${row.provider_label}`) ? $t(`admin.provider.${row.provider_label}`) : row.provider_label }}
+                          {{
+                            $te(`admin.provider.${row.provider_label}`)
+                              ? $t(`admin.provider.${row.provider_label}`)
+                              : row.provider_label
+                          }}
                         </span>
                         <span v-else>-</span>
                       </td>
@@ -110,7 +105,11 @@
                           variant="tonal"
                           :color="row.status === 'online' ? 'success' : 'secondary'"
                         >
-                          {{ row.status === 'online' ? $t('admin.statusOnline') : $t('admin.statusOffline') }}
+                          {{
+                            row.status === 'online'
+                              ? $t('admin.statusOnline')
+                              : $t('admin.statusOffline')
+                          }}
                         </v-chip>
                       </td>
                       <td>
@@ -129,6 +128,8 @@
                             color="primary"
                             density="compact"
                             :loading="isProbeUpgrading(row.probe_id)"
+                            :disabled="Boolean(getUpgradeDisabledReason(row))"
+                            :title="getUpgradeDisabledReason(row)"
                             @click="upgradeProbe(row)"
                           >
                             {{ $t('admin.upgrade') }}
@@ -141,6 +142,9 @@
                           >
                             {{ $t('admin.delete') }}
                           </v-btn>
+                        </div>
+                        <div v-if="getUpgradeNote(row)" class="upgrade-note">
+                          {{ getUpgradeNote(row) }}
                         </div>
                       </td>
                     </tr>
@@ -167,7 +171,11 @@
                       variant="tonal"
                       :color="row.status === 'online' ? 'success' : 'secondary'"
                     >
-                      {{ row.status === 'online' ? $t('admin.statusOnline') : $t('admin.statusOffline') }}
+                      {{
+                        row.status === 'online'
+                          ? $t('admin.statusOnline')
+                          : $t('admin.statusOffline')
+                      }}
                     </v-chip>
                   </div>
 
@@ -193,12 +201,31 @@
                     <div class="probe-meta-item">
                       <span class="probe-meta-label">{{ $t('admin.providerLabel') }}</span>
                       <span>
-                        {{ row.provider_label ? ($te(`admin.provider.${row.provider_label}`) ? $t(`admin.provider.${row.provider_label}`) : row.provider_label) : '-' }}
+                        {{
+                          row.provider_label
+                            ? $te(`admin.provider.${row.provider_label}`)
+                              ? $t(`admin.provider.${row.provider_label}`)
+                              : row.provider_label
+                            : '-'
+                        }}
                       </span>
                     </div>
                     <div class="probe-meta-item">
                       <span class="probe-meta-label">{{ $t('admin.location') }}</span>
                       <span>{{ row.location || '-' }}</span>
+                    </div>
+                    <div v-if="row.latest_upgrade" class="probe-meta-item">
+                      <span class="probe-meta-label">{{ $t('admin.latestUpgrade') }}</span>
+                      <div class="upgrade-state">
+                        <v-chip
+                          size="x-small"
+                          variant="tonal"
+                          :color="getUpgradeStatusColor(row.latest_upgrade.status)"
+                        >
+                          {{ getUpgradeStatusLabel(row.latest_upgrade.status) }}
+                        </v-chip>
+                        <span class="mono">{{ row.latest_upgrade.target_version }}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -217,6 +244,8 @@
                       color="primary"
                       density="compact"
                       :loading="isProbeUpgrading(row.probe_id)"
+                      :disabled="Boolean(getUpgradeDisabledReason(row))"
+                      :title="getUpgradeDisabledReason(row)"
                       @click="upgradeProbe(row)"
                     >
                       {{ $t('admin.upgrade') }}
@@ -229,6 +258,9 @@
                     >
                       {{ $t('admin.delete') }}
                     </v-btn>
+                  </div>
+                  <div v-if="getUpgradeNote(row)" class="upgrade-note">
+                    {{ getUpgradeNote(row) }}
                   </div>
                 </v-card>
               </div>
@@ -256,26 +288,17 @@
                 />
 
                 <div class="actions-row">
-                  <v-btn
-                    color="primary"
-                    @click="saveConfig"
-                  >
+                  <v-btn color="primary" @click="saveConfig">
                     {{ $t('common.save') }}
                   </v-btn>
-                  <v-btn
-                    variant="tonal"
-                    @click="generateSecret"
-                  >
+                  <v-btn variant="tonal" @click="generateSecret">
                     {{ $t('admin.generate') }}
                   </v-btn>
                 </div>
               </v-card-text>
             </v-card>
 
-            <v-card
-              variant="outlined"
-              style="margin-top: 20px"
-            >
+            <v-card variant="outlined" style="margin-top: 20px">
               <v-card-title>{{ $t('admin.address') }}</v-card-title>
               <v-card-text>
                 <p class="hint">
@@ -284,11 +307,7 @@
 
                 <div class="code-box">
                   <code>{{ wsUrl }}</code>
-                  <v-btn
-                    size="small"
-                    variant="tonal"
-                    @click="copyAddress"
-                  >
+                  <v-btn size="small" variant="tonal" @click="copyAddress">
                     {{ $t('admin.copyAddress') }}
                   </v-btn>
                 </div>
@@ -317,10 +336,7 @@
                 />
 
                 <div class="actions-row">
-                  <v-btn
-                    color="primary"
-                    @click="saveConfig"
-                  >
+                  <v-btn color="primary" @click="saveConfig">
                     {{ $t('common.save') }}
                   </v-btn>
                 </div>
@@ -358,7 +374,6 @@
                     hide-details
                   />
 
-
                   <v-text-field
                     v-model.number="config.traceroute_timeout_seconds"
                     type="number"
@@ -367,13 +382,19 @@
                     :label="$t('admin.tracerouteTimeoutSeconds')"
                     hide-details
                   />
+
+                  <v-text-field
+                    v-model.number="config.mtr_timeout_seconds"
+                    type="number"
+                    density="compact"
+                    variant="outlined"
+                    :label="$t('admin.mtrTimeoutSeconds')"
+                    hide-details
+                  />
                 </div>
 
                 <div class="actions-row">
-                  <v-btn
-                    color="primary"
-                    @click="saveConfig"
-                  >
+                  <v-btn color="primary" @click="saveConfig">
                     {{ $t('common.save') }}
                   </v-btn>
                 </div>
@@ -387,7 +408,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onBeforeUnmount, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useUiStore } from '@/stores/ui'
@@ -409,9 +430,21 @@ type AdminProbeRow = {
   status?: string
   ip_address?: string
   metadata?: unknown
+  upgrade_supported?: boolean
+  upgrade_reason?: string
+  deploy_mode?: string
+  upgrade_channel?: string
+  latest_upgrade?: AdminProbeUpgrade | null
 
   // 前端派生字段（用于展示）
   provider_label?: string
+}
+
+type AdminProbeUpgrade = {
+  upgrade_id: string
+  target_version: string
+  status: string
+  error_message?: string | null
 }
 
 type AdminConfig = {
@@ -421,11 +454,13 @@ type AdminConfig = {
   ping_max_runs: number
   tcp_ping_max_runs: number
   traceroute_timeout_seconds: number
+  mtr_timeout_seconds: number
 }
 
 const probes = ref<AdminProbeRow[]>([])
 const savingProbeIds = ref<string[]>([])
 const upgradingProbeIds = ref<string[]>([])
+let refreshTimer: ReturnType<typeof setInterval> | null = null
 const config = ref<AdminConfig>({
   shared_secret: '',
   blocked_networks: '',
@@ -433,8 +468,8 @@ const config = ref<AdminConfig>({
   ping_max_runs: 100,
   tcp_ping_max_runs: 100,
   traceroute_timeout_seconds: 60,
+  mtr_timeout_seconds: 60,
 })
-
 
 const wsUrl = computed(() => {
   const protocol = globalThis.location?.protocol
@@ -447,6 +482,62 @@ function normalizePositiveInt(value: number, fallback: number) {
   return Number.isFinite(value) && value > 0 ? Math.trunc(value) : fallback
 }
 
+function getUpgradeStatusLabel(status?: string) {
+  const normalized = typeof status === 'string' ? status.trim() : ''
+  const key = `admin.upgradeStates.${normalized}`
+  return normalized && $te(key) ? String($t(key)) : normalized || String($t('common.unknown'))
+}
+
+function getUpgradeStatusColor(status?: string) {
+  switch ((status || '').trim()) {
+    case 'applied':
+      return 'success'
+    case 'accepted':
+      return 'primary'
+    case 'queued':
+      return 'warning'
+    case 'rejected':
+    case 'failed':
+    case 'timeout':
+      return 'error'
+    default:
+      return 'secondary'
+  }
+}
+
+function getUpgradeDisabledReason(probe: AdminProbeRow) {
+  if (!probe.upgrade_supported) {
+    return probe.upgrade_reason || String($t('admin.upgradeUnsupported'))
+  }
+
+  const status = probe.latest_upgrade?.status?.trim()
+  if (status === 'queued' || status === 'accepted') {
+    return String($t('admin.upgradeInProgress'))
+  }
+
+  return ''
+}
+
+function getUpgradeNote(probe: AdminProbeRow) {
+  if (probe.latest_upgrade) {
+    const parts = [
+      `${String($t('admin.latestUpgrade'))}: ${getUpgradeStatusLabel(probe.latest_upgrade.status)}`,
+      probe.latest_upgrade.target_version,
+    ].filter(Boolean)
+
+    if (probe.latest_upgrade.error_message) {
+      parts.push(probe.latest_upgrade.error_message)
+    }
+
+    return parts.join(' · ')
+  }
+
+  if (!probe.upgrade_supported) {
+    return getUpgradeDisabledReason(probe)
+  }
+
+  return ''
+}
 
 async function loadProbes() {
   loading.value = true
@@ -455,12 +546,13 @@ async function loadProbes() {
       probes: AdminProbeRow[]
     }
     const response = await api.get<ProbesResponse>('/admin/probes')
-    probes.value = (response.probes as AdminProbeRow[]).map((p) => {
+    probes.value = (response.probes as AdminProbeRow[]).map(p => {
       const metadata = getProbeMetadataSummary(p.metadata)
       const next: AdminProbeRow = {
         ...p,
         version: metadata.version || '',
         provider_label: metadata.providerLabel || '',
+        latest_upgrade: p.latest_upgrade || null,
       }
       return next
     })
@@ -478,21 +570,31 @@ async function loadConfig() {
       ping_max_runs?: string
       tcp_ping_max_runs?: string
       traceroute_timeout_seconds?: string
+      mtr_timeout_seconds?: string
     }
     const response = await api.get<ConfigResponse>('/admin/config')
 
     const pingMaxRuns = Number(response.ping_max_runs)
     const tcpPingMaxRuns = Number(response.tcp_ping_max_runs)
     const tracerouteTimeoutSeconds = Number(response.traceroute_timeout_seconds)
+    const mtrTimeoutSeconds = Number(response.mtr_timeout_seconds)
 
     config.value = {
       shared_secret: response.shared_secret || '',
       blocked_networks: response.blocked_networks || '',
 
-      ping_max_runs: Number.isFinite(pingMaxRuns) && pingMaxRuns > 0 ? Math.floor(pingMaxRuns) : 100,
-      tcp_ping_max_runs: Number.isFinite(tcpPingMaxRuns) && tcpPingMaxRuns > 0 ? Math.floor(tcpPingMaxRuns) : 100,
+      ping_max_runs:
+        Number.isFinite(pingMaxRuns) && pingMaxRuns > 0 ? Math.floor(pingMaxRuns) : 100,
+      tcp_ping_max_runs:
+        Number.isFinite(tcpPingMaxRuns) && tcpPingMaxRuns > 0 ? Math.floor(tcpPingMaxRuns) : 100,
       traceroute_timeout_seconds:
-        Number.isFinite(tracerouteTimeoutSeconds) && tracerouteTimeoutSeconds > 0 ? Math.floor(tracerouteTimeoutSeconds) : 60,
+        Number.isFinite(tracerouteTimeoutSeconds) && tracerouteTimeoutSeconds > 0
+          ? Math.floor(tracerouteTimeoutSeconds)
+          : 60,
+      mtr_timeout_seconds:
+        Number.isFinite(mtrTimeoutSeconds) && mtrTimeoutSeconds > 0
+          ? Math.floor(mtrTimeoutSeconds)
+          : 60,
     }
   } catch (error) {
     console.error(error)
@@ -510,7 +612,7 @@ async function updateProbe(probe: AdminProbeRow) {
   } catch {
     ui.notify(String($t('admin.updateFailed')), 'error')
   } finally {
-    savingProbeIds.value = savingProbeIds.value.filter((id) => id !== probe.probe_id)
+    savingProbeIds.value = savingProbeIds.value.filter(id => id !== probe.probe_id)
   }
 }
 
@@ -523,6 +625,12 @@ function isProbeUpgrading(probeId: string) {
 }
 
 async function upgradeProbe(probe: AdminProbeRow) {
+  const disabledReason = getUpgradeDisabledReason(probe)
+  if (disabledReason) {
+    ui.notify(disabledReason, 'error')
+    return
+  }
+
   const requestedVersion = globalThis.prompt(String($t('admin.upgradePrompt')), '')?.trim()
   if (requestedVersion === undefined) {
     return
@@ -543,17 +651,25 @@ async function upgradeProbe(probe: AdminProbeRow) {
 
   upgradingProbeIds.value = [...upgradingProbeIds.value, probe.probe_id]
   try {
-    await api.post(`/admin/probes/${probe.probe_id}/upgrade`, requestedVersion ? { version: requestedVersion } : {})
+    type UpgradeResponse = {
+      upgrade?: AdminProbeUpgrade
+    }
+    const response = await api.post<UpgradeResponse>(
+      `/admin/probes/${probe.probe_id}/upgrade`,
+      requestedVersion ? { version: requestedVersion } : {}
+    )
+    await loadProbes()
+    const targetVersion = response.upgrade?.target_version || requestedVersion || '-'
     ui.notify(
       requestedVersion
-        ? String($t('admin.upgradeQueuedVersion', { version: requestedVersion }))
-        : String($t('admin.upgradeQueuedLatest')),
+        ? String($t('admin.upgradeQueuedVersion', { version: targetVersion }))
+        : String($t('admin.upgradeQueuedLatest', { version: targetVersion })),
       'success'
     )
   } catch {
     ui.notify(String($t('admin.upgradeFailed')), 'error')
   } finally {
-    upgradingProbeIds.value = upgradingProbeIds.value.filter((id) => id !== probe.probe_id)
+    upgradingProbeIds.value = upgradingProbeIds.value.filter(id => id !== probe.probe_id)
   }
 }
 
@@ -580,6 +696,7 @@ async function saveConfig() {
       ping_max_runs: normalizePositiveInt(config.value.ping_max_runs, 100),
       tcp_ping_max_runs: normalizePositiveInt(config.value.tcp_ping_max_runs, 100),
       traceroute_timeout_seconds: normalizePositiveInt(config.value.traceroute_timeout_seconds, 60),
+      mtr_timeout_seconds: normalizePositiveInt(config.value.mtr_timeout_seconds, 60),
     })
     await loadConfig()
     ui.notify(String($t('admin.saveSuccess')), 'success')
@@ -623,6 +740,16 @@ onMounted(() => {
 
   loadProbes()
   loadConfig()
+  refreshTimer = setInterval(() => {
+    void loadProbes()
+  }, 10000)
+})
+
+onBeforeUnmount(() => {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
 })
 </script>
 
@@ -686,6 +813,18 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 
+.version-cell {
+  display: grid;
+  gap: 6px;
+}
+
+.upgrade-note {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.4;
+}
+
 .mobile-probe-list {
   display: none;
 }
@@ -728,6 +867,13 @@ onMounted(() => {
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+.upgrade-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .probe-meta-label {
@@ -774,7 +920,9 @@ onMounted(() => {
 }
 
 .mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
   font-variant-numeric: tabular-nums;
 }
 

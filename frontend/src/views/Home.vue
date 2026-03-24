@@ -71,24 +71,19 @@
           </div>
         </div>
 
-        <div
-          v-if="supportsContinuous"
-          class="param-hint"
-        >
+        <div v-if="supportsContinuous" class="param-hint">
           {{ $t('home.continuousHint') }}
         </div>
 
-        <div
-          v-if="testType === 'traceroute'"
-          class="param-hint"
-        >
+        <div v-if="testType === 'traceroute'" class="param-hint">
           {{ $t('home.tracerouteHint') }}
         </div>
 
-        <div
-          v-if="testType === 'traceroute'"
-          class="probe-select"
-        >
+        <div v-if="testType === 'mtr'" class="param-hint">
+          {{ $t('home.mtrHint') }}
+        </div>
+
+        <div v-if="supportsProbeSelection" class="probe-select">
           <v-select
             v-model="selectedProbeIds"
             :items="availableProbeItems"
@@ -105,21 +100,14 @@
         </div>
       </div>
 
-      <div
-        v-if="hasStartedTask"
-        class="results-container"
-      >
+      <div v-if="hasStartedTask" class="results-container">
         <div class="results-header">
           <h2>{{ $t('results.results') }}</h2>
           <div class="results-actions">
-            <span
-              v-if="taskStatusText"
-              class="result-count"
-            >{{ taskStatusText }}</span>
-            <span
-              v-else
-              class="result-count"
-            >{{ filteredResults.length }} {{ $t('results.nodes') }}</span>
+            <span v-if="taskStatusText" class="result-count">{{ taskStatusText }}</span>
+            <span v-else class="result-count"
+              >{{ filteredResults.length }} {{ $t('results.nodes') }}</span
+            >
           </div>
         </div>
 
@@ -150,20 +138,11 @@
         </v-alert>
 
         <!-- 地图组件 -->
-        <div
-          v-if="probeMarkers.length > 0"
-          class="map-section"
-        >
-          <WorldMap
-            :probes="probeMarkers"
-            height="400px"
-          />
+        <div v-if="probeMarkers.length > 0" class="map-section">
+          <WorldMap :probes="probeMarkers" height="400px" />
         </div>
 
-        <div
-          v-if="filteredResults.length > 0"
-          class="results-table"
-        >
+        <div v-if="filteredResults.length > 0" class="results-table">
           <v-table density="compact">
             <thead>
               <tr>
@@ -176,10 +155,7 @@
                 <th style="width: 180px">
                   {{ $t('results.targetISP') }}
                 </th>
-                <th
-                  v-if="testType === 'http_test'"
-                  style="width: 110px; text-align: right"
-                >
+                <th v-if="testType === 'http_test'" style="width: 110px; text-align: right">
                   {{ $t('results.httpStatus') }}
                 </th>
                 <th style="width: 110px; text-align: right">
@@ -207,20 +183,14 @@
             </thead>
 
             <tbody>
-              <template
-                v-for="r in filteredResults"
-                :key="r.probe_id"
-              >
+              <template v-for="r in filteredResults" :key="r.probe_id">
                 <tr
                   class="result-row"
                   style="cursor: pointer"
                   @click="toggleExpandedProbe(r.probe_id)"
                 >
                   <td>
-                    <ProbeCell
-                      :location="r.location"
-                      :provider="r.provider"
-                    />
+                    <ProbeCell :location="r.location" :provider="r.provider" />
                   </td>
                   <td>{{ r.resolved_ip || '-' }}</td>
                   <td>
@@ -237,10 +207,7 @@
                   >
                     {{ r.http_status_code !== undefined ? r.http_status_code : '-' }}
                   </td>
-                  <td
-                    style="text-align: right"
-                    :class="getLossClass(r.packet_loss)"
-                  >
+                  <td style="text-align: right" :class="getLossClass(r.packet_loss)">
                     {{ r.packet_loss !== undefined ? r.packet_loss.toFixed(1) + '%' : '-' }}
                   </td>
                   <td style="text-align: right">
@@ -250,40 +217,41 @@
                     style="text-align: right"
                     :class="getLatencyTextClass(r.last_latency, r.status)"
                   >
-                    {{ r.last_latency !== undefined ? r.last_latency.toFixed(1) + ' ' + $t('common.ms') : '-' }}
+                    {{
+                      r.last_latency !== undefined
+                        ? r.last_latency.toFixed(1) + ' ' + $t('common.ms')
+                        : '-'
+                    }}
                   </td>
-                  <td
-                    style="text-align: right"
-                    :class="getLatencyTextClass(r.avg_latency)"
-                  >
-                    {{ r.avg_latency !== undefined ? r.avg_latency.toFixed(1) + ' ' + $t('common.ms') : '-' }}
+                  <td style="text-align: right" :class="getLatencyTextClass(r.avg_latency)">
+                    {{
+                      r.avg_latency !== undefined
+                        ? r.avg_latency.toFixed(1) + ' ' + $t('common.ms')
+                        : '-'
+                    }}
                   </td>
                   <td style="text-align: right">
-                    {{ r.min_latency !== undefined ? r.min_latency.toFixed(1) + ' ' + $t('common.ms') : '-' }}
+                    {{
+                      r.min_latency !== undefined
+                        ? r.min_latency.toFixed(1) + ' ' + $t('common.ms')
+                        : '-'
+                    }}
                   </td>
                   <td style="text-align: right">
-                    {{ r.max_latency !== undefined ? r.max_latency.toFixed(1) + ' ' + $t('common.ms') : '-' }}
+                    {{
+                      r.max_latency !== undefined
+                        ? r.max_latency.toFixed(1) + ' ' + $t('common.ms')
+                        : '-'
+                    }}
                   </td>
-                  <td
-                    style="text-align: right"
-                    @click.stop
-                  >
-                    <canvas
-                      :ref="(el) => registerSparkCanvas(el, r.probe_id)"
-                      class="spark-canvas"
-                    />
+                  <td style="text-align: right" @click.stop>
+                    <canvas :ref="el => registerSparkCanvas(el, r.probe_id)" class="spark-canvas" />
                   </td>
                 </tr>
 
                 <tr v-if="expandedProbeIds.includes(r.probe_id)">
-                  <td
-                    :colspan="resultsColumnCount"
-                    class="detail-cell"
-                  >
-                    <div
-                      v-if="tracerouteData[r.probe_id]?.hops?.length"
-                      class="row-detail"
-                    >
+                  <td :colspan="resultsColumnCount" class="detail-cell">
+                    <div v-if="tracerouteData[r.probe_id]?.hops?.length" class="row-detail">
                       <h4 class="detail-title">
                         {{ $t('results.tracerouteDetail') }}
                       </h4>
@@ -303,27 +271,125 @@
                           </tr>
                         </thead>
                         <tbody>
-                          <tr
-                            v-for="hop in tracerouteData[r.probe_id].hops"
-                            :key="hop.hop"
-                          >
+                          <tr v-for="hop in tracerouteData[r.probe_id].hops" :key="hop.hop">
                             <td>{{ hop.hop }}</td>
                             <td>
                               <div>{{ hop.ip || '*' }}</div>
-                              <div
-                                v-if="hop.geo"
-                                class="hop-geo"
-                              >
-                                {{ [hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city].filter(Boolean).join(' ') }}
+                              <div v-if="hop.geo" class="hop-geo">
+                                {{
+                                  [hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city]
+                                    .filter(Boolean)
+                                    .join(' ')
+                                }}
                               </div>
                             </td>
                             <td>
                               <span v-if="hop.timeout">-</span>
-                              <span v-else-if="hop.rtts?.length">{{ hop.rtts[0].toFixed(1) }} {{ $t('common.ms') }}</span>
+                              <span v-else-if="hop.rtts?.length"
+                                >{{ hop.rtts[0].toFixed(1) }} {{ $t('common.ms') }}</span
+                              >
                               <span v-else>-</span>
                             </td>
                             <td>
-                              {{ hop.timeout ? $t('common.timeout') : (hop.ip ? $t('home.route.arrived') : '-') }}
+                              {{
+                                hop.timeout
+                                  ? $t('common.timeout')
+                                  : hop.ip
+                                    ? $t('home.route.arrived')
+                                    : '-'
+                              }}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </v-table>
+                    </div>
+
+                    <div v-else-if="mtrData[r.probe_id]?.hops?.length" class="row-detail">
+                      <h4 class="detail-title">
+                        {{ $t('results.mtrDetail') }}
+                      </h4>
+                      <v-table density="compact">
+                        <thead>
+                          <tr>
+                            <th style="width: 70px">
+                              {{ $t('home.route.hop') }}
+                            </th>
+                            <th>{{ $t('home.route.ip') }}</th>
+                            <th style="width: 90px; text-align: right">
+                              {{ $t('home.route.lossPercent') }}
+                            </th>
+                            <th style="width: 90px; text-align: right">
+                              {{ $t('home.route.sent') }}
+                            </th>
+                            <th style="width: 110px; text-align: right">
+                              {{ $t('home.route.avg') }}
+                            </th>
+                            <th style="width: 140px; text-align: right">
+                              {{ $t('home.route.best') }}/{{ $t('home.route.worst') }}
+                            </th>
+                            <th style="width: 100px; text-align: right">
+                              {{ $t('home.route.stdev') }}
+                            </th>
+                            <th style="width: 90px; text-align: right">
+                              {{ $t('results.status') }}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr v-for="hop in mtrData[r.probe_id].hops" :key="hop.hop">
+                            <td>{{ hop.hop }}</td>
+                            <td>
+                              <div>{{ hop.ip || '*' }}</div>
+                              <div v-if="hop.hostname" class="hop-geo">
+                                {{ hop.hostname }}
+                              </div>
+                              <div v-if="hop.geo" class="hop-geo">
+                                {{
+                                  [hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city]
+                                    .filter(Boolean)
+                                    .join(' ')
+                                }}
+                              </div>
+                            </td>
+                            <td style="text-align: right">
+                              {{
+                                hop.lossPercent !== undefined
+                                  ? `${hop.lossPercent.toFixed(1)}%`
+                                  : '-'
+                              }}
+                            </td>
+                            <td style="text-align: right">{{ hop.sent ?? '-' }}</td>
+                            <td style="text-align: right">
+                              {{
+                                hop.avgRttMs !== undefined
+                                  ? `${hop.avgRttMs.toFixed(1)} ${$t('common.ms')}`
+                                  : '-'
+                              }}
+                            </td>
+                            <td style="text-align: right">
+                              {{
+                                hop.bestRttMs !== undefined || hop.worstRttMs !== undefined
+                                  ? `${hop.bestRttMs?.toFixed(1) ?? '-'} / ${
+                                      hop.worstRttMs?.toFixed(1) ?? '-'
+                                    } ${$t('common.ms')}`
+                                  : '-'
+                              }}
+                            </td>
+                            <td style="text-align: right">
+                              {{
+                                hop.stddevRttMs !== undefined
+                                  ? `${hop.stddevRttMs.toFixed(1)} ${$t('common.ms')}`
+                                  : '-'
+                              }}
+                            </td>
+                            <td style="text-align: right">
+                              {{
+                                hop.timeout
+                                  ? $t('common.timeout')
+                                  : hop.ip
+                                    ? $t('home.route.arrived')
+                                    : '-'
+                              }}
                             </td>
                           </tr>
                         </tbody>
@@ -331,7 +397,10 @@
                     </div>
 
                     <div
-                      v-else-if="testType === 'http_test' && getHTTPAttempts(httpDetails[r.probe_id]).length > 0"
+                      v-else-if="
+                        testType === 'http_test' &&
+                        getHTTPAttempts(httpDetails[r.probe_id]).length > 0
+                      "
                       class="row-detail"
                     >
                       <h4 class="detail-title">
@@ -366,12 +435,26 @@
                           >
                             <td>{{ attempt.seq ?? '-' }}</td>
                             <td>{{ attempt.statusCode ?? '-' }}</td>
-                            <td>{{ attempt.timeMs !== undefined ? attempt.timeMs.toFixed(1) + ' ' + $t('common.ms') : '-' }}</td>
+                            <td>
+                              {{
+                                attempt.timeMs !== undefined
+                                  ? attempt.timeMs.toFixed(1) + ' ' + $t('common.ms')
+                                  : '-'
+                              }}
+                            </td>
                             <td>{{ attempt.resolvedIP || '-' }}</td>
                             <td class="http-url-cell">
                               {{ attempt.finalURL || '-' }}
                             </td>
-                            <td>{{ attempt.status === 'success' ? $t('common.success') : attempt.status === 'failed' ? $t('common.failed') : $t('common.unknown') }}</td>
+                            <td>
+                              {{
+                                attempt.status === 'success'
+                                  ? $t('common.success')
+                                  : attempt.status === 'failed'
+                                    ? $t('common.failed')
+                                    : $t('common.unknown')
+                              }}
+                            </td>
                           </tr>
                         </tbody>
                       </v-table>
@@ -382,12 +465,15 @@
                       />
                     </div>
 
-                    <div
-                      v-else
-                      class="row-detail-empty"
-                    >
+                    <div v-else class="row-detail-empty">
                       <span class="text-muted">
-                        {{ testType === 'http_test' ? $t('results.noHttpData') : $t('results.noRouteData') }}
+                        {{
+                          testType === 'http_test'
+                            ? $t('results.noHttpData')
+                            : testType === 'mtr'
+                              ? $t('results.noMtrData')
+                              : $t('results.noRouteData')
+                        }}
                       </span>
                     </div>
                   </td>
@@ -402,13 +488,37 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick, type ComponentPublicInstance } from 'vue'
+import {
+  ref,
+  computed,
+  onMounted,
+  onBeforeUnmount,
+  watch,
+  nextTick,
+  type ComponentPublicInstance,
+} from 'vue'
 import { useI18n } from 'vue-i18n'
 import api from '@/utils/request'
 import { parseMaybeJSON } from '@/utils/parse'
 import { hasValidCoordinates } from '@/utils/coordinate'
 import { buildLatencyScale, getLatencyHex, getLatencyTextClass } from '@/utils/latency'
-import { getAvgLatency, getHTTPAttempts, getHTTPStatusCode, getHTTPStatusTextClass, getLatestHTTPAttempt, getMaxLatency, getMinLatency, getPacketLossPercent, getResolvedIP, getTargetNetworkInfo, type HTTPAttempt } from '@/utils/result'
+import {
+  getAvgLatency,
+  getHTTPAttempts,
+  getHTTPStatusCode,
+  getHTTPStatusTextClass,
+  getLatestHTTPAttempt,
+  getMaxLatency,
+  getMTRResult,
+  getMinLatency,
+  getPacketLossPercent,
+  getResolvedIP,
+  getTargetNetworkInfo,
+  getTracerouteResult,
+  type HTTPAttempt,
+  type MTRResultData,
+  type TracerouteResultData,
+} from '@/utils/result'
 import { getProbeProviderLabel, normalizeProbeCoordinates } from '@/utils/probe'
 import HttpHeadersGrid from '@/components/HttpHeadersGrid.vue'
 import WorldMap, { type ProbeMarker } from '@/components/WorldMap.vue'
@@ -416,7 +526,6 @@ import ProviderCell from '@/components/ProviderCell.vue'
 import ProbeCell from '@/components/ProbeCell.vue'
 
 const { t: $t } = useI18n()
-
 
 const targetInput = ref<any>()
 const target = ref('')
@@ -468,6 +577,7 @@ type DisplayTaskStatus = 'idle' | 'scheduling' | 'running' | 'completed' | 'fail
 type TaskResult = {
   result_id?: string
   probe_id: string
+  test_type?: string
   summary?: unknown
   result_data?: unknown
   status?: string
@@ -481,30 +591,6 @@ type TaskDetailResponse = {
 
 type ResultsListResponse = {
   results?: TaskResult[]
-}
-
-type HopGeo = {
-  isp?: string
-  country?: string
-  region?: string
-  city?: string
-  latitude?: number
-  longitude?: number
-}
-
-type TracerouteHop = {
-  hop: number
-  ip: string
-  geo?: HopGeo
-  rtts?: number[]
-  timeout?: boolean
-}
-
-type TracerouteResult = {
-  hops?: TracerouteHop[]
-  target?: string
-  total_hops?: number
-  success?: boolean
 }
 
 type HTTPTestResult = {
@@ -527,7 +613,7 @@ const filterState = ref({
 const filteredResults = computed(() => {
   const keyword = filterState.value.keyword.trim().toLowerCase()
 
-  return results.value.filter((r) => {
+  return results.value.filter(r => {
     if (keyword) {
       const hay = [r.location, r.provider].filter(Boolean).join(' ').toLowerCase()
       if (!hay.includes(keyword)) return false
@@ -545,23 +631,22 @@ function toggleExpandedProbe(probeId: string) {
   if (!probeId) return
   const current = expandedProbeIds.value
   expandedProbeIds.value = current.includes(probeId)
-    ? current.filter((id) => id !== probeId)
+    ? current.filter(id => id !== probeId)
     : [...current, probeId]
 }
 
-const tracerouteData = ref<Record<string, TracerouteResult>>({})
+const tracerouteData = ref<Record<string, TracerouteResultData>>({})
+const mtrData = ref<Record<string, MTRResultData>>({})
 const httpDetails = ref<Record<string, HTTPTestResult>>({})
 const activeProbeIds = ref<string[]>([])
 
 // 保留原始任务结果，用于绘制每包的柱状图
 const rawTaskResults = ref<TaskResult[]>([])
 
-
 // 累积的包数据，用于绘制连续监控的柱状图
 // 格式: { probeId: Array<timeMs | null> }
 // 数组索引代表包的顺序（全局递增），避免 seq 冲突导致数据覆盖
 const accumulatedPacketData = ref<Record<string, Array<number | null>>>({})
-
 
 const currentTaskId = ref<string>('')
 // run_count（全局执行次数，用于停止条件/展示）
@@ -580,6 +665,7 @@ const testTypes = [
   { value: 'tcp_ping', label: String($t('taskTable.typeNames.tcp_ping')) },
   { value: 'http_test', label: String($t('taskTable.typeNames.http_test')) },
   { value: 'traceroute', label: String($t('taskTable.typeNames.traceroute')) },
+  { value: 'mtr', label: String($t('taskTable.typeNames.mtr')) },
 ]
 
 const ipVersion = ref<'auto' | 'ipv4' | 'ipv6'>('auto')
@@ -590,18 +676,32 @@ const ipVersionItems = computed(() => [
   { title: String($t('home.ipV6')), value: 'ipv6' as const },
 ])
 
+const supportsProbeSelection = computed(() => {
+  return testType.value === 'traceroute' || testType.value === 'mtr'
+})
+
 const availableProbeItems = computed(() =>
-  availableProbes.value.map((p) => ({
-    title: p.location,
-    value: p.probe_id,
-  }))
+  availableProbes.value
+    .filter(probe =>
+      supportsProbeSelection.value ? probeSupportsTaskType(probe, testType.value) : true
+    )
+    .map(p => ({
+      title: p.location,
+      value: p.probe_id,
+    }))
 )
 
 const canStart = computed(() => {
   if (testing.value) return false
   if (target.value.trim().length === 0) return false
   // 任务运行中时禁用
-  if (currentTaskId.value && (taskStatus.value === 'scheduling' || taskStatus.value === 'running')) {
+  if (
+    currentTaskId.value &&
+    (taskStatus.value === 'scheduling' || taskStatus.value === 'running')
+  ) {
+    return false
+  }
+  if (supportsProbeSelection.value && getTargetedProbeIds(testType.value).length === 0) {
     return false
   }
   return true
@@ -629,6 +729,7 @@ const targetPlaceholder = computed(() => {
     tcp_ping: String($t('home.targetExamples.tcp_ping')),
     http_test: String($t('home.targetExamples.http_test')),
     traceroute: String($t('home.targetExamples.traceroute')),
+    mtr: String($t('home.targetExamples.mtr')),
   }
   return examples[testType.value] || String($t('home.targetPlaceholder'))
 })
@@ -648,7 +749,7 @@ const taskStatusText = computed(() => {
   return ''
 })
 
-const resultsColumnCount = computed(() => testType.value === 'http_test' ? 11 : 10)
+const resultsColumnCount = computed(() => (testType.value === 'http_test' ? 11 : 10))
 
 function markTaskCompletedAndStopPolling(status: DisplayTaskStatus) {
   taskStatus.value = status
@@ -663,7 +764,7 @@ function markTaskCompletedAndStopPolling(status: DisplayTaskStatus) {
 function onSelectType(value: string) {
   testType.value = value
 
-  if (value !== 'traceroute') {
+  if (value !== 'traceroute' && value !== 'mtr') {
     selectedProbeIds.value = []
   }
 
@@ -674,13 +775,16 @@ function getSparkSamplesFromResult(result: TaskResult, taskType: string): Array<
   const data = parseMaybeJSON(result.result_data)
 
   if (taskType === 'icmp_ping') {
-    const replies = Array.isArray(data['replies']) ? data['replies'] as Array<Record<string, unknown>> : []
-    const packetsSent = typeof data['packets_sent'] === 'number' && Number.isFinite(data['packets_sent'])
-      ? Math.max(0, Math.floor(data['packets_sent'] as number))
-      : 0
+    const replies = Array.isArray(data['replies'])
+      ? (data['replies'] as Array<Record<string, unknown>>)
+      : []
+    const packetsSent =
+      typeof data['packets_sent'] === 'number' && Number.isFinite(data['packets_sent'])
+        ? Math.max(0, Math.floor(data['packets_sent'] as number))
+        : 0
 
     if (replies.length > 0) {
-      const samples = replies.map((reply) => {
+      const samples = replies.map(reply => {
         const timeMs = reply['time_ms'] as number | undefined
         return timeMs !== undefined && Number.isFinite(timeMs) && timeMs > 0 ? timeMs : null
       })
@@ -700,21 +804,28 @@ function getSparkSamplesFromResult(result: TaskResult, taskType: string): Array<
   }
 
   if (taskType === 'tcp_ping') {
-    const attempts = Array.isArray(data['attempts']) ? data['attempts'] as Array<Record<string, unknown>> : []
+    const attempts = Array.isArray(data['attempts'])
+      ? (data['attempts'] as Array<Record<string, unknown>>)
+      : []
     if (attempts.length > 0) {
-      return attempts.map((attempt) => {
+      return attempts.map(attempt => {
         const timeMs = attempt['time_ms'] as number | undefined
         const status = attempt['status'] as string | undefined
-        return status !== 'failed' && timeMs !== undefined && Number.isFinite(timeMs) && timeMs > 0 ? timeMs : null
+        return status !== 'failed' && timeMs !== undefined && Number.isFinite(timeMs) && timeMs > 0
+          ? timeMs
+          : null
       })
     }
 
-    const successful = typeof data['successful_connections'] === 'number' && Number.isFinite(data['successful_connections'])
-      ? Math.max(0, Math.floor(data['successful_connections'] as number))
-      : 0
-    const failed = typeof data['failed_connections'] === 'number' && Number.isFinite(data['failed_connections'])
-      ? Math.max(0, Math.floor(data['failed_connections'] as number))
-      : 0
+    const successful =
+      typeof data['successful_connections'] === 'number' &&
+      Number.isFinite(data['successful_connections'])
+        ? Math.max(0, Math.floor(data['successful_connections'] as number))
+        : 0
+    const failed =
+      typeof data['failed_connections'] === 'number' && Number.isFinite(data['failed_connections'])
+        ? Math.max(0, Math.floor(data['failed_connections'] as number))
+        : 0
     const total = successful + failed
 
     if (total > 0) {
@@ -759,12 +870,15 @@ function probeSupportsTaskType(probe: ProbeRecord, taskTypeValue: string): boole
 
 function getAutoSelectedProbeIds(taskTypeValue: string): string[] {
   return availableProbes.value
-    .filter((probe) => probeSupportsTaskType(probe, taskTypeValue))
-    .map((probe) => probe.probe_id)
+    .filter(probe => probeSupportsTaskType(probe, taskTypeValue))
+    .map(probe => probe.probe_id)
 }
 
 function getTargetedProbeIds(taskTypeValue: string): string[] {
-  if (taskTypeValue === 'traceroute' && selectedProbeIds.value.length > 0) {
+  if (
+    (taskTypeValue === 'traceroute' || taskTypeValue === 'mtr') &&
+    selectedProbeIds.value.length > 0
+  ) {
     return selectedProbeIds.value
   }
 
@@ -772,11 +886,12 @@ function getTargetedProbeIds(taskTypeValue: string): string[] {
 }
 
 function getPlaceholderStatus(): string {
-  return taskStatus.value === 'completed' || taskStatus.value === 'failed' || taskStatus.value === 'cancelled'
+  return taskStatus.value === 'completed' ||
+    taskStatus.value === 'failed' ||
+    taskStatus.value === 'cancelled'
     ? 'timeout'
     : 'pending'
 }
-
 
 function deriveHomeRows(taskResults: TaskResult[]): HomeResultRow[] {
   const byProbe = new Map<string, TaskResult[]>()
@@ -806,12 +921,28 @@ function deriveHomeRows(taskResults: TaskResult[]): HomeResultRow[] {
     }
 
     const last = items.length ? items[items.length - 1] : undefined
-    const avgLatency = latencies.length ? latencies.reduce((a, b) => a + b, 0) / latencies.length : undefined
+    const avgLatency = latencies.length
+      ? latencies.reduce((a, b) => a + b, 0) / latencies.length
+      : undefined
     const minLatency = mins.length ? Math.min(...mins) : undefined
     const maxLatency = maxs.length ? Math.max(...maxs) : undefined
     const latestHTTPAttempt = last ? getLatestHTTPAttempt(last.result_data) : undefined
-    const lastLatency = latestHTTPAttempt?.timeMs ?? (last ? getAvgLatency(last.summary, last.result_data) : undefined)
-    const latestStatus = latestHTTPAttempt?.status || last?.status || (latencies.length > 0 ? 'success' : 'unknown')
+    const latestTraceroute = last ? getTracerouteResult(last.result_data) : undefined
+    const latestMTR = last ? getMTRResult(last.result_data) : undefined
+    const lastLatency =
+      latestHTTPAttempt?.timeMs ??
+      (last ? getAvgLatency(last.summary, last.result_data) : undefined)
+    const latestStatus = latestHTTPAttempt?.status
+      ? latestHTTPAttempt.status
+      : latestMTR
+        ? latestMTR.success === false
+          ? 'failed'
+          : last?.status || 'success'
+        : latestTraceroute
+          ? latestTraceroute.success === false
+            ? 'failed'
+            : last?.status || 'success'
+          : last?.status || (latencies.length > 0 ? 'success' : 'unknown')
 
     const lastSummary = last ? parseMaybeJSON(last.summary) : {}
     const lastData = last ? parseMaybeJSON(last.result_data) : {}
@@ -839,7 +970,7 @@ function deriveHomeRows(taskResults: TaskResult[]): HomeResultRow[] {
   })
 
   for (const probeId of activeProbeIds.value) {
-    if (rows.some((row) => row.probe_id === probeId)) {
+    if (rows.some(row => row.probe_id === probeId)) {
       continue
     }
 
@@ -859,7 +990,6 @@ function deriveHomeRows(taskResults: TaskResult[]): HomeResultRow[] {
   return rows
 }
 
-
 function getLossClass(loss?: number): string {
   if (loss === undefined) return ''
   if (loss === 0) return 'good'
@@ -870,14 +1000,13 @@ function getLossClass(loss?: number): string {
 const sparkCanvasByProbeId = ref<Record<string, HTMLCanvasElement>>({})
 
 function registerSparkCanvas(el: Element | ComponentPublicInstance | null, probeId: string) {
-  const canvas = (el as HTMLCanvasElement | null)
+  const canvas = el as HTMLCanvasElement | null
   if (!canvas) return
   if (sparkCanvasByProbeId.value[probeId] === canvas) return
 
   sparkCanvasByProbeId.value[probeId] = canvas
   drawSparkForProbe(probeId)
 }
-
 
 function drawSparkOnCanvas(canvas: HTMLCanvasElement, latency?: number, status?: string) {
   const cssWidth = canvas.clientWidth || 90
@@ -925,7 +1054,7 @@ function drawSparkForProbe(probeId: string) {
 
   // 只为 Ping/TCP 类型绘制柱状图；其他类型仍使用旧的平均延迟条
   if (testType.value !== 'icmp_ping' && testType.value !== 'tcp_ping') {
-    const row = results.value.find((r) => r.probe_id === probeId)
+    const row = results.value.find(r => r.probe_id === probeId)
     if (!row) return
     drawSparkOnCanvas(canvas, row.avg_latency, row.status)
     return
@@ -934,7 +1063,7 @@ function drawSparkForProbe(probeId: string) {
   // 使用累积的包数据（现在是数组）
   const packetArray = accumulatedPacketData.value[probeId]
   if (!packetArray || packetArray.length === 0) {
-    const row = results.value.find((r) => r.probe_id === probeId)
+    const row = results.value.find(r => r.probe_id === probeId)
     if (row) {
       drawSparkOnCanvas(canvas, row.avg_latency, row.status)
     }
@@ -999,7 +1128,6 @@ function drawPacketBars(canvas: HTMLCanvasElement, latencies: (number | null)[])
   })
 }
 
-
 async function loadAvailableProbes() {
   try {
     type ProbesResponse = {
@@ -1009,7 +1137,7 @@ async function loadAvailableProbes() {
     const list = res.probes || []
 
     const map = new Map<string, ProbeRecord>()
-    const normalized = list.map((p) => {
+    const normalized = list.map(p => {
       const next: ProbeRecord = normalizeProbeCoordinates(p)
       map.set(next.probe_id, next)
       return next
@@ -1047,6 +1175,7 @@ async function startTest(modeValue: 'single' | 'continuous') {
   sparkCanvasByProbeId.value = {}
   accumulatedPacketData.value = {}
   tracerouteData.value = {}
+  mtrData.value = {}
   httpDetails.value = {}
   activeProbeIds.value = []
   currentTaskId.value = ''
@@ -1065,12 +1194,11 @@ async function startTest(modeValue: 'single' | 'continuous') {
       params.count = 4
     }
 
-
     type TaskResponse = {
       task_id: string
     }
 
-    const assignedProbes = testType.value === 'traceroute' ? selectedProbeIds.value : []
+    const assignedProbes = supportsProbeSelection.value ? getTargetedProbeIds(testType.value) : []
     activeProbeIds.value = getTargetedProbeIds(testType.value)
 
     const task = await api.post<TaskResponse>('/tasks', {
@@ -1101,13 +1229,16 @@ async function startTest(modeValue: 'single' | 'continuous') {
 
           // max_runs：由后端调度器写入/由后台配置决定；缺省 100
           const maxRunsFromServer = schedule['max_runs'] as number | undefined
-          if (typeof maxRunsFromServer === 'number' && Number.isFinite(maxRunsFromServer) && maxRunsFromServer > 0) {
+          if (
+            typeof maxRunsFromServer === 'number' &&
+            Number.isFinite(maxRunsFromServer) &&
+            maxRunsFromServer > 0
+          ) {
             maxRuns.value = Math.floor(maxRunsFromServer)
           }
 
           // max_runs 的 UI 需要 task.schedule 中的 run_count，这里不用额外处理
         }
-
 
         // 提取 run_count（连续任务）
         let runCount: number | undefined
@@ -1140,13 +1271,13 @@ async function startTest(modeValue: 'single' | 'continuous') {
           }
 
           // /results 是按 created_at DESC 返回，需要反转后拼接，确保 offset 逻辑正确
-          rawResults = pages.flatMap((p) => p.slice().reverse())
+          rawResults = pages.flatMap(p => p.slice().reverse())
         } else {
           rawResults = detail.results || []
         }
 
         const taskResults = rawResults
-          .map((r) => ({
+          .map(r => ({
             ...r,
             summary: parseMaybeJSON(r.summary),
             result_data: parseMaybeJSON(r.result_data),
@@ -1160,7 +1291,7 @@ async function startTest(modeValue: 'single' | 'continuous') {
           // 去重：防止分页/轮询过程中出现重复 result_id
           .filter((r, idx, arr) => {
             if (!r.result_id) return true
-            return arr.findIndex((x) => x.result_id === r.result_id) === idx
+            return arr.findIndex(x => x.result_id === r.result_id) === idx
           })
 
         // 累积 rawTaskResults 而不是替换
@@ -1193,12 +1324,21 @@ async function startTest(modeValue: 'single' | 'continuous') {
         }
 
         if (testType.value === 'traceroute') {
-          const next: Record<string, TracerouteResult> = {}
+          const next: Record<string, TracerouteResultData> = {}
           for (const r of taskResults) {
-            const data = r.result_data as unknown as TracerouteResult
+            const data = getTracerouteResult(r.result_data)
             if (data) next[r.probe_id] = data
           }
           tracerouteData.value = next
+        }
+
+        if (testType.value === 'mtr') {
+          const next: Record<string, MTRResultData> = {}
+          for (const r of taskResults) {
+            const data = getMTRResult(r.result_data)
+            if (data) next[r.probe_id] = data
+          }
+          mtrData.value = next
         }
 
         if (testType.value === 'http_test') {
@@ -1210,8 +1350,11 @@ async function startTest(modeValue: 'single' | 'continuous') {
           httpDetails.value = next
         }
 
-
-        if (effectiveStatus === 'completed' || effectiveStatus === 'failed' || effectiveStatus === 'cancelled') {
+        if (
+          effectiveStatus === 'completed' ||
+          effectiveStatus === 'failed' ||
+          effectiveStatus === 'cancelled'
+        ) {
           markTaskCompletedAndStopPolling(effectiveStatus as DisplayTaskStatus)
           return
         }
@@ -1266,7 +1409,7 @@ async function stopContinuousTest() {
 
 const probeMarkers = computed<ProbeMarker[]>(() => {
   return results.value
-    .map((r) => {
+    .map(r => {
       const probe = probesData.value.get(r.probe_id)
 
       const latitude = probe?.latitude ?? null
@@ -1301,18 +1444,10 @@ async function redrawSparkCharts() {
   }
 }
 
-watch(
-  () => results.value,
-  redrawSparkCharts,
-  { deep: true }
-)
+watch(() => results.value, redrawSparkCharts, { deep: true })
 
 // 监听累积数据变化，触发柱状图重绘
-watch(
-  () => accumulatedPacketData.value,
-  redrawSparkCharts,
-  { deep: true }
-)
+watch(() => accumulatedPacketData.value, redrawSparkCharts, { deep: true })
 
 watch(
   () => taskStatus.value,
@@ -1324,7 +1459,6 @@ watch(
     results.value = deriveHomeRows(rawTaskResults.value)
   }
 )
-
 
 onMounted(async () => {
   targetInput.value?.focus?.()
@@ -1534,9 +1668,15 @@ onBeforeUnmount(() => {
   display: block;
 }
 
-.good { color: var(--good); }
-.warn { color: var(--warn); }
-.bad { color: var(--bad); }
+.good {
+  color: var(--good);
+}
+.warn {
+  color: var(--warn);
+}
+.bad {
+  color: var(--bad);
+}
 
 .detail-cell {
   padding: 0 !important;

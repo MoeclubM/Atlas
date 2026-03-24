@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -14,7 +15,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 
+	"atlas/shared/protocol"
 	"atlas/web/internal/config"
 	"atlas/web/internal/database"
 	"atlas/web/internal/model"
@@ -25,6 +28,8 @@ type AdminHandler struct {
 	db  *database.Database
 	cfg *config.Config
 	hub *websocket.Hub
+
+	resolveLatestProbeVersion latestProbeVersionResolver
 }
 
 type adminConfigDTO struct {
@@ -35,6 +40,7 @@ type adminConfigDTO struct {
 	PingMaxRuns              int `json:"ping_max_runs"`
 	TCPPingMaxRuns           int `json:"tcp_ping_max_runs"`
 	TracerouteTimeoutSeconds int `json:"traceroute_timeout_seconds"`
+	MTRTimeoutSeconds        int `json:"mtr_timeout_seconds"`
 }
 
 type adminLoginRequest struct {
@@ -47,7 +53,12 @@ type adminTokenPayload struct {
 }
 
 func NewAdminHandler(db *database.Database, hub *websocket.Hub, cfg *config.Config) *AdminHandler {
-	return &AdminHandler{db: db, cfg: cfg, hub: hub}
+	return &AdminHandler{
+		db:                        db,
+		cfg:                       cfg,
+		hub:                       hub,
+		resolveLatestProbeVersion: defaultLatestProbeVersionResolver,
+	}
 }
 
 func (h *AdminHandler) Login(c *gin.Context) {
@@ -89,6 +100,7 @@ func (h *AdminHandler) GetConfig(c *gin.Context) {
 	pingMaxRuns, _ := h.db.GetConfig("ping_max_runs")
 	tcpPingMaxRuns, _ := h.db.GetConfig("tcp_ping_max_runs")
 	trTimeout, _ := h.db.GetConfig("traceroute_timeout_seconds")
+	mtrTimeout, _ := h.db.GetConfig("mtr_timeout_seconds")
 
 	// 如果DB未初始化这些键，退回到当前运行配置
 	if sharedSecret == "" {
@@ -101,6 +113,7 @@ func (h *AdminHandler) GetConfig(c *gin.Context) {
 		"ping_max_runs":              pingMaxRuns,
 		"tcp_ping_max_runs":          tcpPingMaxRuns,
 		"traceroute_timeout_seconds": trTimeout,
+		"mtr_timeout_seconds":        mtrTimeout,
 	})
 }
 
@@ -122,9 +135,19 @@ func (h *AdminHandler) ListProbes(c *gin.Context) {
 		return
 	}
 
+	rows := make([]*adminProbeDTO, 0, len(probes))
+	for _, probe := range probes {
+		latestUpgrade, err := h.db.GetLatestProbeUpgrade(probe.ProbeID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load probe upgrades"})
+			return
+		}
+		rows = append(rows, buildAdminProbeDTO(probe, latestUpgrade))
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"probes": probes,
-		"total":  len(probes),
+		"probes": rows,
+		"total":  len(rows),
 	})
 }
 
@@ -163,6 +186,7 @@ func (h *AdminHandler) UpdateConfig(c *gin.Context) {
 	setPositiveInt("ping_max_runs", req.PingMaxRuns)
 	setPositiveInt("tcp_ping_max_runs", req.TCPPingMaxRuns)
 	setPositiveInt("traceroute_timeout_seconds", req.TracerouteTimeoutSeconds)
+	setPositiveInt("mtr_timeout_seconds", req.MTRTimeoutSeconds)
 
 	c.JSON(http.StatusOK, gin.H{"success": true})
 }
@@ -198,7 +222,8 @@ func (h *AdminHandler) UpdateProbe(c *gin.Context) {
 func (h *AdminHandler) UpgradeProbe(c *gin.Context) {
 	probeID := c.Param("id")
 
-	if _, err := h.db.GetProbe(probeID); err != nil {
+	probe, err := h.db.GetProbe(probeID)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Probe not found"})
 		return
 	}
@@ -213,10 +238,69 @@ func (h *AdminHandler) UpgradeProbe(c *gin.Context) {
 		}
 	}
 
+	metadata := parseProbeMetadataInfo(probe.Metadata)
+	if !metadata.UpgradeSupported {
+		message := metadata.UpgradeReason
+		if message == "" {
+			message = "probe is not configured for remote upgrade"
+		}
+		c.JSON(http.StatusConflict, gin.H{"error": message})
+		return
+	}
+
+	activeUpgrade, err := h.db.GetActiveProbeUpgrade(probeID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load active upgrade"})
+		return
+	}
+	if activeUpgrade != nil {
+		c.JSON(http.StatusConflict, gin.H{
+			"error":   "probe already has an upgrade in progress",
+			"upgrade": activeUpgrade,
+		})
+		return
+	}
+
 	version := strings.TrimSpace(req.Version)
-	if err := h.hub.SendToProbe(probeID, "probe_upgrade", map[string]string{
-		"version": version,
+	targetVersion := version
+	if targetVersion == "" {
+		targetVersion, err = h.resolveLatestProbeVersion(context.Background())
+		if err != nil {
+			c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+			return
+		}
+	} else {
+		targetVersion, err = normalizeRequestedUpgradeVersion(targetVersion)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	currentVersion := strings.TrimSpace(metadata.Version)
+	if currentVersion != "" && targetVersion == currentVersion {
+		c.JSON(http.StatusConflict, gin.H{"error": "probe is already running the requested version"})
+		return
+	}
+
+	upgrade := &model.ProbeUpgrade{
+		UpgradeID:     uuid.New().String(),
+		ProbeID:       probeID,
+		FromVersion:   currentVersion,
+		TargetVersion: targetVersion,
+		Status:        model.ProbeUpgradeStatusQueued,
+		RequestedAt:   time.Now(),
+	}
+	if err := h.db.CreateProbeUpgrade(upgrade); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create upgrade record"})
+		return
+	}
+
+	if err := h.hub.SendToProbe(probeID, protocol.MsgTypeProbeUpgrade, protocol.ProbeUpgradeMessage{
+		UpgradeID: upgrade.UpgradeID,
+		Version:   targetVersion,
 	}); err != nil {
+		_ = h.db.MarkProbeUpgradeFailed(upgrade.UpgradeID, err.Error())
 		status := http.StatusInternalServerError
 		if errors.Is(err, websocket.ErrProbeNotConnected) {
 			status = http.StatusConflict
@@ -227,7 +311,7 @@ func (h *AdminHandler) UpgradeProbe(c *gin.Context) {
 
 	c.JSON(http.StatusAccepted, gin.H{
 		"success": true,
-		"version": version,
+		"upgrade": upgrade,
 	})
 }
 

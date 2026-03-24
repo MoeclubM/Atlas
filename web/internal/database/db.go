@@ -64,6 +64,8 @@ func (d *Database) Migrate() error {
 		"migrations/001_init.sql",
 		"migrations/002_add_probe_coordinates.sql",
 		"migrations/003_add_result_status.sql",
+		"migrations/004_add_probe_upgrades.sql",
+		"migrations/005_add_mtr_timeout_config.sql",
 	}
 
 	if err := d.ensureMigrationTable(); err != nil {

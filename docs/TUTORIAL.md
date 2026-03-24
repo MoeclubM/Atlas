@@ -63,6 +63,7 @@ sudo bash probe/scripts/install.sh \
 - 远程升级辅助脚本：`/usr/local/lib/atlas-probe/upgrade.sh`
 - 远程升级监听：`atlas-probe-upgrade.path` + `atlas-probe-upgrade.service`
 - 状态目录：`/var/lib/atlas-probe`
+- 升级请求队列：`/var/lib/atlas-probe/upgrade-requests/`
 
 常用命令：
 
@@ -89,7 +90,7 @@ curl -fsSL https://raw.githubusercontent.com/MoeclubM/Atlas/vX.Y.Z/probe/scripts
   --auth-token 'YOUR_SHARED_SECRET'
 ```
 
-如果节点已经由脚本安装，并且后台在线，也可以在管理面板对单个 Probe 下发远程升级命令。升级会拉取 release 二进制并自动重启服务。
+如果节点已经由脚本安装，并且后台在线，也可以在管理面板对单个 Probe 下发远程升级命令。升级任务会先等待 Probe 确认，再拉取 release 二进制并自动重启服务。
 
 ## 2. 本地联调
 
@@ -147,6 +148,6 @@ docker compose down
 ## 4. 说明
 
 - 生产推荐路径是：`web compose + 远端 probe(systemd)`
-- 本地 `docker-compose.dev.yml` 仅用于联调，不是正式部署形态
+- 本地 `docker-compose.dev.yml` 仅用于联调，不是正式部署形态，也不支持后台在线升级
 - Web 默认对外端口是 `18080`
 - 数据默认存放在 Compose volume `atlas-data`

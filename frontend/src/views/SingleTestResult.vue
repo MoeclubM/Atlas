@@ -1,66 +1,36 @@
 <template>
   <div class="single-test-result">
     <div class="page-header">
-      <v-btn
-        variant="text"
-        @click="router.back()"
-      >
+      <v-btn variant="text" @click="router.back()">
         {{ $t('common.back') }}
       </v-btn>
-      <div class="page-title">
-        {{ $t('resultsPage.title') }} - {{ taskId }}
-      </div>
-      <v-chip
-        size="small"
-        variant="tonal"
-        :color="statusColor"
-      >
+      <div class="page-title">{{ $t('resultsPage.title') }} - {{ taskId }}</div>
+      <v-chip size="small" variant="tonal" :color="statusColor">
         {{ statusText }}
       </v-chip>
     </div>
 
-    <v-card
-      class="result-card"
-      variant="outlined"
-    >
+    <v-card class="result-card" variant="outlined">
       <v-card-title class="card-header">
         <v-icon icon="mdi-earth" />
         <span>{{ $t('singleResult.worldMap') }}</span>
       </v-card-title>
       <v-card-text>
-        <v-progress-linear
-          v-if="loading"
-          indeterminate
-          class="mb-3"
-        />
-        <WorldMap
-          :probes="probeMarkers"
-          height="500px"
-        />
+        <v-progress-linear v-if="loading" indeterminate class="mb-3" />
+        <WorldMap :probes="probeMarkers" height="500px" />
       </v-card-text>
     </v-card>
 
-    <v-card
-      class="result-card"
-      variant="outlined"
-      style="margin-top: 20px"
-    >
+    <v-card class="result-card" variant="outlined" style="margin-top: 20px">
       <v-card-title class="card-header">
         <v-icon icon="mdi-format-list-bulleted" />
         <span>{{ $t('singleResult.probeData') }}</span>
       </v-card-title>
 
       <v-card-text>
-        <v-progress-linear
-          v-if="loading"
-          indeterminate
-          class="mb-3"
-        />
+        <v-progress-linear v-if="loading" indeterminate class="mb-3" />
 
-        <div
-          v-else
-          class="table-scroll"
-        >
+        <div v-else class="table-scroll">
           <v-table>
             <thead>
               <tr>
@@ -73,10 +43,7 @@
                 <th style="width: 160px">
                   {{ $t('results.targetISP') }}
                 </th>
-                <th
-                  v-if="isHTTPTask"
-                  style="width: 110px"
-                >
+                <th v-if="isHTTPTask" style="width: 110px">
                   {{ $t('results.httpStatus') }}
                 </th>
                 <th style="width: 130px">
@@ -95,15 +62,9 @@
               </tr>
             </thead>
             <tbody>
-              <tr
-                v-for="row in probeResults"
-                :key="row.probe_id || row.probe_name"
-              >
+              <tr v-for="row in probeResults" :key="row.probe_id || row.probe_name">
                 <td>
-                  <ProbeCell
-                    :location="row.location"
-                    :provider="row.provider"
-                  />
+                  <ProbeCell :location="row.location" :provider="row.provider" />
                 </td>
                 <td>{{ row.ip_address }}</td>
                 <td>
@@ -136,36 +97,56 @@
                   <span v-else>-</span>
                 </td>
                 <td>
-                  <span v-if="row.packet_loss !== undefined">{{ row.packet_loss.toFixed(1) }}%</span>
+                  <span v-if="row.packet_loss !== undefined"
+                    >{{ row.packet_loss.toFixed(1) }}%</span
+                  >
                   <span v-else>-</span>
                 </td>
                 <td>
-                  <div
-                    v-if="row.min_latency !== undefined"
-                    class="stats-cell"
-                  >
-                    <span>{{ $t('singleResult.min') }}: {{ row.min_latency.toFixed(2) }} {{ $t('common.ms') }}</span>
-                    <span>{{ $t('singleResult.max') }}: {{ row.max_latency?.toFixed(2) || '-' }} {{ $t('common.ms') }}</span>
-                    <span>{{ $t('singleResult.stdev') }}: {{ row.stddev?.toFixed(2) || '-' }} {{ $t('common.ms') }}</span>
+                  <div v-if="row.min_latency !== undefined" class="stats-cell">
+                    <span
+                      >{{ $t('singleResult.min') }}: {{ row.min_latency.toFixed(2) }}
+                      {{ $t('common.ms') }}</span
+                    >
+                    <span
+                      >{{ $t('singleResult.max') }}: {{ row.max_latency?.toFixed(2) || '-' }}
+                      {{ $t('common.ms') }}</span
+                    >
+                    <span
+                      >{{ $t('singleResult.stdev') }}: {{ row.stddev?.toFixed(2) || '-' }}
+                      {{ $t('common.ms') }}</span
+                    >
+                  </div>
+                  <div v-else-if="row.test_type === 'traceroute'" class="stats-cell">
+                    <span
+                      >{{ $t('singleResult.routeHops') }}:
+                      {{ row.traceroute_total_hops ?? 0 }}</span
+                    >
+                    <span>{{
+                      row.traceroute_success ? $t('home.route.arrived') : $t('common.failed')
+                    }}</span>
+                  </div>
+                  <div v-else-if="row.test_type === 'mtr'" class="stats-cell">
+                    <span>{{ $t('singleResult.routeHops') }}: {{ row.mtr_total_hops ?? 0 }}</span>
+                    <span>{{
+                      row.mtr_success ? $t('home.route.arrived') : $t('common.failed')
+                    }}</span>
                   </div>
                   <span v-else>-</span>
                 </td>
                 <td>
-                  <v-chip
-                    size="small"
-                    variant="tonal"
-                    :color="getResultStatusColor(row.status)"
-                  >
-                    {{ row.status === 'success' ? $t('common.success') : row.status === 'failed' ? $t('common.failed') : $t('common.unknown') }}
+                  <v-chip size="small" variant="tonal" :color="getResultStatusColor(row.status)">
+                    {{
+                      row.status === 'success'
+                        ? $t('common.success')
+                        : row.status === 'failed'
+                          ? $t('common.failed')
+                          : $t('common.unknown')
+                    }}
                   </v-chip>
                 </td>
                 <td>
-                  <v-btn
-                    variant="text"
-                    color="primary"
-                    density="compact"
-                    @click="showDetail(row)"
-                  >
+                  <v-btn variant="text" color="primary" density="compact" @click="showDetail(row)">
                     {{ $t('common.detail') }}
                   </v-btn>
                 </td>
@@ -176,10 +157,7 @@
       </v-card-text>
     </v-card>
 
-    <v-dialog
-      v-model="detailVisible"
-      max-width="600"
-    >
+    <v-dialog v-model="detailVisible" max-width="600">
       <v-card>
         <v-card-title>{{ $t('singleResult.detailTitle') }}</v-card-title>
         <v-card-text v-if="currentDetail">
@@ -225,7 +203,13 @@
                     variant="tonal"
                     :color="getResultStatusColor(currentDetail.status)"
                   >
-                    {{ currentDetail.status === 'success' ? $t('common.success') : currentDetail.status === 'failed' ? $t('common.failed') : $t('common.unknown') }}
+                    {{
+                      currentDetail.status === 'success'
+                        ? $t('common.success')
+                        : currentDetail.status === 'failed'
+                          ? $t('common.failed')
+                          : $t('common.unknown')
+                    }}
                   </v-chip>
                 </td>
               </tr>
@@ -239,10 +223,9 @@
                   >
                     {{ currentDetail.http_status_code }}
                   </v-chip>
-                  <span
-                    v-if="currentDetail.http_response_status"
-                    style="margin-left: 8px"
-                  >{{ currentDetail.http_response_status }}</span>
+                  <span v-if="currentDetail.http_response_status" style="margin-left: 8px">{{
+                    currentDetail.http_response_status
+                  }}</span>
                 </td>
               </tr>
               <tr v-if="currentDetail.http_final_url">
@@ -261,19 +244,151 @@
           />
 
           <div
-            v-if="currentDetail.raw_data"
+            v-if="currentDetail.test_type === 'traceroute' && currentDetail.traceroute_hops?.length"
             style="margin-top: 20px"
           >
+            <h4>{{ $t('results.tracerouteDetail') }}</h4>
+            <v-table density="compact">
+              <thead>
+                <tr>
+                  <th style="width: 70px">
+                    {{ $t('home.route.hop') }}
+                  </th>
+                  <th>{{ $t('home.route.ip') }}</th>
+                  <th style="width: 160px">
+                    {{ $t('home.route.rtt') }}
+                  </th>
+                  <th style="width: 90px">
+                    {{ $t('results.status') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="hop in currentDetail.traceroute_hops" :key="hop.hop">
+                  <td>{{ hop.hop }}</td>
+                  <td>
+                    <div>{{ hop.ip || '*' }}</div>
+                    <div v-if="hop.hostname" class="hop-geo">
+                      {{ hop.hostname }}
+                    </div>
+                    <div v-if="hop.geo" class="hop-geo">
+                      {{
+                        [hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city]
+                          .filter(Boolean)
+                          .join(' ')
+                      }}
+                    </div>
+                  </td>
+                  <td>
+                    <span v-if="hop.timeout">-</span>
+                    <span v-else-if="hop.rtts?.length">{{
+                      hop.rtts.map(value => `${value.toFixed(1)} ${$t('common.ms')}`).join(' / ')
+                    }}</span>
+                    <span v-else>-</span>
+                  </td>
+                  <td>
+                    {{
+                      hop.timeout ? $t('common.timeout') : hop.ip ? $t('home.route.arrived') : '-'
+                    }}
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </div>
+
+          <div
+            v-if="currentDetail.test_type === 'mtr' && currentDetail.mtr_hops?.length"
+            style="margin-top: 20px"
+          >
+            <h4>{{ $t('results.mtrDetail') }}</h4>
+            <v-table density="compact">
+              <thead>
+                <tr>
+                  <th style="width: 70px">
+                    {{ $t('home.route.hop') }}
+                  </th>
+                  <th>{{ $t('home.route.ip') }}</th>
+                  <th style="width: 90px; text-align: right">
+                    {{ $t('home.route.lossPercent') }}
+                  </th>
+                  <th style="width: 90px; text-align: right">
+                    {{ $t('home.route.sent') }}
+                  </th>
+                  <th style="width: 110px; text-align: right">
+                    {{ $t('home.route.avg') }}
+                  </th>
+                  <th style="width: 140px; text-align: right">
+                    {{ $t('home.route.best') }}/{{ $t('home.route.worst') }}
+                  </th>
+                  <th style="width: 100px; text-align: right">
+                    {{ $t('home.route.stdev') }}
+                  </th>
+                  <th style="width: 90px; text-align: right">
+                    {{ $t('results.status') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="hop in currentDetail.mtr_hops" :key="hop.hop">
+                  <td>{{ hop.hop }}</td>
+                  <td>
+                    <div>{{ hop.ip || '*' }}</div>
+                    <div v-if="hop.hostname" class="hop-geo">
+                      {{ hop.hostname }}
+                    </div>
+                    <div v-if="hop.geo" class="hop-geo">
+                      {{
+                        [hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city]
+                          .filter(Boolean)
+                          .join(' ')
+                      }}
+                    </div>
+                  </td>
+                  <td style="text-align: right">
+                    {{ hop.lossPercent !== undefined ? `${hop.lossPercent.toFixed(1)}%` : '-' }}
+                  </td>
+                  <td style="text-align: right">{{ hop.sent ?? '-' }}</td>
+                  <td style="text-align: right">
+                    {{
+                      hop.avgRttMs !== undefined
+                        ? `${hop.avgRttMs.toFixed(1)} ${$t('common.ms')}`
+                        : '-'
+                    }}
+                  </td>
+                  <td style="text-align: right">
+                    {{
+                      hop.bestRttMs !== undefined || hop.worstRttMs !== undefined
+                        ? `${hop.bestRttMs?.toFixed(1) ?? '-'} / ${
+                            hop.worstRttMs?.toFixed(1) ?? '-'
+                          } ${$t('common.ms')}`
+                        : '-'
+                    }}
+                  </td>
+                  <td style="text-align: right">
+                    {{
+                      hop.stddevRttMs !== undefined
+                        ? `${hop.stddevRttMs.toFixed(1)} ${$t('common.ms')}`
+                        : '-'
+                    }}
+                  </td>
+                  <td style="text-align: right">
+                    {{
+                      hop.timeout ? $t('common.timeout') : hop.ip ? $t('home.route.arrived') : '-'
+                    }}
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+          </div>
+
+          <div v-if="currentDetail.raw_data" style="margin-top: 20px">
             <h4>{{ $t('resultsPage.rawData') }}</h4>
             <pre class="json-data">{{ JSON.stringify(currentDetail.raw_data, null, 2) }}</pre>
           </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn
-            variant="text"
-            @click="detailVisible = false"
-          >
+          <v-btn variant="text" @click="detailVisible = false">
             {{ $t('common.close') }}
           </v-btn>
         </v-card-actions>
@@ -296,7 +411,22 @@ import { parseMaybeJSON } from '@/utils/parse'
 import { hasValidCoordinates } from '@/utils/coordinate'
 import { getLatencyHex } from '@/utils/latency'
 import api from '@/utils/request'
-import { getAvgLatency, getHTTPStatusChipColor, getHTTPStatusCode, getLatestHTTPAttempt, getMaxLatency, getPacketLossPercent, getResolvedIP, getStddevLatency, getTargetNetworkInfo, getMinLatency } from '@/utils/result'
+import {
+  getAvgLatency,
+  getHTTPStatusChipColor,
+  getHTTPStatusCode,
+  getLatestHTTPAttempt,
+  getMaxLatency,
+  getMTRResult,
+  getMinLatency,
+  getPacketLossPercent,
+  getResolvedIP,
+  getStddevLatency,
+  getTargetNetworkInfo,
+  getTracerouteResult,
+  type MTRHop,
+  type TracerouteHop,
+} from '@/utils/result'
 import { getProbeMetadataSummary, normalizeProbeCoordinates } from '@/utils/probe'
 
 type TaskInfo = {
@@ -342,6 +472,12 @@ type ProbeResultRow = {
   max_latency?: number
   stddev?: number
   packet_loss?: number
+  traceroute_hops?: TracerouteHop[]
+  traceroute_total_hops?: number
+  traceroute_success?: boolean
+  mtr_hops?: MTRHop[]
+  mtr_total_hops?: number
+  mtr_success?: boolean
   status: string
   test_type: string
   raw_data?: unknown
@@ -368,18 +504,30 @@ const detailVisible = ref(false)
 const currentDetail = ref<ProbeResultRow | null>(null)
 const taskInfo = ref<TaskInfo | null>(null)
 const results = ref<ResultView[]>([])
-const isHTTPTask = computed(() => results.value.some((result) => result.test_type === 'http_test'))
+const isHTTPTask = computed(() => results.value.some(result => result.test_type === 'http_test'))
 
 // 地图标记点数据
 const probeMarkers = computed<ProbeMarker[]>(() => {
   return results.value
-    .map((result) => {
+    .map(result => {
       const probe = result.probe
       if (!probe || !hasValidCoordinates(probe.latitude, probe.longitude)) return null
 
       const summary = parseMaybeJSON(result.summary)
       const latestHTTPAttempt = getLatestHTTPAttempt(result.result_data)
-      const status = latestHTTPAttempt?.status || result.status || 'timeout'
+      const traceroute = getTracerouteResult(result.result_data)
+      const mtr = getMTRResult(result.result_data)
+      const status = latestHTTPAttempt?.status
+        ? latestHTTPAttempt.status
+        : mtr
+          ? mtr.success === false
+            ? 'failed'
+            : result.status || 'success'
+          : traceroute
+            ? traceroute.success === false
+              ? 'failed'
+              : result.status || 'success'
+            : result.status || 'timeout'
       const validStatus: 'success' | 'failed' | 'timeout' =
         status === 'success' || status === 'failed' ? status : 'timeout'
 
@@ -399,12 +547,25 @@ const probeMarkers = computed<ProbeMarker[]>(() => {
 
 // 节点结果数据
 const probeResults = computed<ProbeResultRow[]>(() => {
-  return results.value.map((result) => {
+  return results.value.map(result => {
     const summary = parseMaybeJSON(result.summary)
     const data = parseMaybeJSON(result.result_data)
     const metadata = getProbeMetadataSummary(result.probe?.metadata)
     const targetNetwork = getTargetNetworkInfo(summary, data)
     const latestHTTPAttempt = getLatestHTTPAttempt(data)
+    const traceroute = getTracerouteResult(data)
+    const mtr = getMTRResult(data)
+    const derivedStatus = latestHTTPAttempt?.status
+      ? latestHTTPAttempt.status
+      : mtr
+        ? mtr.success === false
+          ? 'failed'
+          : result.status || 'success'
+        : traceroute
+          ? traceroute.success === false
+            ? 'failed'
+            : result.status || 'success'
+          : result.status || 'unknown'
 
     return {
       probe_id: result.probe?.probe_id,
@@ -424,7 +585,13 @@ const probeResults = computed<ProbeResultRow[]>(() => {
       max_latency: getMaxLatency(summary, data),
       stddev: getStddevLatency(summary, data),
       packet_loss: getPacketLossPercent(summary, data),
-      status: latestHTTPAttempt?.status || result.status || 'unknown',
+      traceroute_hops: traceroute?.hops,
+      traceroute_total_hops: traceroute?.totalHops ?? traceroute?.hops.length,
+      traceroute_success: traceroute?.success,
+      mtr_hops: mtr?.hops,
+      mtr_total_hops: mtr?.totalHops ?? mtr?.hops.length,
+      mtr_success: mtr?.success,
+      status: derivedStatus,
       test_type: result.test_type,
       raw_data: result.result_data,
     }
@@ -493,7 +660,7 @@ async function loadData() {
     const probesRes = await api.get<ProbesResponse>('/probes')
 
     const probesMap = new Map<string, ProbeView>(
-      (probesRes.probes as RawProbeRow[]).map((p) => {
+      (probesRes.probes as RawProbeRow[]).map(p => {
         const normalized = normalizeProbeCoordinates(p)
         return [
           p.probe_id,
@@ -509,7 +676,7 @@ async function loadData() {
       })
     )
 
-    results.value = (resultsRes.results as ResultView[]).map((r) => ({
+    results.value = (resultsRes.results as ResultView[]).map(r => ({
       ...r,
       probe: probesMap.get(r.probe_id),
       summary: parseMaybeJSON(r.summary),
@@ -572,6 +739,12 @@ onMounted(() => {
   word-break: break-all;
 }
 
+.hop-geo {
+  font-size: 12px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
 .json-data {
   background: var(--surface-2);
   padding: 10px;
@@ -592,5 +765,4 @@ onMounted(() => {
     word-break: break-word;
   }
 }
-
 </style>

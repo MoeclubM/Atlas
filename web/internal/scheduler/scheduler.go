@@ -15,6 +15,8 @@ import (
 	"atlas/web/internal/websocket"
 )
 
+const probeUpgradeTimeout = 15 * time.Minute
+
 // Scheduler 任务调度器
 type Scheduler struct {
 	db       *database.Database
@@ -58,6 +60,12 @@ func (s *Scheduler) Stop() {
 
 // scanAndSchedule 扫描并调度任务
 func (s *Scheduler) scanAndSchedule() {
+	if count, err := s.db.TimeoutStaleProbeUpgrades(probeUpgradeTimeout); err != nil {
+		log.Printf("[Scheduler] Failed to timeout stale probe upgrades: %v", err)
+	} else if count > 0 {
+		log.Printf("[Scheduler] Timed out %d stale probe upgrade(s)", count)
+	}
+
 	// 1. 获取待执行的单次任务
 	tasks, err := s.db.GetPendingTasks()
 	if err != nil {
@@ -65,22 +73,7 @@ func (s *Scheduler) scanAndSchedule() {
 		return
 	}
 
-	now := time.Now()
 	for _, task := range tasks {
-		// 兼容历史数据：禁用 mtr 任务，避免一直被扫描/调度
-		if task.TaskType == "mtr" {
-			log.Printf("[Scheduler] Disabling legacy mtr task %s", task.TaskID)
-			if task.CompletedAt == nil {
-				task.CompletedAt = &now
-			}
-			task.NextRunAt = nil
-			task.Status = "failed"
-			if err := s.db.UpdateTask(task); err != nil {
-				log.Printf("[Scheduler] Failed to disable legacy mtr task %s: %v", task.TaskID, err)
-			}
-			continue
-		}
-
 		if err := s.assignTask(task); err != nil {
 			log.Printf("[Scheduler] Failed to assign task %s: %v", task.TaskID, err)
 		}
@@ -154,9 +147,8 @@ func (s *Scheduler) assignTask(task *model.Task) error {
 			}
 		}
 
-		// traceroute 可单独配置超时
-		if task.TaskType == "traceroute" {
-			if v, err := s.db.GetConfig("traceroute_timeout_seconds"); err == nil {
+		if configKey := routeTaskTimeoutConfigKey(task.TaskType); configKey != "" {
+			if v, err := s.db.GetConfig(configKey); err == nil {
 				if i, err := strconv.Atoi(strings.TrimSpace(v)); err == nil && i > 0 {
 					timeoutSec = i
 				}
@@ -306,4 +298,15 @@ func (s *Scheduler) updateNextRun(task *model.Task) {
 	stateBytes, _ := json.Marshal(state)
 	task.Schedule = string(stateBytes)
 	_ = s.db.UpdateTask(task)
+}
+
+func routeTaskTimeoutConfigKey(taskType string) string {
+	switch taskType {
+	case "traceroute":
+		return "traceroute_timeout_seconds"
+	case "mtr":
+		return "mtr_timeout_seconds"
+	default:
+		return ""
+	}
 }

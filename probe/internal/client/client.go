@@ -131,6 +131,18 @@ func (c *Client) register() error {
 		"version": Version,
 	}
 
+	upgradeCfg := detectRemoteUpgradeConfig()
+	metadata["deploy_mode"] = upgradeCfg.DeployMode
+	metadata["upgrade_channel"] = upgradeCfg.Channel
+	if upgradeCfg.Supported {
+		metadata["upgrade_supported"] = "true"
+	} else {
+		metadata["upgrade_supported"] = "false"
+		if upgradeCfg.Reason != "" {
+			metadata["upgrade_reason"] = upgradeCfg.Reason
+		}
+	}
+
 	// 可选：上报 ASN/ISP（用于在服务端 UI 展示运营商信息）
 	if asn := os.Getenv("PROBE_ASN"); asn != "" {
 		metadata["asn"] = asn
@@ -158,7 +170,7 @@ func (c *Client) register() error {
 		Metadata:     metadata,
 	}
 
-	return c.sendMessage("register", registerMsg)
+	return c.sendMessage(protocol.MsgTypeRegister, registerMsg)
 }
 
 // heartbeatLoop 心跳循环
@@ -177,7 +189,7 @@ func (c *Client) heartbeatLoop() {
 				ActiveTasks: c.taskManager.ActiveTaskCount(),
 			}
 
-			if err := c.sendMessage("heartbeat", heartbeatMsg); err != nil {
+			if err := c.sendMessage(protocol.MsgTypeHeartbeat, heartbeatMsg); err != nil {
 				log.Printf("[Client] Failed to send heartbeat: %v", err)
 			}
 
@@ -228,7 +240,7 @@ func (c *Client) handleMessage(message []byte) error {
 	}
 
 	switch msg.Type {
-	case "register_ack":
+	case protocol.MsgTypeRegisterAck:
 		var ackMsg protocol.RegisterAckMessage
 		dataBytes, _ := json.Marshal(msg.Data)
 		json.Unmarshal(dataBytes, &ackMsg)
@@ -239,10 +251,10 @@ func (c *Client) handleMessage(message []byte) error {
 			log.Printf("[Client] Registration failed: %s", ackMsg.Message)
 		}
 
-	case "heartbeat_ack":
+	case protocol.MsgTypeHeartbeatAck:
 		// 心跳响应,无需处理
 
-	case "task_assign":
+	case protocol.MsgTypeTaskAssign:
 		var taskMsg protocol.TaskAssignMessage
 		dataBytes, _ := json.Marshal(msg.Data)
 		json.Unmarshal(dataBytes, &taskMsg)
@@ -253,7 +265,7 @@ func (c *Client) handleMessage(message []byte) error {
 		// 提交任务到任务管理器
 		c.taskManager.SubmitTask(taskMsg, c)
 
-	case "task_cancel":
+	case protocol.MsgTypeTaskCancel:
 		var cancelMsg protocol.TaskCancelMessage
 		dataBytes, _ := json.Marshal(msg.Data)
 		json.Unmarshal(dataBytes, &cancelMsg)
@@ -264,17 +276,24 @@ func (c *Client) handleMessage(message []byte) error {
 		// 取消任务
 		c.taskManager.CancelTask(cancelMsg.ExecutionID)
 
-	case "probe_upgrade":
+	case protocol.MsgTypeProbeUpgrade:
 		var upgradeMsg protocol.ProbeUpgradeMessage
 		dataBytes, _ := json.Marshal(msg.Data)
 		json.Unmarshal(dataBytes, &upgradeMsg)
 
 		log.Printf("[Client] Received upgrade request to version: %s", strings.TrimSpace(upgradeMsg.Version))
 		if err := c.requestUpgrade(upgradeMsg); err != nil {
-			return err
+			log.Printf("[Client] Upgrade request rejected: %v", err)
+			if ackErr := c.sendUpgradeAck(upgradeMsg.UpgradeID, false, err.Error()); ackErr != nil {
+				log.Printf("[Client] Failed to send upgrade rejection ack: %v", ackErr)
+			}
+			return nil
+		}
+		if err := c.sendUpgradeAck(upgradeMsg.UpgradeID, true, ""); err != nil {
+			log.Printf("[Client] Failed to send upgrade ack: %v", err)
 		}
 
-	case "pong":
+	case protocol.MsgTypePong:
 		// Pong响应
 
 	default:
@@ -325,6 +344,18 @@ func (c *Client) SendTaskStatus(status protocol.TaskStatusMessage) error {
 		status.ProbeID = c.probeID
 	}
 	return c.sendMessage("task_status", status)
+}
+
+func (c *Client) sendUpgradeAck(upgradeID string, accepted bool, errorMessage string) error {
+	if strings.TrimSpace(upgradeID) == "" {
+		return nil
+	}
+
+	return c.sendMessage(protocol.MsgTypeProbeUpgradeAck, protocol.ProbeUpgradeAckMessage{
+		UpgradeID: strings.TrimSpace(upgradeID),
+		Accepted:  accepted,
+		Error:     strings.TrimSpace(errorMessage),
+	})
 }
 
 // reconnect 重新连接

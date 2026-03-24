@@ -2,6 +2,15 @@ package model
 
 import "time"
 
+const (
+	ProbeUpgradeStatusQueued   = "queued"
+	ProbeUpgradeStatusAccepted = "accepted"
+	ProbeUpgradeStatusRejected = "rejected"
+	ProbeUpgradeStatusApplied  = "applied"
+	ProbeUpgradeStatusFailed   = "failed"
+	ProbeUpgradeStatusTimeout  = "timeout"
+)
+
 // Probe 探针模型
 type Probe struct {
 	ID            int64     `json:"id" db:"id"`
@@ -62,4 +71,18 @@ type Result struct {
 	ResultData  string    `json:"result_data" db:"result_data"`   // JSON
 	Summary     string    `json:"summary,omitempty" db:"summary"` // JSON
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+}
+
+// ProbeUpgrade 探针升级记录
+type ProbeUpgrade struct {
+	ID            int64      `json:"id" db:"id"`
+	UpgradeID     string     `json:"upgrade_id" db:"upgrade_id"`
+	ProbeID       string     `json:"probe_id" db:"probe_id"`
+	FromVersion   string     `json:"from_version,omitempty" db:"from_version"`
+	TargetVersion string     `json:"target_version" db:"target_version"`
+	Status        string     `json:"status" db:"status"`
+	ErrorMessage  *string    `json:"error_message,omitempty" db:"error_message"`
+	RequestedAt   time.Time  `json:"requested_at" db:"requested_at"`
+	AckedAt       *time.Time `json:"acked_at,omitempty" db:"acked_at"`
+	CompletedAt   *time.Time `json:"completed_at,omitempty" db:"completed_at"`
 }

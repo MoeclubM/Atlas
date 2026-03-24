@@ -161,6 +161,8 @@ func (m *Manager) executeTask(workerID int, job TaskJob) {
 		resultData, err = executeTCPPing(task.Target, task.Parameters)
 	case "traceroute":
 		resultData, err = executeTraceroute(ctx, task.Target, task.Parameters)
+	case "mtr":
+		resultData, err = executeMTR(ctx, task.Target, task.Parameters)
 	case "http_test":
 		resultData, err = executeHTTPTest(task.Target, task.Parameters)
 	case "bird_route":

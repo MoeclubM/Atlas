@@ -14,7 +14,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w -buildid=" -o /o
 
 FROM alpine:3.21
 
-RUN apk add --no-cache ca-certificates iputils traceroute
+RUN apk add --no-cache ca-certificates iputils traceroute mtr
 
 WORKDIR /app
 

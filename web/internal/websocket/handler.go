@@ -138,6 +138,10 @@ func (c *Connection) handleRegister(msg map[string]interface{}) error {
 		return err
 	}
 
+	if _, err := c.hub.db.ReconcileProbeUpgradeVersion(registerMsg.ProbeID, registerMsg.Version); err != nil {
+		log.Printf("[Handler] Failed to reconcile probe upgrade version: %v", err)
+	}
+
 	// 设置连接的ProbeID
 	c.ProbeID = registerMsg.ProbeID
 
@@ -253,8 +257,8 @@ func (c *Connection) handleTaskResult(msg map[string]interface{}) error {
 		return err
 	}
 
-	// 为 traceroute 结果富化 hops IP 的 GeoIP/ISP 信息
-	if task.TaskType == "traceroute" && c.hub.geoip != nil {
+	// 为 route 类结果富化 hops IP 的 GeoIP/ISP 信息
+	if (task.TaskType == "traceroute" || task.TaskType == "mtr") && c.hub.geoip != nil {
 		enrichHopsWithGeoIP(resultMsg.ResultData, c.hub.geoip)
 	}
 
@@ -346,6 +350,39 @@ func (c *Connection) handleTaskStatus(msg map[string]interface{}) error {
 
 	execution.Status = statusMsg.Status
 	return c.hub.db.UpdateExecution(execution)
+}
+
+// handleProbeUpgradeAck 处理升级确认消息
+func (c *Connection) handleProbeUpgradeAck(msg map[string]interface{}) error {
+	dataBytes, _ := json.Marshal(msg["data"])
+	var ack protocol.ProbeUpgradeAckMessage
+	if err := json.Unmarshal(dataBytes, &ack); err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(ack.UpgradeID) == "" {
+		return fmt.Errorf("missing upgrade_id in probe_upgrade_ack")
+	}
+
+	upgrade, err := c.hub.db.GetProbeUpgrade(ack.UpgradeID)
+	if err != nil {
+		return err
+	}
+	if upgrade.ProbeID != c.ProbeID {
+		return fmt.Errorf("upgrade %s does not belong to probe %s", ack.UpgradeID, c.ProbeID)
+	}
+
+	if ack.Accepted {
+		log.Printf("[Handler] Probe %s accepted upgrade %s", c.ProbeID, ack.UpgradeID)
+		return c.hub.db.MarkProbeUpgradeAccepted(ack.UpgradeID)
+	}
+
+	message := strings.TrimSpace(ack.Error)
+	if message == "" {
+		message = "probe rejected upgrade request"
+	}
+	log.Printf("[Handler] Probe %s rejected upgrade %s: %s", c.ProbeID, ack.UpgradeID, message)
+	return c.hub.db.MarkProbeUpgradeRejected(ack.UpgradeID, message)
 }
 
 // handleError 处理错误消息

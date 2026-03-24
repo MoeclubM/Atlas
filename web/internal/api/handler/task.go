@@ -97,6 +97,107 @@ func ipInBlockedNetworks(ip net.IP, blocked []*net.IPNet) bool {
 	return false
 }
 
+func normalizeProbeIDs(ids []string) []string {
+	seen := make(map[string]struct{}, len(ids))
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			continue
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	return out
+}
+
+func probeSupportsTaskType(capabilities []string, taskType string) bool {
+	for _, cap := range capabilities {
+		if cap == taskType || cap == "all" {
+			return true
+		}
+	}
+	return false
+}
+
+func decodeProbeCapabilities(raw string) ([]string, error) {
+	var capabilities []string
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	if err := json.Unmarshal([]byte(raw), &capabilities); err != nil {
+		return nil, err
+	}
+	return capabilities, nil
+}
+
+func (h *TaskHandler) listCompatibleOnlineProbes(taskType string) ([]*model.Probe, error) {
+	probes, err := h.db.GetOnlineProbes()
+	if err != nil {
+		return nil, err
+	}
+
+	compatible := make([]*model.Probe, 0, len(probes))
+	for _, probe := range probes {
+		caps, err := decodeProbeCapabilities(probe.Capabilities)
+		if err != nil {
+			continue
+		}
+		if probeSupportsTaskType(caps, taskType) {
+			compatible = append(compatible, probe)
+		}
+	}
+
+	return compatible, nil
+}
+
+func (h *TaskHandler) resolveRouteProbeIDs(taskType string, requested []string) ([]string, error) {
+	compatibleProbes, err := h.listCompatibleOnlineProbes(taskType)
+	if err != nil {
+		return nil, err
+	}
+
+	compatibleByID := make(map[string]*model.Probe, len(compatibleProbes))
+	for _, probe := range compatibleProbes {
+		compatibleByID[probe.ProbeID] = probe
+	}
+
+	requested = normalizeProbeIDs(requested)
+	if len(requested) == 0 {
+		selected := make([]string, 0, len(compatibleProbes))
+		for _, probe := range compatibleProbes {
+			selected = append(selected, probe.ProbeID)
+		}
+		if len(selected) == 0 {
+			return nil, fmt.Errorf("no online probes support %s", taskType)
+		}
+		return selected, nil
+	}
+
+	for _, probeID := range requested {
+		if _, ok := compatibleByID[probeID]; !ok {
+			probe, err := h.db.GetProbe(probeID)
+			if err != nil {
+				return nil, fmt.Errorf("probe %s not found", probeID)
+			}
+
+			caps, err := decodeProbeCapabilities(probe.Capabilities)
+			if err != nil {
+				return nil, fmt.Errorf("failed to load probe %s capabilities", probeID)
+			}
+			if probeSupportsTaskType(caps, taskType) {
+				return nil, fmt.Errorf("probe %s is offline", probeID)
+			}
+			return nil, fmt.Errorf("probe %s does not support %s", probeID, taskType)
+		}
+	}
+
+	return requested, nil
+}
+
 // CreateTask 创建任务
 // POST /api/tasks
 func (h *TaskHandler) CreateTask(c *gin.Context) {
@@ -152,45 +253,13 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	// 暂时禁用 mtr
-	if req.TaskType == "mtr" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "mtr is temporarily unavailable"})
-		return
-	}
-
-	// traceroute: 必须指定 probe（否则很容易出现“不可用/没结果”的体验）
-	if req.TaskType == "traceroute" && len(req.AssignedProbes) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "assigned_probes required for traceroute"})
-		return
-	}
-
-	// traceroute: 验证 probe online + capability
-	if req.TaskType == "traceroute" {
-		for _, pid := range req.AssignedProbes {
-			if pid == "" {
-				continue
-			}
-			if !h.hub.IsProbeOnline(pid) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("probe %s is offline", pid)})
-				return
-			}
-			caps, err := h.db.GetProbeCapabilities(pid)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("failed to load probe capabilities: %v", err)})
-				return
-			}
-			supported := false
-			for _, cap := range caps {
-				if cap == req.TaskType || cap == "all" {
-					supported = true
-					break
-				}
-			}
-			if !supported {
-				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("probe %s does not support %s", pid, req.TaskType)})
-				return
-			}
+	if req.TaskType == "traceroute" || req.TaskType == "mtr" {
+		resolvedProbeIDs, err := h.resolveRouteProbeIDs(req.TaskType, req.AssignedProbes)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
 		}
+		req.AssignedProbes = resolvedProbeIDs
 	}
 
 	// tcp_ping: 强制要求 host:port 或 [ipv6]:port

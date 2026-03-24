@@ -33,6 +33,10 @@ func filterCapabilities(caps []string) []string {
 			if hasCommand("traceroute") {
 				filtered = append(filtered, c)
 			}
+		case "mtr":
+			if hasCommand("mtr") {
+				filtered = append(filtered, c)
+			}
 		case "bird_route":
 			if hasCommand("birdc") {
 				filtered = append(filtered, c)
@@ -60,7 +64,7 @@ func main() {
 	log.Printf("Location: %s", cfg.Probe.Location)
 	log.Printf("Server: %s", cfg.Server.URL)
 
-	// 补齐能力声明：探针实现了 http_test，但默认配置里可能没有包含
+	// 补齐能力声明：探针实现了 http_test/mtr，但旧配置里可能没有包含。
 	caps := make([]string, 0, len(cfg.Capabilities)+1)
 	seen := map[string]bool{}
 	for _, c := range cfg.Capabilities {
@@ -69,6 +73,9 @@ func main() {
 	}
 	if !seen["http_test"] {
 		caps = append(caps, "http_test")
+	}
+	if !seen["mtr"] {
+		caps = append(caps, "mtr")
 	}
 	cfg.Capabilities = filterCapabilities(caps)
 	log.Printf("Capabilities: %v", cfg.Capabilities)

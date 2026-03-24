@@ -32,7 +32,7 @@ function isIPv4(host: string): boolean {
     return false
   }
 
-  return parts.every((part) => {
+  return parts.every(part => {
     if (!/^\d+$/.test(part)) {
       return false
     }
@@ -98,14 +98,18 @@ function extractTargetHost(target?: string): string | undefined {
   return trimmed
 }
 
-export function getResolvedIP(summaryValue: unknown, resultDataValue: unknown, target?: string): string | undefined {
+export function getResolvedIP(
+  summaryValue: unknown,
+  resultDataValue: unknown,
+  target?: string
+): string | undefined {
   const summary = parseMaybeJSON(summaryValue)
   const data = parseMaybeJSON(resultDataValue)
 
   const resolved = getNonEmptyString(
     data['resolved_ip'],
     summary['resolved_ip'],
-    summary['resolvedIP'],
+    summary['resolvedIP']
   )
   if (resolved) {
     return resolved
@@ -149,7 +153,10 @@ export function getPacketLossStats(resultDataValue: unknown): PacketLossStats | 
   return undefined
 }
 
-export function getPacketLossPercent(summaryValue: unknown, resultDataValue: unknown): number | undefined {
+export function getPacketLossPercent(
+  summaryValue: unknown,
+  resultDataValue: unknown
+): number | undefined {
   const summary = parseMaybeJSON(summaryValue)
   const summaryLoss = getFiniteNumber(summary['packet_loss_percent'], summary['packet_loss'])
   if (summaryLoss !== undefined) {
@@ -174,7 +181,7 @@ export function getAvgLatency(summaryValue: unknown, resultDataValue: unknown): 
     summary['avg_connect_time_ms'],
     data['avg_rtt_ms'],
     data['avg_latency'],
-    data['avg_connect_time_ms'],
+    data['avg_connect_time_ms']
   )
 }
 
@@ -188,7 +195,7 @@ export function getMinLatency(summaryValue: unknown, resultDataValue: unknown): 
     summary['min_connect_time_ms'],
     data['min_rtt_ms'],
     data['min_latency'],
-    data['min_connect_time_ms'],
+    data['min_connect_time_ms']
   )
 }
 
@@ -202,11 +209,14 @@ export function getMaxLatency(summaryValue: unknown, resultDataValue: unknown): 
     summary['max_connect_time_ms'],
     data['max_rtt_ms'],
     data['max_latency'],
-    data['max_connect_time_ms'],
+    data['max_connect_time_ms']
   )
 }
 
-export function getStddevLatency(summaryValue: unknown, resultDataValue: unknown): number | undefined {
+export function getStddevLatency(
+  summaryValue: unknown,
+  resultDataValue: unknown
+): number | undefined {
   const summary = parseMaybeJSON(summaryValue)
   const data = parseMaybeJSON(resultDataValue)
 
@@ -214,7 +224,7 @@ export function getStddevLatency(summaryValue: unknown, resultDataValue: unknown
     summary['stddev_rtt_ms'],
     summary['stddev'],
     data['stddev_rtt_ms'],
-    data['stddev'],
+    data['stddev']
   )
 }
 
@@ -224,7 +234,10 @@ export type TargetNetworkInfo = {
   asName?: string
 }
 
-export function getTargetNetworkInfo(summaryValue: unknown, resultDataValue: unknown): TargetNetworkInfo {
+export function getTargetNetworkInfo(
+  summaryValue: unknown,
+  resultDataValue: unknown
+): TargetNetworkInfo {
   const summary = parseMaybeJSON(summaryValue)
   const data = parseMaybeJSON(resultDataValue)
 
@@ -232,6 +245,161 @@ export function getTargetNetworkInfo(summaryValue: unknown, resultDataValue: unk
     isp: getNonEmptyString(summary['target_isp'], data['target_isp']),
     asn: getNonEmptyString(summary['target_asn'], data['target_asn']),
     asName: getNonEmptyString(summary['target_as_name'], data['target_as_name']),
+  }
+}
+
+export type TracerouteGeo = {
+  isp?: string
+  asn?: string
+  as_name?: string
+  country?: string
+  region?: string
+  city?: string
+  latitude?: number
+  longitude?: number
+}
+
+export type TracerouteHop = {
+  hop: number
+  ip?: string
+  hostname?: string
+  rtts?: number[]
+  timeout?: boolean
+  geo?: TracerouteGeo
+}
+
+export type TracerouteResultData = {
+  hops: TracerouteHop[]
+  totalHops?: number
+  success?: boolean
+}
+
+export type MTRHop = {
+  hop: number
+  ip?: string
+  hostname?: string
+  lossPercent?: number
+  sent?: number
+  lastRttMs?: number
+  avgRttMs?: number
+  bestRttMs?: number
+  worstRttMs?: number
+  stddevRttMs?: number
+  timeout?: boolean
+  geo?: TracerouteGeo
+}
+
+export type MTRResultData = {
+  hops: MTRHop[]
+  totalHops?: number
+  success?: boolean
+  packetLossPercent?: number
+}
+
+function normalizeTracerouteGeo(value: unknown): TracerouteGeo | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined
+  }
+
+  const geo = value as Record<string, unknown>
+  return {
+    isp: getNonEmptyString(geo['isp']),
+    asn: getNonEmptyString(geo['asn']),
+    as_name: getNonEmptyString(geo['as_name']),
+    country: getNonEmptyString(geo['country']),
+    region: getNonEmptyString(geo['region']),
+    city: getNonEmptyString(geo['city']),
+    latitude: getFiniteNumber(geo['latitude']),
+    longitude: getFiniteNumber(geo['longitude']),
+  }
+}
+
+function normalizeTracerouteHop(value: unknown): TracerouteHop | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined
+  }
+
+  const hop = value as Record<string, unknown>
+  const hopIndex = getFiniteNumber(hop['hop'])
+  if (hopIndex === undefined) {
+    return undefined
+  }
+
+  const rtts = Array.isArray(hop['rtts'])
+    ? hop['rtts']
+        .map(item => (typeof item === 'number' && Number.isFinite(item) ? item : undefined))
+        .filter((item): item is number => item !== undefined)
+    : undefined
+
+  return {
+    hop: hopIndex,
+    ip: getNonEmptyString(hop['ip']),
+    hostname: getNonEmptyString(hop['hostname']),
+    rtts: rtts && rtts.length > 0 ? rtts : undefined,
+    timeout: hop['timeout'] === true,
+    geo: normalizeTracerouteGeo(hop['geo']),
+  }
+}
+
+export function getTracerouteResult(resultDataValue: unknown): TracerouteResultData | undefined {
+  const data = parseMaybeJSON(resultDataValue)
+  if (!Array.isArray(data['hops'])) {
+    return undefined
+  }
+
+  const hops = data['hops']
+    .map(hop => normalizeTracerouteHop(hop))
+    .filter((hop): hop is TracerouteHop => hop !== undefined)
+
+  return {
+    hops,
+    totalHops: getFiniteNumber(data['total_hops']),
+    success: data['success'] === true,
+  }
+}
+
+function normalizeMTRHop(value: unknown): MTRHop | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined
+  }
+
+  const hop = value as Record<string, unknown>
+  const hopIndex = getFiniteNumber(hop['hop'])
+  if (hopIndex === undefined) {
+    return undefined
+  }
+
+  return {
+    hop: hopIndex,
+    ip: getNonEmptyString(hop['ip']),
+    hostname: getNonEmptyString(hop['hostname']),
+    lossPercent: getFiniteNumber(hop['loss_percent']),
+    sent: getFiniteNumber(hop['sent']),
+    lastRttMs: getFiniteNumber(hop['last_rtt_ms']),
+    avgRttMs: getFiniteNumber(hop['avg_rtt_ms']),
+    bestRttMs: getFiniteNumber(hop['best_rtt_ms']),
+    worstRttMs: getFiniteNumber(hop['worst_rtt_ms']),
+    stddevRttMs: getFiniteNumber(hop['stddev_rtt_ms']),
+    timeout: hop['timeout'] === true,
+    geo: normalizeTracerouteGeo(hop['geo']),
+  }
+}
+
+export function getMTRResult(resultDataValue: unknown): MTRResultData | undefined {
+  const data = parseMaybeJSON(resultDataValue)
+  if (!Array.isArray(data['hops'])) {
+    return undefined
+  }
+
+  const hops = data['hops']
+    .map(hop => normalizeMTRHop(hop))
+    .filter((hop): hop is MTRHop => hop !== undefined)
+
+  return {
+    hops,
+    totalHops: getFiniteNumber(data['total_hops']),
+    success: data['success'] === true,
+    packetLossPercent: getFiniteNumber(data['packet_loss_percent']),
   }
 }
 
@@ -259,12 +427,12 @@ function normalizeHTTPHeaders(value: unknown): HTTPHeaders | undefined {
   for (const [key, rawValue] of Object.entries(value as Record<string, unknown>)) {
     if (Array.isArray(rawValue)) {
       const values = rawValue
-        .map((item) => {
+        .map(item => {
           if (typeof item === 'string') return item
           if (typeof item === 'number' || typeof item === 'boolean') return String(item)
           return ''
         })
-        .filter((item) => item !== '')
+        .filter(item => item !== '')
 
       if (values.length > 0) {
         headers[key] = values
@@ -313,7 +481,7 @@ export function getHTTPAttempts(resultDataValue: unknown): HTTPAttempt[] {
   }
 
   return data['attempts']
-    .map((attempt) => normalizeHTTPAttempt(attempt))
+    .map(attempt => normalizeHTTPAttempt(attempt))
     .filter((attempt): attempt is HTTPAttempt => attempt !== undefined)
 }
 
@@ -337,7 +505,10 @@ export function getLatestHTTPAttempt(resultDataValue: unknown): HTTPAttempt | un
   })
 }
 
-export function getHTTPStatusCode(summaryValue: unknown, resultDataValue: unknown): number | undefined {
+export function getHTTPStatusCode(
+  summaryValue: unknown,
+  resultDataValue: unknown
+): number | undefined {
   const summary = parseMaybeJSON(summaryValue)
   const summaryStatusCode = getFiniteNumber(summary['http_status_code'], summary['status_code'])
   if (summaryStatusCode !== undefined) {
@@ -386,7 +557,9 @@ export function getHTTPStatusChipColor(statusCode?: number): string {
   return getHTTPStatusTone(statusCode)
 }
 
-export function getHeaderEntries(headers: HTTPHeaders | undefined): Array<{ name: string, value: string }> {
+export function getHeaderEntries(
+  headers: HTTPHeaders | undefined
+): Array<{ name: string; value: string }> {
   if (!headers) {
     return []
   }
@@ -399,10 +572,14 @@ export function getHeaderEntries(headers: HTTPHeaders | undefined): Array<{ name
     }))
 }
 
-export function getLatestHTTPRequestHeaderEntries(resultDataValue: unknown): Array<{ name: string, value: string }> {
+export function getLatestHTTPRequestHeaderEntries(
+  resultDataValue: unknown
+): Array<{ name: string; value: string }> {
   return getHeaderEntries(getLatestHTTPAttempt(resultDataValue)?.requestHeaders)
 }
 
-export function getLatestHTTPResponseHeaderEntries(resultDataValue: unknown): Array<{ name: string, value: string }> {
+export function getLatestHTTPResponseHeaderEntries(
+  resultDataValue: unknown
+): Array<{ name: string; value: string }> {
   return getHeaderEntries(getLatestHTTPAttempt(resultDataValue)?.responseHeaders)
 }

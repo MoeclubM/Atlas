@@ -1,6 +1,7 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,10 +14,51 @@ import (
 
 var releaseVersionPattern = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
 
+type remoteUpgradeConfig struct {
+	RequestDir  string
+	RequestFile string
+	Supported   bool
+	Channel     string
+	DeployMode  string
+	Reason      string
+}
+
+func detectRemoteUpgradeConfig() remoteUpgradeConfig {
+	cfg := remoteUpgradeConfig{
+		RequestDir:  strings.TrimSpace(os.Getenv("ATLAS_UPGRADE_REQUEST_DIR")),
+		RequestFile: strings.TrimSpace(os.Getenv("ATLAS_UPGRADE_REQUEST_FILE")),
+		DeployMode:  strings.TrimSpace(os.Getenv("PROBE_DEPLOY_MODE")),
+	}
+
+	if cfg.DeployMode == "" {
+		switch {
+		case cfg.RequestDir != "" || cfg.RequestFile != "":
+			cfg.DeployMode = "systemd"
+		default:
+			cfg.DeployMode = "standalone"
+		}
+	}
+
+	switch {
+	case cfg.RequestDir != "":
+		cfg.Supported = true
+		cfg.Channel = "queue_dir"
+	case cfg.RequestFile != "":
+		cfg.Supported = true
+		cfg.Channel = "request_file"
+	default:
+		cfg.Supported = false
+		cfg.Channel = "none"
+		cfg.Reason = "probe is not configured for remote upgrade"
+	}
+
+	return cfg
+}
+
 func (c *Client) requestUpgrade(msg protocol.ProbeUpgradeMessage) error {
-	requestPath := strings.TrimSpace(os.Getenv("ATLAS_UPGRADE_REQUEST_FILE"))
-	if requestPath == "" {
-		return fmt.Errorf("remote upgrade is not configured on this probe")
+	cfg := detectRemoteUpgradeConfig()
+	if !cfg.Supported {
+		return errors.New(cfg.Reason)
 	}
 
 	version := strings.TrimSpace(msg.Version)
@@ -27,20 +69,100 @@ func (c *Client) requestUpgrade(msg protocol.ProbeUpgradeMessage) error {
 		}
 	}
 
-	if err := os.MkdirAll(filepath.Dir(requestPath), 0o755); err != nil {
+	content := fmt.Sprintf(
+		"upgrade_id=%s\nversion=%s\nrequested_at=%d\n",
+		strings.TrimSpace(msg.UpgradeID),
+		version,
+		time.Now().Unix(),
+	)
+
+	if cfg.RequestDir != "" {
+		return enqueueUpgradeRequest(cfg.RequestDir, content)
+	}
+
+	return writeLegacyUpgradeRequest(cfg.RequestFile, content)
+}
+
+func enqueueUpgradeRequest(requestDir, content string) error {
+	if err := os.MkdirAll(requestDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create upgrade request dir: %w", err)
 	}
 
-	tmpPath := requestPath + ".tmp"
-	content := fmt.Sprintf("version=%s\nrequested_at=%d\n", version, time.Now().Unix())
-	if err := os.WriteFile(tmpPath, []byte(content), 0o640); err != nil {
-		return fmt.Errorf("failed to write upgrade request: %w", err)
+	if err := ensureUpgradeQueueIsIdle(requestDir); err != nil {
+		return err
 	}
 
-	if err := os.Rename(tmpPath, requestPath); err != nil {
+	tmpFile, err := os.CreateTemp(requestDir, "upgrade-*.tmp")
+	if err != nil {
+		return fmt.Errorf("failed to create upgrade request temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	finalName := strings.TrimSuffix(filepath.Base(tmpPath), ".tmp") + ".env"
+	finalPath := filepath.Join(requestDir, finalName)
+
+	if _, err := tmpFile.WriteString(content); err != nil {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to write upgrade request: %w", err)
+	}
+	if err := tmpFile.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to close upgrade request temp file: %w", err)
+	}
+	if err := os.Chmod(tmpPath, 0o640); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to set upgrade request permissions: %w", err)
+	}
+	if err := os.Rename(tmpPath, finalPath); err != nil {
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("failed to activate upgrade request: %w", err)
 	}
 
+	return nil
+}
+
+func ensureUpgradeQueueIsIdle(requestDir string) error {
+	entries, err := os.ReadDir(requestDir)
+	if err != nil {
+		return fmt.Errorf("failed to inspect upgrade queue: %w", err)
+	}
+
+	for _, entry := range entries {
+		name := entry.Name()
+		if strings.HasSuffix(name, ".env") {
+			return fmt.Errorf("another upgrade request is already queued")
+		}
+		if strings.HasSuffix(name, ".active") {
+			return fmt.Errorf("another upgrade is already in progress")
+		}
+	}
+
+	return nil
+}
+
+func writeLegacyUpgradeRequest(requestPath, content string) error {
+	if requestPath == "" {
+		return fmt.Errorf("remote upgrade is not configured on this probe")
+	}
+
+	if err := os.MkdirAll(filepath.Dir(requestPath), 0o755); err != nil {
+		return fmt.Errorf("failed to create upgrade request dir: %w", err)
+	}
+
+	if _, err := os.Stat(requestPath + ".active"); err == nil {
+		return fmt.Errorf("another upgrade is already in progress")
+	}
+	if _, err := os.Stat(requestPath); err == nil {
+		return fmt.Errorf("another upgrade request is already queued")
+	}
+
+	tmpPath := requestPath + ".tmp"
+	if err := os.WriteFile(tmpPath, []byte(content), 0o640); err != nil {
+		return fmt.Errorf("failed to write upgrade request: %w", err)
+	}
+	if err := os.Rename(tmpPath, requestPath); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to activate upgrade request: %w", err)
+	}
 	return nil
 }

@@ -12,11 +12,12 @@ const (
 	MsgTypeError      = "error"
 
 	// Web → Probe
-	MsgTypeRegisterAck  = "register_ack"
-	MsgTypeHeartbeatAck = "heartbeat_ack"
-	MsgTypeTaskAssign   = "task_assign"
-	MsgTypeTaskCancel   = "task_cancel"
-	MsgTypeProbeUpgrade = "probe_upgrade"
+	MsgTypeRegisterAck     = "register_ack"
+	MsgTypeHeartbeatAck    = "heartbeat_ack"
+	MsgTypeTaskAssign      = "task_assign"
+	MsgTypeTaskCancel      = "task_cancel"
+	MsgTypeProbeUpgrade    = "probe_upgrade"
+	MsgTypeProbeUpgradeAck = "probe_upgrade_ack"
 
 	// 双向
 	MsgTypePing = "ping"
@@ -84,7 +85,15 @@ type TaskCancelMessage struct {
 
 // ProbeUpgradeMessage 远程升级消息
 type ProbeUpgradeMessage struct {
-	Version string `json:"version,omitempty"` // 为空时升级到 latest release
+	UpgradeID string `json:"upgrade_id,omitempty"`
+	Version   string `json:"version,omitempty"` // 为空时升级到 latest release
+}
+
+// ProbeUpgradeAckMessage 远程升级确认消息
+type ProbeUpgradeAckMessage struct {
+	UpgradeID string `json:"upgrade_id"`
+	Accepted  bool   `json:"accepted"`
+	Error     string `json:"error,omitempty"`
 }
 
 // TaskResultMessage 任务结果上报消息
@@ -178,6 +187,36 @@ type TracerouteHop struct {
 	Hostname string    `json:"hostname"`
 	RTTs     []float64 `json:"rtts"` // 多次探测的RTT值
 	Timeout  bool      `json:"timeout"`
+}
+
+// MTRResult MTR测试结果
+type MTRResult struct {
+	Hops              []MTRHop `json:"hops"`
+	Target            string   `json:"target"`
+	TotalHops         int      `json:"total_hops"`
+	Success           bool     `json:"success"`
+	PacketLossPercent float64  `json:"packet_loss_percent,omitempty"`
+	MinRTTMs          float64  `json:"min_rtt_ms,omitempty"`
+	AvgRTTMs          float64  `json:"avg_rtt_ms,omitempty"`
+	MaxRTTMs          float64  `json:"max_rtt_ms,omitempty"`
+	StdDevRTTMs       float64  `json:"stddev_rtt_ms,omitempty"`
+
+	ResolvedIP string `json:"resolved_ip,omitempty"`
+}
+
+// MTRHop MTR单跳
+type MTRHop struct {
+	Hop         int     `json:"hop"`
+	IP          string  `json:"ip"`
+	Hostname    string  `json:"hostname"`
+	LossPercent float64 `json:"loss_percent"`
+	Sent        int     `json:"sent"`
+	LastRTTMs   float64 `json:"last_rtt_ms"`
+	AvgRTTMs    float64 `json:"avg_rtt_ms"`
+	BestRTTMs   float64 `json:"best_rtt_ms"`
+	WorstRTTMs  float64 `json:"worst_rtt_ms"`
+	StdDevRTTMs float64 `json:"stddev_rtt_ms"`
+	Timeout     bool    `json:"timeout"`
 }
 
 // BirdRouteResult Bird路由测试结果
