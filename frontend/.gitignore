@@ -11,6 +11,13 @@ node_modules
 dist
 dist-ssr
 *.local
+playwright-report
+test-results
+*.tsbuildinfo
+vite.config.js
+vite.config.d.ts
+tailwind.config.js
+tailwind.config.d.ts
 
 # Editor directories and files
 .vscode/*

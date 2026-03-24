@@ -71,6 +71,8 @@ tmp/
 temp/
 *.tmp
 /.playwright-mcp
+frontend/playwright-report/
+frontend/test-results/
 
 # Claude Code
 .claude/

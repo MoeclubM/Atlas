@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg: #eef5ff;
+  --surface: rgba(255, 255, 255, 0.82);
+  --surface-2: rgba(248, 250, 252, 0.9);
+  --text: #0f172a;
+  --text-2: #475569;
+  --border: rgba(100, 116, 139, 0.18);
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #020617;
+  --surface: rgba(2, 6, 23, 0.78);
+  --surface-2: rgba(15, 23, 42, 0.88);
+  --text: #e2e8f0;
+  --text-2: #94a3b8;
+  --border: rgba(148, 163, 184, 0.18);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  min-height: 100dvh;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.2), transparent 28%),
+    radial-gradient(circle at top right, rgba(14, 165, 233, 0.1), transparent 20%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), transparent),
+    var(--bg);
+  overflow-x: hidden;
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.22), transparent 26%),
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 18%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.4), transparent),
+    var(--bg);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.bg-app-gradient {
+  background: transparent;
+}
+
+.latency-excellent {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.latency-good {
+  color: #65a30d;
+  font-weight: 600;
+}
+
+.latency-fair {
+  color: #ca8a04;
+  font-weight: 600;
+}
+
+.latency-warn {
+  color: #d97706;
+  font-weight: 600;
+}
+
+.latency-bad {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.leaflet-container {
+  z-index: 1;
+  border-radius: 1rem;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 10;
+}
