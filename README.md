@@ -47,7 +47,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```text
 web/        Web 服务端
 probe/      Probe 客户端
-frontend/   Vue 前端
+frontend/   React 前端
 shared/     共享协议与模型
 deploy/     Dockerfile
 ```
