@@ -28,6 +28,11 @@ import {
 import api from '@/lib/api-client'
 import { normalizeProbe, type ProbeRecord, type TaskInfo, type TaskResult } from '@/lib/domain'
 import { getProbeProviderLabel } from '@/lib/probe'
+import {
+  formatLatencyMs,
+  formatLossPercent,
+  getLossTextClass,
+} from '@/lib/result-presentation'
 
 type ContinuousStatRow = {
   probe_id: string
@@ -148,19 +153,19 @@ export function ContinuousResultPage() {
                       asName={row.target_as_name}
                     />
                   </DenseCell>
-                  <DenseCell align="right" className={lossTextClass(row.packet_loss)}>
-                    {formatLoss(row.packet_loss)}
+                  <DenseCell align="right" className={getLossTextClass(row.packet_loss)}>
+                    {formatLossPercent(row.packet_loss)}
                   </DenseCell>
                   <DenseCell align="right">{row.test_count}</DenseCell>
                   <DenseCell align="right" className={getLatencyTextClass(row.last_latency, 'success')}>
-                    {formatLatency(row.last_latency, t)}
+                    {formatLatencyMs(row.last_latency, t)}
                   </DenseCell>
                   <DenseCell align="right" className={getLatencyTextClass(row.avg_latency, 'success')}>
-                    {formatLatency(row.avg_latency, t)}
+                    {formatLatencyMs(row.avg_latency, t)}
                   </DenseCell>
-                  <DenseCell align="right">{formatLatency(row.min_latency, t)}</DenseCell>
-                  <DenseCell align="right">{formatLatency(row.max_latency, t)}</DenseCell>
-                  <DenseCell align="right">{formatLatency(row.stddev, t)}</DenseCell>
+                  <DenseCell align="right">{formatLatencyMs(row.min_latency, t)}</DenseCell>
+                  <DenseCell align="right">{formatLatencyMs(row.max_latency, t)}</DenseCell>
+                  <DenseCell align="right">{formatLatencyMs(row.stddev, t)}</DenseCell>
                 </tr>
               ))}
             </tbody>
@@ -273,24 +278,6 @@ function buildStats(
       } satisfies ContinuousStatRow
     })
     .sort((left, right) => left.location.localeCompare(right.location))
-}
-
-function formatLoss(value?: number) {
-  return value !== undefined ? `${value.toFixed(1)}%` : '-'
-}
-
-function formatLatency(
-  value: number | undefined,
-  t: (key: string, options?: Record<string, unknown>) => string,
-) {
-  return value !== undefined ? `${value.toFixed(1)} ${t('common.ms')}` : '-'
-}
-
-function lossTextClass(value?: number) {
-  if (value === undefined) return ''
-  if (value === 0) return 'text-emerald-600 dark:text-emerald-400'
-  if (value < 5) return 'text-amber-600 dark:text-amber-400'
-  return 'text-rose-600 dark:text-rose-400'
 }
 
 function statusVariant(status?: string) {

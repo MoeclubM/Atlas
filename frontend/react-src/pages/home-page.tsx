@@ -31,6 +31,13 @@ import { SparkBars } from '@/components/common/spark-bars'
 import { WorldMap, type ProbeMarker } from '@/components/common/world-map'
 import api from '@/lib/api-client'
 import {
+  formatLatencyMs,
+  formatLossPercent,
+  getLossTextClass,
+  getResultStatusText,
+  getResultStatusVariant,
+} from '@/lib/result-presentation'
+import {
   type DisplayTaskStatus,
   normalizeProbe,
   probeSupportsTaskType,
@@ -404,7 +411,11 @@ export function HomePage() {
                               <ProbeSummaryCell
                                 location={result.location}
                                 provider={result.provider}
-                                badge={<Badge variant={statusVariant(result.status)}>{statusText(result.status, t)}</Badge>}
+                                badge={
+                                  <Badge variant={getResultStatusVariant(result.status)}>
+                                    {getResultStatusText(result.status, t)}
+                                  </Badge>
+                                }
                               />
                             </DenseCell>
                             <DenseCell mono>{result.resolved_ip || '-'}</DenseCell>
@@ -423,8 +434,8 @@ export function HomePage() {
                                 {result.http_status_code ?? '-'}
                               </DenseCell>
                             ) : null}
-                            <DenseCell align="right" className={lossTextClass(result.packet_loss)}>
-                              {formatLoss(result.packet_loss)}
+                            <DenseCell align="right" className={getLossTextClass(result.packet_loss)}>
+                              {formatLossPercent(result.packet_loss)}
                             </DenseCell>
                             {pageMode === 'continuous' ? (
                               <DenseCell align="right">
@@ -435,13 +446,13 @@ export function HomePage() {
                               align="right"
                               className={getLatencyTextClass(result.last_latency, result.status)}
                             >
-                              {formatLatency(result.last_latency, t)}
+                              {formatLatencyMs(result.last_latency, t)}
                             </DenseCell>
                             <DenseCell align="right" className={getLatencyTextClass(result.avg_latency)}>
-                              {formatLatency(result.avg_latency, t)}
+                              {formatLatencyMs(result.avg_latency, t)}
                             </DenseCell>
-                            <DenseCell align="right">{formatLatency(result.min_latency, t)}</DenseCell>
-                            <DenseCell align="right">{formatLatency(result.max_latency, t)}</DenseCell>
+                            <DenseCell align="right">{formatLatencyMs(result.min_latency, t)}</DenseCell>
+                            <DenseCell align="right">{formatLatencyMs(result.max_latency, t)}</DenseCell>
                             <DenseCell align="right">
                               <div className="ml-auto w-[96px]" onClick={(event) => event.stopPropagation()}>
                                 <SparkBars
@@ -662,7 +673,7 @@ function renderHTTP(
               <DenseCell className="max-w-[320px] break-all text-slate-500 dark:text-slate-400">
                 {attempt.finalURL || '-'}
               </DenseCell>
-              <DenseCell align="right">{statusText(attempt.status, t)}</DenseCell>
+              <DenseCell align="right">{getResultStatusText(attempt.status, t)}</DenseCell>
             </tr>
           ))}
         </tbody>
@@ -670,42 +681,4 @@ function renderHTTP(
       <HttpHeadersGrid resultData={resultData} />
     </DetailBlock>
   )
-}
-
-function formatLoss(value?: number) {
-  return value !== undefined ? `${value.toFixed(1)}%` : '-'
-}
-
-function formatLatency(
-  value: number | undefined,
-  t: (key: string, options?: Record<string, unknown>) => string,
-) {
-  return value !== undefined ? `${value.toFixed(1)} ${t('common.ms')}` : '-'
-}
-
-function lossTextClass(value?: number) {
-  if (value === undefined) return ''
-  if (value === 0) return 'text-emerald-600 dark:text-emerald-400'
-  if (value < 5) return 'text-amber-600 dark:text-amber-400'
-  return 'text-rose-600 dark:text-rose-400'
-}
-
-function statusVariant(status?: string) {
-  if (status === 'success' || status === 'completed') return 'success' as const
-  if (status === 'running' || status === 'scheduling') return 'info' as const
-  if (status === 'failed' || status === 'timeout' || status === 'cancelled') return 'danger' as const
-  return 'default' as const
-}
-
-function statusText(
-  status: string | undefined,
-  t: (key: string, options?: Record<string, unknown>) => string,
-) {
-  if (status === 'success' || status === 'completed') return t('common.success')
-  if (status === 'failed') return t('common.failed')
-  if (status === 'timeout') return t('common.timeout')
-  if (status === 'cancelled') return t('common.cancelled')
-  if (status === 'running') return t('common.running')
-  if (status === 'pending' || status === 'scheduling') return t('common.pending')
-  return status || t('common.unknown')
 }

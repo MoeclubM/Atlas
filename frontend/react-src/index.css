@@ -58,10 +58,6 @@ a {
   text-decoration: none;
 }
 
-.bg-app-gradient {
-  background: var(--bg);
-}
-
 .latency-excellent {
   color: #16a34a;
   font-weight: 600;

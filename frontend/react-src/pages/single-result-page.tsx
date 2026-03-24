@@ -38,6 +38,13 @@ import { WorldMap, type ProbeMarker } from '@/components/common/world-map'
 import api from '@/lib/api-client'
 import { normalizeProbe, type ProbeRecord, type TaskInfo, type TaskResult } from '@/lib/domain'
 import { getProbeProviderLabel } from '@/lib/probe'
+import {
+  formatLatencyMs,
+  formatLossPercent,
+  getLossTextClass,
+  getResultStatusText,
+  getResultStatusVariant,
+} from '@/lib/result-presentation'
 
 type SingleResultRow = {
   key: string
@@ -210,7 +217,11 @@ export function SingleResultPage() {
                           <ProbeSummaryCell
                             location={row.location}
                             provider={row.provider}
-                            badge={<Badge variant={statusVariant(row.status)}>{statusText(row.status, t)}</Badge>}
+                            badge={
+                              <Badge variant={getResultStatusVariant(row.status)}>
+                                {getResultStatusText(row.status, t)}
+                              </Badge>
+                            }
                           />
                         </DenseCell>
                         <DenseCell mono>{row.resolved_ip}</DenseCell>
@@ -227,14 +238,16 @@ export function SingleResultPage() {
                           </DenseCell>
                         ) : null}
                         <DenseCell align="right" className={getLatencyTextClass(row.latency, row.status)}>
-                          {formatLatency(row.latency, t)}
+                          {formatLatencyMs(row.latency, t)}
                         </DenseCell>
-                        <DenseCell align="right" className={lossTextClass(row.packet_loss)}>
-                          {formatLoss(row.packet_loss)}
+                        <DenseCell align="right" className={getLossTextClass(row.packet_loss)}>
+                          {formatLossPercent(row.packet_loss)}
                         </DenseCell>
                         <DenseCell>{renderStatsSummary(row, t)}</DenseCell>
                         <DenseCell align="right">
-                          <Badge variant={statusVariant(row.status)}>{statusText(row.status, t)}</Badge>
+                          <Badge variant={getResultStatusVariant(row.status)}>
+                            {getResultStatusText(row.status, t)}
+                          </Badge>
                         </DenseCell>
                       </tr>
                     }
@@ -317,9 +330,9 @@ function renderStatsSummary(
 
   return (
     <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
-      <div>{`${t('singleResult.min')}: ${formatLatency(row.min_latency, t)}`}</div>
-      <div>{`${t('singleResult.max')}: ${formatLatency(row.max_latency, t)}`}</div>
-      <div>{`${t('singleResult.stdev')}: ${formatLatency(row.stddev, t)}`}</div>
+      <div>{`${t('singleResult.min')}: ${formatLatencyMs(row.min_latency, t)}`}</div>
+      <div>{`${t('singleResult.max')}: ${formatLatencyMs(row.max_latency, t)}`}</div>
+      <div>{`${t('singleResult.stdev')}: ${formatLatencyMs(row.stddev, t)}`}</div>
     </div>
   )
 }
@@ -468,7 +481,7 @@ function renderHTTPDetail(
               <DenseCell className="max-w-[320px] break-all text-slate-500 dark:text-slate-400">
                 {attempt.finalURL || '-'}
               </DenseCell>
-              <DenseCell align="right">{statusText(attempt.status, t)}</DenseCell>
+              <DenseCell align="right">{getResultStatusText(attempt.status, t)}</DenseCell>
             </tr>
           ))}
         </tbody>
@@ -476,41 +489,4 @@ function renderHTTPDetail(
       <HttpHeadersGrid resultData={resultData} />
     </DetailBlock>
   )
-}
-
-function formatLoss(value?: number) {
-  return value !== undefined ? `${value.toFixed(1)}%` : '-'
-}
-
-function formatLatency(
-  value: number | undefined,
-  t: (key: string, options?: Record<string, unknown>) => string,
-) {
-  return value !== undefined ? `${value.toFixed(1)} ${t('common.ms')}` : '-'
-}
-
-function lossTextClass(value?: number) {
-  if (value === undefined) return ''
-  if (value === 0) return 'text-emerald-600 dark:text-emerald-400'
-  if (value < 5) return 'text-amber-600 dark:text-amber-400'
-  return 'text-rose-600 dark:text-rose-400'
-}
-
-function statusVariant(status?: string) {
-  if (status === 'success' || status === 'completed') return 'success' as const
-  if (status === 'failed' || status === 'timeout' || status === 'cancelled') return 'danger' as const
-  return 'default' as const
-}
-
-function statusText(
-  status: string | undefined,
-  t: (key: string, options?: Record<string, unknown>) => string,
-) {
-  if (status === 'success' || status === 'completed') return t('common.success')
-  if (status === 'failed') return t('common.failed')
-  if (status === 'timeout') return t('common.timeout')
-  if (status === 'cancelled') return t('common.cancelled')
-  if (status === 'running') return t('common.running')
-  if (status === 'pending' || status === 'scheduling') return t('common.pending')
-  return status || t('common.unknown')
 }

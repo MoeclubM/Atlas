@@ -37,7 +37,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   }, [location.pathname, t])
 
   return (
-    <div className="min-h-screen bg-app-gradient text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen text-slate-900 dark:text-slate-100">
       <TopBar />
       <div className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-7xl flex-col px-4 pb-8 pt-6 md:px-6">
         {children}
