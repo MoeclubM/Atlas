@@ -222,7 +222,7 @@ export function AdminPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">{t('admin.title')}</h1>
-          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{t('route.admin')}</p>
+          <p className="mt-1 text-sm text-[var(--text-2)]">{t('route.admin')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => void probesQuery.refetch()}>
@@ -256,8 +256,6 @@ export function AdminPage() {
           <div className="grid gap-4 lg:grid-cols-2">
             {probes.map(probe => {
               const upgradeDisabledReason = getUpgradeDisabledReason(probe, t)
-              const showDisabledReason =
-                upgradeDisabledReason && upgradeDisabledReason !== probe.upgrade_reason
 
               return (
                 <Card key={probe.probe_id}>
@@ -292,13 +290,13 @@ export function AdminPage() {
                     </div>
 
                     {probe.latest_upgrade ? (
-                      <div className="rounded-sm border border-stone-200 bg-stone-50 px-4 py-3 text-sm dark:border-stone-700 dark:bg-stone-900">
+                      <div className="rounded-sm border border-[var(--border)] bg-[var(--surface-2)] px-4 py-3 text-sm">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-medium">{t('admin.latestUpgrade')}</span>
                           <Badge variant={getUpgradeStatusVariant(probe.latest_upgrade.status)}>
                             {getUpgradeStatusLabel(probe.latest_upgrade.status, t)}
                           </Badge>
-                          <span className="font-mono text-xs text-stone-500 dark:text-stone-400">
+                          <span className="font-mono text-xs text-[var(--text-2)]">
                             {probe.latest_upgrade.target_version}
                           </span>
                         </div>
@@ -310,20 +308,14 @@ export function AdminPage() {
                       </div>
                     ) : null}
 
-                    {probe.upgrade_channel === 'legacy_request_file' ? (
-                      <p className="text-sm text-stone-500 dark:text-stone-400">
-                        {t('admin.upgradeLegacyCompatible')}
-                      </p>
-                    ) : null}
-
                     {!probe.upgrade_supported && probe.upgrade_reason ? (
-                      <p className="text-sm text-stone-500 dark:text-stone-400">
+                      <p className="text-sm text-[var(--text-2)]">
                         {probe.upgrade_reason}
                       </p>
                     ) : null}
 
-                    {showDisabledReason ? (
-                      <p className="text-sm text-stone-500 dark:text-stone-400">
+                    {upgradeDisabledReason && upgradeDisabledReason !== probe.upgrade_reason ? (
+                      <p className="text-sm text-[var(--text-2)]">
                         {upgradeDisabledReason}
                       </p>
                     ) : null}
@@ -411,7 +403,7 @@ export function AdminPage() {
                 <CardDescription>{t('admin.installCommand')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="rounded-sm border border-stone-300 bg-stone-50 p-4 font-mono text-sm break-all dark:border-stone-700 dark:bg-stone-900">
+                <div className="rounded-sm border border-[var(--border)] bg-[var(--surface-2)] p-4 font-mono text-sm break-all">
                   {wsUrl}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -558,8 +550,8 @@ function FieldValue({
   mono?: boolean
 }) {
   return (
-    <div className="rounded-sm border border-stone-300 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-900">
-      <div className="text-xs uppercase tracking-[0.08em] text-stone-400">{label}</div>
+    <div className="rounded-sm border border-[var(--border)] bg-[var(--surface-2)] p-3">
+      <div className="text-xs uppercase tracking-[0.08em] text-[var(--text-3)]">{label}</div>
       <div className={mono ? 'mt-2 break-all font-mono text-sm' : 'mt-2 text-sm'}>{value}</div>
     </div>
   )

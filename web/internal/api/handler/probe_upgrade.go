@@ -27,12 +27,6 @@ type probeMetadataInfo struct {
 	UpgradeSupported bool
 }
 
-type releaseVersionParts struct {
-	Major int
-	Minor int
-	Patch int
-}
-
 type adminProbeDTO struct {
 	*model.Probe
 	UpgradeSupported bool                `json:"upgrade_supported"`
@@ -113,20 +107,11 @@ func parseProbeMetadataInfo(raw string) probeMetadataInfo {
 	}
 
 	info := probeMetadataInfo{
-		Version:        stringValue(metadata["version"]),
-		DeployMode:     stringValue(metadata["deploy_mode"]),
-		UpgradeChannel: stringValue(metadata["upgrade_channel"]),
-		UpgradeReason:  stringValue(metadata["upgrade_reason"]),
-	}
-
-	_, hasUpgradeSupported := metadata["upgrade_supported"]
-	if hasUpgradeSupported {
-		info.UpgradeSupported = boolValue(metadata["upgrade_supported"])
-	} else if supportsLegacyRemoteUpgrade(info.Version, info.DeployMode) {
-		info.UpgradeSupported = true
-		if info.UpgradeChannel == "" {
-			info.UpgradeChannel = "legacy_request_file"
-		}
+		Version:          stringValue(metadata["version"]),
+		DeployMode:       stringValue(metadata["deploy_mode"]),
+		UpgradeChannel:   stringValue(metadata["upgrade_channel"]),
+		UpgradeReason:    stringValue(metadata["upgrade_reason"]),
+		UpgradeSupported: boolValue(metadata["upgrade_supported"]),
 	}
 
 	if !info.UpgradeSupported && info.UpgradeReason == "" {
@@ -139,71 +124,6 @@ func parseProbeMetadataInfo(raw string) probeMetadataInfo {
 	}
 
 	return info
-}
-
-func supportsLegacyRemoteUpgrade(version, deployMode string) bool {
-	if strings.EqualFold(strings.TrimSpace(deployMode), "dev-docker") {
-		return false
-	}
-
-	parts, ok := parseReleaseVersionParts(version)
-	if !ok {
-		return false
-	}
-
-	minimum := releaseVersionParts{Major: 0, Minor: 1, Patch: 3}
-	switch {
-	case parts.Major != minimum.Major:
-		return parts.Major > minimum.Major
-	case parts.Minor != minimum.Minor:
-		return parts.Minor > minimum.Minor
-	default:
-		return parts.Patch >= minimum.Patch
-	}
-}
-
-func parseReleaseVersionParts(version string) (releaseVersionParts, bool) {
-	normalized := strings.TrimPrefix(strings.TrimSpace(version), "v")
-	if normalized == "" {
-		return releaseVersionParts{}, false
-	}
-
-	segments := strings.Split(normalized, ".")
-	if len(segments) < 3 {
-		return releaseVersionParts{}, false
-	}
-
-	major, ok := parseVersionPart(segments[0])
-	if !ok {
-		return releaseVersionParts{}, false
-	}
-	minor, ok := parseVersionPart(segments[1])
-	if !ok {
-		return releaseVersionParts{}, false
-	}
-	patch, ok := parseVersionPart(segments[2])
-	if !ok {
-		return releaseVersionParts{}, false
-	}
-
-	return releaseVersionParts{Major: major, Minor: minor, Patch: patch}, true
-}
-
-func parseVersionPart(value string) (int, bool) {
-	if value == "" {
-		return 0, false
-	}
-	for _, r := range value {
-		if r < '0' || r > '9' {
-			return 0, false
-		}
-	}
-
-	parsed := 0
-	for _, r := range value {
-		parsed = parsed*10 + int(r-'0')
-	}
-	return parsed, true
 }
 
 func buildAdminProbeDTO(probe *model.Probe, latestUpgrade *model.ProbeUpgrade) *adminProbeDTO {

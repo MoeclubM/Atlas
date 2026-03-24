@@ -156,16 +156,14 @@ export default {
     deleteConfirm: 'Delete this node?',
     upgradePrompt:
       'Enter a release tag to upgrade to that version. Leave blank to upgrade to the latest release.',
-    upgradeConfirmLatest: 'Upgrade {target} to the latest release?',
-    upgradeConfirmVersion: 'Upgrade {target} to {version}?',
+    upgradeConfirmLatest: 'Upgrade {{target}} to the latest release?',
+    upgradeConfirmVersion: 'Upgrade {{target}} to {{version}}?',
     upgradeQueuedLatest:
-      'Upgrade created for {version}. Waiting for probe acknowledgement and restart.',
+      'Upgrade created for {{version}}. Waiting for probe acknowledgement and restart.',
     upgradeQueuedVersion:
-      'Upgrade created for {version}. Waiting for probe acknowledgement and restart.',
+      'Upgrade created for {{version}}. Waiting for probe acknowledgement and restart.',
     upgradeFailed: 'Failed to send upgrade request',
     latestUpgrade: 'Latest upgrade',
-    upgradeLegacyCompatible:
-      'This probe uses the legacy request-file upgrade path and remains upgradeable.',
     upgradeUnsupported: 'This probe does not support remote upgrade',
     upgradeInProgress: 'An upgrade is already in progress for this probe',
     upgradeStates: {
@@ -242,7 +240,7 @@ export default {
   },
   worldMap: {
     loading: 'Loading map...',
-    nodeCount: '{count} nodes',
+    nodeCount: '{{count}} nodes',
     latency: 'Latency',
     lossRate: 'Loss',
     status: 'Status',
@@ -264,7 +262,7 @@ export default {
   },
   pingChart: {
     title: 'ICMP Ping latency',
-    attempt: 'Attempt {n}',
+    attempt: 'Attempt {{n}}',
     latency: 'Latency',
     xAxis: 'Attempts',
     yAxis: 'Latency (ms)',

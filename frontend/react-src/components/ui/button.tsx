@@ -3,16 +3,16 @@ import { forwardRef, type ButtonHTMLAttributes } from 'react'
 import { cn } from '@/lib/cn'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-sm border text-sm font-medium focus-visible:outline focus-visible:outline-1 focus-visible:outline-stone-400 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center rounded-sm border text-sm font-medium focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent)] disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
         primary:
-          'border-stone-900 bg-stone-900 text-stone-50 hover:bg-stone-800 dark:border-stone-100 dark:bg-stone-100 dark:text-stone-950 dark:hover:bg-stone-200',
+          'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-text)] hover:bg-[var(--accent-hover)] hover:border-[var(--accent-hover)]',
         secondary:
-          'border-stone-300 bg-stone-50 text-stone-900 hover:bg-stone-100 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-50 dark:hover:bg-stone-800',
+          'border-[var(--border)] bg-[var(--surface)] text-[var(--text)] hover:bg-[var(--surface-2)]',
         ghost:
-          'border-transparent bg-transparent text-stone-700 hover:bg-stone-100 dark:text-stone-200 dark:hover:bg-stone-800',
+          'border-transparent bg-transparent text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]',
         danger:
           'border-rose-700 bg-rose-700 text-white hover:bg-rose-800 dark:border-rose-500 dark:bg-rose-500 dark:text-stone-950 dark:hover:bg-rose-400',
       },

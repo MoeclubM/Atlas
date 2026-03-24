@@ -430,7 +430,7 @@ export function HomePage() {
             </div>
           </div>
           {supportsProbeSelection ? (
-            <div className="rounded-sm border border-stone-300 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900">
+            <div className="rounded-sm border border-[var(--border)] bg-[var(--surface-2)] p-4">
               <div className="mb-3 text-sm font-medium">{t('home.probeLabel')}</div>
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {routeCapableProbes.map(probe => {
@@ -438,7 +438,7 @@ export function HomePage() {
                   return (
                     <label
                       key={probe.probe_id}
-                      className="flex cursor-pointer items-start gap-3 rounded-sm border border-stone-300 bg-[var(--surface)] p-3 dark:border-stone-700 dark:bg-[var(--surface)]"
+                      className="flex cursor-pointer items-start gap-3 rounded-sm border border-[var(--border)] bg-[var(--surface)] p-3"
                     >
                       <Checkbox
                         checked={checked}
@@ -451,7 +451,7 @@ export function HomePage() {
                       />
                       <div className="min-w-0">
                         <div className="font-medium">{probe.location || t('common.unknown')}</div>
-                        <div className="truncate text-xs text-stone-500 dark:text-stone-400">
+                        <div className="truncate text-xs text-[var(--text-2)]">
                           {probe.name || probe.probe_id}
                         </div>
                       </div>
@@ -515,7 +515,7 @@ export function HomePage() {
                         key={result.probe_id}
                         main={
                           <tr
-                            className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900"
+                            className="cursor-pointer hover:bg-[var(--surface-2)]"
                             data-testid="home-result-row"
                             onClick={() => {
                               const willExpand = !expandedProbeIds.includes(result.probe_id)
@@ -604,14 +604,14 @@ export function HomePage() {
                             <tr>
                               <DenseCell
                                 colSpan={resultsColumnCount}
-                                className="bg-stone-50 py-4 dark:bg-stone-900"
+                                className="bg-[var(--surface-2)] py-4"
                               >
                                 <div className="space-y-5">
                                   {renderTraceroute(tracerouteData[result.probe_id], t)}
                                   {renderMTR(mtrData[result.probe_id], t)}
                                   {renderHTTP(httpData[result.probe_id], t)}
                                   {autoMTRLoading ? (
-                                    <div className="text-sm text-stone-500 dark:text-stone-400">
+                                    <div className="text-sm text-[var(--text-2)]">
                                       {t('results.autoMtrLoading')}
                                     </div>
                                   ) : null}
@@ -625,7 +625,7 @@ export function HomePage() {
                                   resultAttempts.length === 0 &&
                                   !autoMTRLoading &&
                                   !autoMTRError ? (
-                                    <div className="text-sm text-stone-500 dark:text-stone-400">
+                                    <div className="text-sm text-[var(--text-2)]">
                                       {testType === 'http_test'
                                         ? t('results.noHttpData')
                                         : testType === 'mtr'
@@ -644,14 +644,14 @@ export function HomePage() {
                 </tbody>
               </DenseTable>
             ) : (
-              <div className="rounded-sm border border-dashed border-stone-300 px-4 py-6 text-sm text-stone-500 dark:border-stone-700 dark:text-stone-400">
+              <div className="rounded-sm border border-dashed border-[var(--border)] px-4 py-6 text-sm text-[var(--text-2)]">
                 {t('home.noMatchedResults')}
               </div>
             )}
 
             {probeMarkers.length ? (
               <div className="space-y-2">
-                <div className="text-xs uppercase tracking-[0.08em] text-stone-500 dark:text-stone-400">
+                <div className="text-xs uppercase tracking-[0.08em] text-[var(--text-2)]">
                   {t('singleResult.worldMap')}
                 </div>
                 <WorldMap probes={probeMarkers} height={320} />
@@ -697,10 +697,10 @@ function renderTraceroute(
               <DenseCell>
                 <div>{hop.ip || '*'}</div>
                 {hop.hostname ? (
-                  <div className="text-xs text-stone-500 dark:text-stone-400">{hop.hostname}</div>
+                  <div className="text-xs text-[var(--text-2)]">{hop.hostname}</div>
                 ) : null}
                 {hop.geo ? (
-                  <div className="text-xs text-stone-500 dark:text-stone-400">
+                  <div className="text-xs text-[var(--text-2)]">
                     {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city]
                       .filter(Boolean)
                       .join(' ')}
@@ -753,10 +753,10 @@ function renderMTR(
               <DenseCell>
                 <div>{hop.ip || '*'}</div>
                 {hop.hostname ? (
-                  <div className="text-xs text-stone-500 dark:text-stone-400">{hop.hostname}</div>
+                  <div className="text-xs text-[var(--text-2)]">{hop.hostname}</div>
                 ) : null}
                 {hop.geo ? (
-                  <div className="text-xs text-stone-500 dark:text-stone-400">
+                  <div className="text-xs text-[var(--text-2)]">
                     {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city]
                       .filter(Boolean)
                       .join(' ')}
@@ -822,7 +822,7 @@ function renderHTTP(
                   : '-'}
               </DenseCell>
               <DenseCell mono>{attempt.resolvedIP || '-'}</DenseCell>
-              <DenseCell className="max-w-[320px] break-all text-stone-500 dark:text-stone-400">
+              <DenseCell className="max-w-[320px] break-all text-[var(--text-2)]">
                 {attempt.finalURL || '-'}
               </DenseCell>
               <DenseCell align="right">{getResultStatusText(attempt.status, t)}</DenseCell>

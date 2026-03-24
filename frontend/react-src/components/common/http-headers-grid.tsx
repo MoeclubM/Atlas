@@ -24,16 +24,16 @@ function HeaderCard({
   entries: Array<{ name: string; value: string }>
 }) {
   return (
-    <div className="rounded-sm border border-stone-300 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900">
-      <div className="mb-3 text-xs uppercase tracking-[0.08em] text-stone-400">{title}</div>
+    <div className="rounded-sm border border-[var(--border)] bg-[var(--surface-2)] p-4">
+      <div className="mb-3 text-xs uppercase tracking-[0.08em] text-[var(--text-3)]">{title}</div>
       {entries.length ? (
         <div className="space-y-2">
           {entries.map(entry => (
             <div
               key={`${title}-${entry.name}`}
-              className="rounded-sm border border-stone-300 bg-[var(--surface)] px-3 py-2 dark:border-stone-700 dark:bg-[var(--surface)]"
+              className="rounded-sm border border-[var(--border)] bg-[var(--surface)] px-3 py-2"
             >
-              <div className="text-xs font-semibold text-stone-500 dark:text-stone-400">
+              <div className="text-xs font-semibold text-[var(--text-2)]">
                 {entry.name}
               </div>
               <div className="mt-1 break-all text-sm">{entry.value}</div>
@@ -41,7 +41,7 @@ function HeaderCard({
           ))}
         </div>
       ) : (
-        <div className="text-sm text-stone-500 dark:text-stone-400">-</div>
+        <div className="text-sm text-[var(--text-2)]">-</div>
       )}
     </div>
   )

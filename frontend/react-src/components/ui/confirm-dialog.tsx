@@ -14,12 +14,12 @@ export function ConfirmDialog() {
       }}
     >
       <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-[80] bg-stone-950/45" />
-        <AlertDialog.Content className="fixed left-1/2 top-1/2 z-[81] w-[min(92vw,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-sm border border-stone-300 bg-[var(--surface)] p-6 dark:border-stone-700 dark:bg-[var(--surface)]">
-          <AlertDialog.Title className="text-lg font-semibold text-stone-950 dark:text-stone-50">
+        <AlertDialog.Overlay className="fixed inset-0 z-[80] bg-stone-950/35" />
+        <AlertDialog.Content className="fixed left-1/2 top-1/2 z-[81] w-[min(92vw,28rem)] -translate-x-1/2 -translate-y-1/2 rounded-sm border border-[var(--border)] bg-[var(--surface)] p-6">
+          <AlertDialog.Title className="text-lg font-semibold text-[var(--text)]">
             {confirm.title || 'Confirm'}
           </AlertDialog.Title>
-          <AlertDialog.Description className="mt-3 text-sm leading-6 text-stone-500 dark:text-stone-400">
+          <AlertDialog.Description className="mt-3 text-sm leading-6 text-[var(--text-2)]">
             {confirm.message}
           </AlertDialog.Description>
           <div className="mt-6 flex justify-end gap-3">

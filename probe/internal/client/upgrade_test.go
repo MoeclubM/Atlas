@@ -12,7 +12,6 @@ import (
 func TestRequestUpgradeWritesQueueFile(t *testing.T) {
 	requestDir := t.TempDir()
 	t.Setenv("ATLAS_UPGRADE_REQUEST_DIR", requestDir)
-	t.Setenv("ATLAS_UPGRADE_REQUEST_FILE", "")
 
 	c := &Client{}
 	if err := c.requestUpgrade(protocol.ProbeUpgradeMessage{
@@ -49,7 +48,6 @@ func TestRequestUpgradeWritesQueueFile(t *testing.T) {
 func TestRequestUpgradeRejectsWhenQueued(t *testing.T) {
 	requestDir := t.TempDir()
 	t.Setenv("ATLAS_UPGRADE_REQUEST_DIR", requestDir)
-	t.Setenv("ATLAS_UPGRADE_REQUEST_FILE", "")
 
 	queuedPath := filepath.Join(requestDir, "upgrade-existing.env")
 	if err := os.WriteFile(queuedPath, []byte("version=v1.0.0\n"), 0o640); err != nil {
@@ -71,7 +69,6 @@ func TestRequestUpgradeRejectsWhenQueued(t *testing.T) {
 
 func TestDetectRemoteUpgradeConfigUnsupported(t *testing.T) {
 	t.Setenv("ATLAS_UPGRADE_REQUEST_DIR", "")
-	t.Setenv("ATLAS_UPGRADE_REQUEST_FILE", "")
 	t.Setenv("PROBE_DEPLOY_MODE", "dev-docker")
 
 	cfg := detectRemoteUpgradeConfig()

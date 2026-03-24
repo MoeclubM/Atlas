@@ -34,7 +34,7 @@ export function DenseTable({
   minWidthClassName = 'min-w-[1100px]',
 }: DenseTableProps) {
   return (
-    <div className="overflow-x-auto rounded-sm border border-stone-300 bg-[var(--surface)] dark:border-stone-700 dark:bg-[var(--surface)]">
+    <div className="overflow-x-auto rounded-sm border border-[var(--border)] bg-[var(--surface)]">
       <table className={cn('w-full border-collapse text-sm', minWidthClassName, className)}>
         {children}
       </table>
@@ -44,7 +44,7 @@ export function DenseTable({
 
 export function DenseTableHead({ children }: { children: ReactNode }) {
   return (
-    <thead className="bg-stone-100 text-[11px] uppercase tracking-[0.08em] text-stone-500 dark:bg-stone-900 dark:text-stone-400">
+    <thead className="bg-[var(--surface-2)] text-[11px] uppercase tracking-[0.08em] text-[var(--text-2)]">
       {children}
     </thead>
   )
@@ -76,7 +76,7 @@ export function DenseCell({
   return (
     <td
       className={cn(
-        'border-t border-stone-200 px-4 py-3 align-top dark:border-stone-700',
+        'border-t border-[var(--border)] px-4 py-3 align-top',
         getAlignClass(align),
         mono ? 'font-mono text-[13px]' : '',
         className
@@ -92,8 +92,8 @@ export function ProbeSummaryCell({ location, provider, badge }: ProbeSummaryCell
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <div className="truncate font-semibold text-stone-900 dark:text-stone-100">{location}</div>
-        <div className="truncate text-xs text-stone-500 dark:text-stone-400">{provider || '-'}</div>
+        <div className="truncate font-semibold text-[var(--text)]">{location}</div>
+        <div className="truncate text-xs text-[var(--text-2)]">{provider || '-'}</div>
       </div>
       {badge ? <div className="shrink-0">{badge}</div> : null}
     </div>
@@ -107,7 +107,7 @@ export function TargetNetworkCell({ isp, asn, asName }: TargetNetworkCellProps) 
     <div className="min-w-0">
       <div className="truncate">{isp || '-'}</div>
       {secondary ? (
-        <div className="truncate text-xs text-stone-500 dark:text-stone-400">{secondary}</div>
+        <div className="truncate text-xs text-[var(--text-2)]">{secondary}</div>
       ) : null}
     </div>
   )
@@ -124,7 +124,7 @@ export function DetailBlock({
 }) {
   return (
     <div className="space-y-3" data-testid={testId}>
-      <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">{title}</div>
+      <div className="text-sm font-semibold text-[var(--text)]">{title}</div>
       {children}
     </div>
   )

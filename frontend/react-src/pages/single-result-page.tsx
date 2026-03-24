@@ -176,7 +176,7 @@ export function SingleResultPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-semibold">{t('route.singleResult')}</h1>
-          <p className="text-sm text-stone-500 dark:text-stone-400">{id}</p>
+          <p className="text-sm text-[var(--text-2)]">{id}</p>
         </div>
       </div>
 
@@ -208,7 +208,7 @@ export function SingleResultPage() {
                     key={row.key}
                     main={
                       <tr
-                        className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900"
+                        className="cursor-pointer hover:bg-[var(--surface-2)]"
                         onClick={() =>
                           setExpandedProbeIds(current =>
                             current.includes(row.probe_id)
@@ -266,7 +266,7 @@ export function SingleResultPage() {
                         <tr>
                           <DenseCell
                             colSpan={columnCount}
-                            className="bg-stone-50 py-4 dark:bg-stone-900"
+                            className="bg-[var(--surface-2)] py-4"
                           >
                             <div className="space-y-5">
                               {renderTracerouteDetail(row.traceroute, t)}
@@ -275,7 +275,7 @@ export function SingleResultPage() {
                               {!row.traceroute &&
                               !row.mtr &&
                               getHTTPAttempts(row.result_data).length === 0 ? (
-                                <div className="text-sm text-stone-500 dark:text-stone-400">
+                                <div className="text-sm text-[var(--text-2)]">
                                   {t('results.noRouteData')}
                                 </div>
                               ) : null}
@@ -292,7 +292,7 @@ export function SingleResultPage() {
 
           {markers.length ? (
             <div className="space-y-2">
-              <div className="text-xs uppercase tracking-[0.08em] text-stone-500 dark:text-stone-400">
+              <div className="text-xs uppercase tracking-[0.08em] text-[var(--text-2)]">
                 {t('singleResult.worldMap')}
               </div>
               <WorldMap probes={markers} height={320} />
@@ -320,7 +320,7 @@ function renderStatsSummary(
   if (row.test_type === 'traceroute' && row.traceroute) {
     const totalHops = row.traceroute.totalHops ?? row.traceroute.hops.length
     return (
-      <div className="space-y-1 text-xs text-stone-500 dark:text-stone-400">
+      <div className="space-y-1 text-xs text-[var(--text-2)]">
         <div>{`${t('singleResult.routeHops')}: ${totalHops}`}</div>
         <div>{row.traceroute.success ? t('home.route.arrived') : t('common.failed')}</div>
       </div>
@@ -330,7 +330,7 @@ function renderStatsSummary(
   if (row.test_type === 'mtr' && row.mtr) {
     const totalHops = row.mtr.totalHops ?? row.mtr.hops.length
     return (
-      <div className="space-y-1 text-xs text-stone-500 dark:text-stone-400">
+      <div className="space-y-1 text-xs text-[var(--text-2)]">
         <div>{`${t('singleResult.routeHops')}: ${totalHops}`}</div>
         <div>{row.mtr.success ? t('home.route.arrived') : t('common.failed')}</div>
       </div>
@@ -338,7 +338,7 @@ function renderStatsSummary(
   }
 
   return (
-    <div className="space-y-1 text-xs text-stone-500 dark:text-stone-400">
+    <div className="space-y-1 text-xs text-[var(--text-2)]">
       <div>{`${t('singleResult.min')}: ${formatLatencyMs(row.min_latency, t)}`}</div>
       <div>{`${t('singleResult.max')}: ${formatLatencyMs(row.max_latency, t)}`}</div>
       <div>{`${t('singleResult.stdev')}: ${formatLatencyMs(row.stddev, t)}`}</div>
@@ -370,10 +370,10 @@ function renderTracerouteDetail(
               <DenseCell>
                 <div>{hop.ip || '*'}</div>
                 {hop.hostname ? (
-                  <div className="text-xs text-stone-500 dark:text-stone-400">{hop.hostname}</div>
+                  <div className="text-xs text-[var(--text-2)]">{hop.hostname}</div>
                 ) : null}
                 {hop.geo ? (
-                  <div className="text-xs text-stone-500 dark:text-stone-400">
+                  <div className="text-xs text-[var(--text-2)]">
                     {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city]
                       .filter(Boolean)
                       .join(' ')}
@@ -426,10 +426,10 @@ function renderMTRDetail(
               <DenseCell>
                 <div>{hop.ip || '*'}</div>
                 {hop.hostname ? (
-                  <div className="text-xs text-stone-500 dark:text-stone-400">{hop.hostname}</div>
+                  <div className="text-xs text-[var(--text-2)]">{hop.hostname}</div>
                 ) : null}
                 {hop.geo ? (
-                  <div className="text-xs text-stone-500 dark:text-stone-400">
+                  <div className="text-xs text-[var(--text-2)]">
                     {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city]
                       .filter(Boolean)
                       .join(' ')}
@@ -495,7 +495,7 @@ function renderHTTPDetail(
                   : '-'}
               </DenseCell>
               <DenseCell mono>{attempt.resolvedIP || '-'}</DenseCell>
-              <DenseCell className="max-w-[320px] break-all text-stone-500 dark:text-stone-400">
+              <DenseCell className="max-w-[320px] break-all text-[var(--text-2)]">
                 {attempt.finalURL || '-'}
               </DenseCell>
               <DenseCell align="right">{getResultStatusText(attempt.status, t)}</DenseCell>

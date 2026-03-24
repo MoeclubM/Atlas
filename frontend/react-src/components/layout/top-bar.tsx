@@ -35,7 +35,7 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-stone-200 bg-[var(--surface)] dark:border-stone-700 dark:bg-[var(--surface)]">
+    <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]">
       <div className="mx-auto flex h-16 w-full max-w-[1180px] items-center justify-between px-4 md:px-8">
         <button
           type="button"
@@ -44,10 +44,10 @@ export function TopBar() {
           data-testid="topbar"
         >
           <div>
-            <div className="text-sm font-semibold tracking-tight text-stone-950 dark:text-stone-50">
+            <div className="text-sm font-semibold tracking-tight text-[var(--text)]">
               Atlas
             </div>
-            <div className="text-xs text-stone-500 dark:text-stone-400">
+            <div className="text-xs text-[var(--text-2)]">
               Distributed network tests
             </div>
           </div>
@@ -76,15 +76,15 @@ export function TopBar() {
               <DropdownMenu.Content
                 sideOffset={8}
                 align="end"
-                className="z-[70] min-w-40 rounded-sm border border-stone-300 bg-[var(--surface)] p-1.5 dark:border-stone-700 dark:bg-[var(--surface)]"
+                className="z-[70] min-w-40 rounded-sm border border-[var(--border)] bg-[var(--surface)] p-1.5"
               >
                 {localeItems.map(item => (
                   <DropdownMenu.Item
                     key={item.value}
                     onClick={() => void handleLocaleChange(item.value)}
                     className={cn(
-                      'cursor-pointer rounded-sm px-3 py-2 text-sm outline-none hover:bg-stone-100 dark:hover:bg-stone-800',
-                      item.value === locale && 'bg-stone-100 dark:bg-stone-800'
+                      'cursor-pointer rounded-sm px-3 py-2 text-sm text-[var(--text-2)] outline-none hover:bg-[var(--surface-2)] hover:text-[var(--text)]',
+                      item.value === locale && 'bg-[var(--accent-weak)] text-[var(--accent)]'
                     )}
                   >
                     {item.label}

@@ -19,7 +19,7 @@ export function Checkbox({
       onCheckedChange={value => onCheckedChange(value === true)}
       data-testid={testId}
       className={cn(
-        'flex h-5 w-5 items-center justify-center rounded-sm border border-stone-300 bg-[var(--surface)] text-stone-900 outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-stone-400 dark:border-stone-700 dark:bg-[var(--surface)] dark:text-stone-100',
+        'flex h-5 w-5 items-center justify-center rounded-sm border border-[var(--border)] bg-[var(--surface)] text-[var(--text)] outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent)]',
         className
       )}
     >

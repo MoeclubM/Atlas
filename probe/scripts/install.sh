@@ -13,7 +13,6 @@ DEFAULT_UPGRADE_REQUEST_DIR="${DEFAULT_STATE_DIR}/upgrade-requests"
 DEFAULT_SUPPORT_DIR="/usr/local/lib/atlas-probe"
 DEFAULT_SERVICE_NAME="atlas-probe.service"
 DEFAULT_UPGRADE_HELPER_PATH="${DEFAULT_SUPPORT_DIR}/upgrade.sh"
-DEFAULT_UPGRADE_REQUEST_PATH="${DEFAULT_STATE_DIR}/upgrade-request.env"
 DEFAULT_UPGRADE_SERVICE_NAME="atlas-probe-upgrade.service"
 DEFAULT_UPGRADE_PATH_NAME="atlas-probe-upgrade.path"
 DEFAULT_USER="atlas-probe"
@@ -233,7 +232,6 @@ Restart=always
 RestartSec=3
 Environment=PROBE_DEPLOY_MODE=systemd
 Environment=ATLAS_UPGRADE_REQUEST_DIR=${DEFAULT_UPGRADE_REQUEST_DIR}
-Environment=ATLAS_UPGRADE_REQUEST_FILE=${DEFAULT_UPGRADE_REQUEST_PATH}
 
 # Capabilities for ping/traceroute/mtr
 AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
@@ -265,7 +263,6 @@ REPO_NAME="${REPO_NAME}"
 INSTALL_DIR="${DEFAULT_INSTALL_DIR}"
 BIN_NAME="${DEFAULT_BIN_NAME}"
 REQUEST_DIR="${DEFAULT_UPGRADE_REQUEST_DIR}"
-REQUEST_FILE="${DEFAULT_UPGRADE_REQUEST_PATH}"
 ACTIVE_REQUEST_FILE=""
 SERVICE_NAME="${DEFAULT_SERVICE_NAME}"
 WORK_DIR=""
@@ -332,12 +329,6 @@ pickup_request() {
   if [[ -n "\${next_request}" ]]; then
     ACTIVE_REQUEST_FILE="\${next_request}.active"
     mv -f "\${next_request}" "\${ACTIVE_REQUEST_FILE}"
-    return 0
-  fi
-
-  if [[ -f "\${REQUEST_FILE}" ]]; then
-    ACTIVE_REQUEST_FILE="\${REQUEST_FILE}.active"
-    mv -f "\${REQUEST_FILE}" "\${ACTIVE_REQUEST_FILE}"
     return 0
   fi
 
@@ -431,7 +422,6 @@ Description=Watch Atlas Probe Upgrade Requests
 
 [Path]
 DirectoryNotEmpty=${DEFAULT_UPGRADE_REQUEST_DIR}
-PathExists=${DEFAULT_UPGRADE_REQUEST_PATH}
 Unit=${DEFAULT_UPGRADE_SERVICE_NAME}
 
 [Install]

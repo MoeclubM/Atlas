@@ -4,7 +4,7 @@ export function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElemen
   return (
     <div
       className={cn(
-        'rounded-sm border border-stone-200 bg-[var(--surface)] dark:border-stone-700 dark:bg-[var(--surface)]',
+        'rounded-sm border border-[var(--border)] bg-[var(--surface)] dark:bg-[var(--surface)]',
         className
       )}
       {...props}
@@ -16,7 +16,7 @@ export function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDiv
   return (
     <div
       className={cn(
-        'flex flex-col gap-2 border-b border-stone-200 px-6 py-5 dark:border-stone-700',
+        'flex flex-col gap-2 border-b border-[var(--border)] px-6 py-5',
         className
       )}
       {...props}
@@ -28,7 +28,7 @@ export function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHead
   return (
     <h2
       className={cn(
-        'text-lg font-semibold tracking-tight text-stone-950 dark:text-stone-50',
+        'text-lg font-semibold tracking-tight text-[var(--text)]',
         className
       )}
       {...props}
@@ -41,10 +41,7 @@ export function CardDescription({
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p
-      className={cn('text-sm leading-6 text-stone-500 dark:text-stone-400', className)}
-      {...props}
-    />
+    <p className={cn('text-sm leading-6 text-[var(--text-2)]', className)} {...props} />
   )
 }
 

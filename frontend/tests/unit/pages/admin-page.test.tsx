@@ -31,10 +31,12 @@ function createProbe(probeId: string, overrides: Partial<ProbeRecord> = {}): Pro
     location: `${probeId}-location`,
     status: 'online',
     ip_address: '1.1.1.1',
+    upgrade_supported: true,
+    deploy_mode: 'systemd',
+    upgrade_channel: 'queue_dir',
     metadata: {
       provider: `${probeId}-isp`,
       version: 'v1.0.0',
-      upgrade_supported: true,
     },
     ...overrides,
   }
@@ -120,11 +122,11 @@ describe('AdminPage', () => {
             createProbe('p6', {
               name: 'Dev Node',
               location: 'Test Rack',
+              upgrade_supported: false,
+              upgrade_reason: 'no systemd',
               metadata: {
                 provider: 'lab-isp',
                 version: 'v0.9.0',
-                upgrade_supported: false,
-                upgrade_reason: 'no systemd',
               },
             }),
           ],
@@ -268,70 +270,6 @@ describe('AdminPage', () => {
 
     await user.click(screen.getByText('admin.delete'))
     expect(apiMock.delete).not.toHaveBeenCalled()
-  })
-
-  it('keeps legacy probes upgradeable when backend marks them as compatible', async () => {
-    const user = userEvent.setup()
-    const confirmAction = vi.fn().mockResolvedValue(true)
-    useAppStore.setState({ confirmAction })
-    window.localStorage.setItem('admin_token', 'session-token')
-
-    apiMock.get.mockImplementation(async (url: string) => {
-      if (url === '/admin/probes') {
-        return {
-          probes: [
-            {
-              ...createProbe('legacy-1', {
-                name: 'Legacy Node',
-                location: 'Osaka',
-                metadata: {
-                  version: 'v0.1.7',
-                  provider: 'legacy-isp',
-                },
-              }),
-              upgrade_supported: true,
-              upgrade_channel: 'legacy_request_file',
-            },
-          ],
-        }
-      }
-      if (url === '/admin/config') {
-        return {
-          shared_secret: 'secret-1',
-          blocked_networks: '',
-          ping_max_runs: '100',
-          tcp_ping_max_runs: '100',
-          traceroute_timeout_seconds: '60',
-          mtr_timeout_seconds: '60',
-        }
-      }
-      throw new Error(`unexpected GET ${url}`)
-    })
-    apiMock.post.mockResolvedValue({
-      upgrade: {
-        upgrade_id: 'u-legacy',
-        target_version: 'v0.1.9',
-        status: 'queued',
-      },
-    })
-
-    renderRoute(<AdminPage />, {
-      path: '/admin',
-      route: '/admin',
-    })
-
-    expect(await screen.findByText('Legacy Node')).toBeInTheDocument()
-    expect(screen.getByText('admin.upgradeLegacyCompatible')).toBeInTheDocument()
-
-    const upgradeButton = screen.getByText('admin.upgrade')
-    expect(upgradeButton).not.toBeDisabled()
-
-    await user.click(upgradeButton)
-    await waitFor(() =>
-      expect(apiMock.post).toHaveBeenCalledWith('/admin/probes/legacy-1/upgrade', {
-        version: 'v2.0.0',
-      })
-    )
   })
 
   it('shows error notifications when admin mutations fail', async () => {

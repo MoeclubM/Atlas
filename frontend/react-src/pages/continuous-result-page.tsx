@@ -99,7 +99,7 @@ export function ContinuousResultPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-semibold">{t('route.continuousResult')}</h1>
-            <p className="text-sm text-stone-500 dark:text-stone-400">{id}</p>
+            <p className="text-sm text-[var(--text-2)]">{id}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -136,7 +136,7 @@ export function ContinuousResultPage() {
             </DenseTableHead>
             <tbody>
               {stats.map(row => (
-                <tr key={row.probe_id} className="hover:bg-stone-50 dark:hover:bg-stone-900">
+                <tr key={row.probe_id} className="hover:bg-[var(--surface-2)]">
                   <DenseCell>
                     <ProbeSummaryCell
                       location={row.location}

@@ -37,7 +37,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   }, [location.pathname, t])
 
   return (
-    <div className="min-h-screen text-stone-900 dark:text-stone-100">
+    <div className="min-h-screen text-[var(--text)]">
       <TopBar />
       <div className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-[1180px] flex-col px-4 pb-10 pt-8 md:px-8">
         {children}
