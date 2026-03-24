@@ -18,8 +18,8 @@ const routeTitles: Array<{ match: RegExp; key: string }> = [
 export function AppFrame({ children }: { children: React.ReactNode }) {
   const location = useLocation()
   const { t } = useTranslation()
-  const theme = useAppStore((state) => state.theme)
-  const locale = useAppStore((state) => state.locale)
+  const theme = useAppStore(state => state.theme)
+  const locale = useAppStore(state => state.locale)
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
@@ -31,15 +31,15 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   }, [locale])
 
   useEffect(() => {
-    const matched = routeTitles.find((item) => item.match.test(location.pathname))
+    const matched = routeTitles.find(item => item.match.test(location.pathname))
     const title = matched ? t(matched.key) : 'Atlas'
     document.title = `${title} - Atlas`
   }, [location.pathname, t])
 
   return (
-    <div className="min-h-screen text-slate-900 dark:text-slate-100">
+    <div className="min-h-screen text-stone-900 dark:text-stone-100">
       <TopBar />
-      <div className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-7xl flex-col px-4 pb-8 pt-6 md:px-6">
+      <div className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-[1180px] flex-col px-4 pb-10 pt-8 md:px-8">
         {children}
       </div>
       <ToastRegion />

@@ -117,7 +117,7 @@ describe('probe and domain helpers', () => {
         country: 'JP',
         latitude: '35.6',
         longitude: 139.7,
-      }),
+      })
     )
 
     expect(summary).toEqual({
@@ -136,7 +136,7 @@ describe('probe and domain helpers', () => {
         latitude: null,
         longitude: undefined,
         metadata: { latitude: '1.1', longitude: '2.2' },
-      }),
+      })
     ).toMatchObject({ latitude: 1.1, longitude: 2.2 })
   })
 
@@ -185,6 +185,27 @@ describe('probe and domain helpers', () => {
     })
     expect(parseAssignedProbes('["p1","p2"]')).toEqual(['p1', 'p2'])
     expect(parseAssignedProbes('bad')).toEqual([])
+  })
+
+  it('prefers admin probe upgrade fields returned by the backend for legacy probes', () => {
+    const row = buildAdminProbeRow({
+      probe_id: 'legacy-1',
+      metadata: JSON.stringify({
+        version: 'v0.1.7',
+        provider: 'Legacy ISP',
+      }),
+      upgrade_supported: true,
+      upgrade_reason: '',
+      deploy_mode: '',
+      upgrade_channel: 'legacy_request_file',
+    })
+
+    expect(row).toMatchObject({
+      version: 'v0.1.7',
+      provider_label: 'Legacy ISP',
+      upgrade_supported: true,
+      upgrade_channel: 'legacy_request_file',
+    })
   })
 })
 

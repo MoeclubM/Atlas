@@ -1,7 +1,4 @@
-import {
-  getLatestHTTPRequestHeaderEntries,
-  getLatestHTTPResponseHeaderEntries,
-} from '@/lib/result'
+import { getLatestHTTPRequestHeaderEntries, getLatestHTTPResponseHeaderEntries } from '@/lib/result'
 
 export function HttpHeadersGrid({ resultData }: { resultData: unknown }) {
   const requestHeaders = getLatestHTTPRequestHeaderEntries(resultData)
@@ -27,16 +24,16 @@ function HeaderCard({
   entries: Array<{ name: string; value: string }>
 }) {
   return (
-    <div className="rounded-lg border border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
-      <div className="mb-3 text-xs uppercase tracking-[0.18em] text-slate-400">{title}</div>
+    <div className="rounded-sm border border-stone-300 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900">
+      <div className="mb-3 text-xs uppercase tracking-[0.08em] text-stone-400">{title}</div>
       {entries.length ? (
         <div className="space-y-2">
-          {entries.map((entry) => (
+          {entries.map(entry => (
             <div
               key={`${title}-${entry.name}`}
-              className="rounded-md border border-slate-300 bg-white px-3 py-2 dark:border-slate-700 dark:bg-slate-950"
+              className="rounded-sm border border-stone-300 bg-[var(--surface)] px-3 py-2 dark:border-stone-700 dark:bg-[var(--surface)]"
             >
-              <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              <div className="text-xs font-semibold text-stone-500 dark:text-stone-400">
                 {entry.name}
               </div>
               <div className="mt-1 break-all text-sm">{entry.value}</div>
@@ -44,7 +41,7 @@ function HeaderCard({
           ))}
         </div>
       ) : (
-        <div className="text-sm text-slate-500 dark:text-slate-400">-</div>
+        <div className="text-sm text-stone-500 dark:text-stone-400">-</div>
       )}
     </div>
   )

@@ -164,6 +164,8 @@ export default {
       'Upgrade created for {version}. Waiting for probe acknowledgement and restart.',
     upgradeFailed: 'Failed to send upgrade request',
     latestUpgrade: 'Latest upgrade',
+    upgradeLegacyCompatible:
+      'This probe uses the legacy request-file upgrade path and remains upgradeable.',
     upgradeUnsupported: 'This probe does not support remote upgrade',
     upgradeInProgress: 'An upgrade is already in progress for this probe',
     upgradeStates: {

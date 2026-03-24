@@ -34,7 +34,7 @@ export function DenseTable({
   minWidthClassName = 'min-w-[1100px]',
 }: DenseTableProps) {
   return (
-    <div className="overflow-x-auto rounded-sm border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950">
+    <div className="overflow-x-auto rounded-sm border border-stone-300 bg-[var(--surface)] dark:border-stone-700 dark:bg-[var(--surface)]">
       <table className={cn('w-full border-collapse text-sm', minWidthClassName, className)}>
         {children}
       </table>
@@ -44,7 +44,7 @@ export function DenseTable({
 
 export function DenseTableHead({ children }: { children: ReactNode }) {
   return (
-    <thead className="bg-slate-50 text-[11px] uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+    <thead className="bg-stone-100 text-[11px] uppercase tracking-[0.08em] text-stone-500 dark:bg-stone-900 dark:text-stone-400">
       {children}
     </thead>
   )
@@ -58,11 +58,7 @@ export function DenseHeaderCell({
 }: DenseHeaderCellProps) {
   return (
     <th
-      className={cn(
-        'whitespace-nowrap px-4 py-3 font-semibold',
-        getAlignClass(align),
-        className,
-      )}
+      className={cn('whitespace-nowrap px-4 py-3 font-semibold', getAlignClass(align), className)}
       {...props}
     >
       {children}
@@ -80,10 +76,10 @@ export function DenseCell({
   return (
     <td
       className={cn(
-        'border-t border-slate-200 px-4 py-3 align-top dark:border-slate-800',
+        'border-t border-stone-200 px-4 py-3 align-top dark:border-stone-700',
         getAlignClass(align),
         mono ? 'font-mono text-[13px]' : '',
-        className,
+        className
       )}
       {...props}
     >
@@ -96,8 +92,8 @@ export function ProbeSummaryCell({ location, provider, badge }: ProbeSummaryCell
   return (
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <div className="truncate font-semibold text-slate-900 dark:text-slate-100">{location}</div>
-        <div className="truncate text-xs text-slate-500 dark:text-slate-400">{provider || '-'}</div>
+        <div className="truncate font-semibold text-stone-900 dark:text-stone-100">{location}</div>
+        <div className="truncate text-xs text-stone-500 dark:text-stone-400">{provider || '-'}</div>
       </div>
       {badge ? <div className="shrink-0">{badge}</div> : null}
     </div>
@@ -111,7 +107,7 @@ export function TargetNetworkCell({ isp, asn, asName }: TargetNetworkCellProps) 
     <div className="min-w-0">
       <div className="truncate">{isp || '-'}</div>
       {secondary ? (
-        <div className="truncate text-xs text-slate-500 dark:text-slate-400">{secondary}</div>
+        <div className="truncate text-xs text-stone-500 dark:text-stone-400">{secondary}</div>
       ) : null}
     </div>
   )
@@ -128,7 +124,7 @@ export function DetailBlock({
 }) {
   return (
     <div className="space-y-3" data-testid={testId}>
-      <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</div>
+      <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">{title}</div>
       {children}
     </div>
   )

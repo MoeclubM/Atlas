@@ -178,14 +178,14 @@ describe('AdminPage', () => {
     await waitFor(() =>
       expect(apiMock.put).toHaveBeenCalledWith('/admin/probes/p1', {
         name: 'Tokyo Edge',
-      }),
+      })
     )
 
     await user.click(screen.getAllByText('admin.upgrade')[0])
     await waitFor(() =>
       expect(apiMock.post).toHaveBeenCalledWith('/admin/probes/p1/upgrade', {
         version: 'v2.0.0',
-      }),
+      })
     )
     expect(confirmAction).toHaveBeenCalled()
 
@@ -194,9 +194,7 @@ describe('AdminPage', () => {
 
     await user.click(screen.getByTestId('admin-tab-keys'))
     await user.click(screen.getByText('admin.generate'))
-    await waitFor(() =>
-      expect(screen.getByDisplayValue('secret-2')).toBeInTheDocument(),
-    )
+    await waitFor(() => expect(screen.getByDisplayValue('secret-2')).toBeInTheDocument())
     await user.click(screen.getByText('admin.copyAddress'))
     expect(writeTextSpy).toHaveBeenCalledWith(expect.stringContaining('ws://'))
 
@@ -214,7 +212,7 @@ describe('AdminPage', () => {
         tcp_ping_max_runs: 100,
         traceroute_timeout_seconds: 60,
         mtr_timeout_seconds: 75,
-      }),
+      })
     )
 
     await user.click(screen.getByText('admin.logout'))
@@ -272,6 +270,70 @@ describe('AdminPage', () => {
     expect(apiMock.delete).not.toHaveBeenCalled()
   })
 
+  it('keeps legacy probes upgradeable when backend marks them as compatible', async () => {
+    const user = userEvent.setup()
+    const confirmAction = vi.fn().mockResolvedValue(true)
+    useAppStore.setState({ confirmAction })
+    window.localStorage.setItem('admin_token', 'session-token')
+
+    apiMock.get.mockImplementation(async (url: string) => {
+      if (url === '/admin/probes') {
+        return {
+          probes: [
+            {
+              ...createProbe('legacy-1', {
+                name: 'Legacy Node',
+                location: 'Osaka',
+                metadata: {
+                  version: 'v0.1.7',
+                  provider: 'legacy-isp',
+                },
+              }),
+              upgrade_supported: true,
+              upgrade_channel: 'legacy_request_file',
+            },
+          ],
+        }
+      }
+      if (url === '/admin/config') {
+        return {
+          shared_secret: 'secret-1',
+          blocked_networks: '',
+          ping_max_runs: '100',
+          tcp_ping_max_runs: '100',
+          traceroute_timeout_seconds: '60',
+          mtr_timeout_seconds: '60',
+        }
+      }
+      throw new Error(`unexpected GET ${url}`)
+    })
+    apiMock.post.mockResolvedValue({
+      upgrade: {
+        upgrade_id: 'u-legacy',
+        target_version: 'v0.1.9',
+        status: 'queued',
+      },
+    })
+
+    renderRoute(<AdminPage />, {
+      path: '/admin',
+      route: '/admin',
+    })
+
+    expect(await screen.findByText('Legacy Node')).toBeInTheDocument()
+    expect(screen.getByText('admin.upgradeLegacyCompatible')).toBeInTheDocument()
+
+    const upgradeButton = screen.getByText('admin.upgrade')
+    expect(upgradeButton).not.toBeDisabled()
+
+    await user.click(upgradeButton)
+    await waitFor(() =>
+      expect(apiMock.post).toHaveBeenCalledWith('/admin/probes/legacy-1/upgrade', {
+        version: 'v2.0.0',
+      })
+    )
+  })
+
   it('shows error notifications when admin mutations fail', async () => {
     const user = userEvent.setup()
     const confirmAction = vi.fn().mockResolvedValue(true)
@@ -324,7 +386,7 @@ describe('AdminPage', () => {
       expect(getLastToast()).toMatchObject({
         message: 'admin.updateFailed',
         type: 'error',
-      }),
+      })
     )
 
     await user.click(screen.getByText('admin.upgrade'))
@@ -332,7 +394,7 @@ describe('AdminPage', () => {
       expect(getLastToast()).toMatchObject({
         message: 'admin.upgradeFailed',
         type: 'error',
-      }),
+      })
     )
 
     await user.click(screen.getByText('admin.delete'))
@@ -340,7 +402,7 @@ describe('AdminPage', () => {
       expect(getLastToast()).toMatchObject({
         message: 'admin.deleteFailed',
         type: 'error',
-      }),
+      })
     )
 
     await user.click(screen.getByTestId('admin-tab-keys'))
@@ -349,7 +411,7 @@ describe('AdminPage', () => {
       expect(getLastToast()).toMatchObject({
         message: 'admin.generateFailed',
         type: 'error',
-      }),
+      })
     )
 
     await user.click(screen.getAllByText('common.save')[0])
@@ -357,7 +419,7 @@ describe('AdminPage', () => {
       expect(getLastToast()).toMatchObject({
         message: 'admin.saveFailed',
         type: 'error',
-      }),
+      })
     )
   })
 })

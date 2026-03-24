@@ -81,7 +81,7 @@ export function HomePage() {
       const response = await api.get<{ probes?: ProbeRecord[] }>('/probes', {
         params: { status: 'online' },
       })
-      return (response.probes || []).map((probe) => normalizeProbe(probe))
+      return (response.probes || []).map(probe => normalizeProbe(probe))
     },
   })
 
@@ -97,29 +97,29 @@ export function HomePage() {
     () => () => {
       if (pollTimerRef.current) window.clearInterval(pollTimerRef.current)
     },
-    [],
+    []
   )
 
   const probes = useMemo(() => probesQuery.data || [], [probesQuery.data])
-  const probesMap = useMemo(() => new Map(probes.map((probe) => [probe.probe_id, probe])), [probes])
+  const probesMap = useMemo(() => new Map(probes.map(probe => [probe.probe_id, probe])), [probes])
   const supportsProbeSelection = testType === 'traceroute' || testType === 'mtr'
   const pageMode: 'single' | 'continuous' =
     testType === 'icmp_ping' || testType === 'tcp_ping' ? 'continuous' : 'single'
-  const routeCapableProbes = probes.filter((probe) =>
-    supportsProbeSelection ? probeSupportsTaskType(probe, testType) : true,
+  const routeCapableProbes = probes.filter(probe =>
+    supportsProbeSelection ? probeSupportsTaskType(probe, testType) : true
   )
   const targetedProbeIds =
     supportsProbeSelection && selectedProbeIds.length > 0
       ? selectedProbeIds
       : supportsProbeSelection
-        ? routeCapableProbes.map((probe) => probe.probe_id)
+        ? routeCapableProbes.map(probe => probe.probe_id)
         : []
 
   const filteredResults = useMemo(() => {
     const keyword = filterKeyword.trim().toLowerCase()
     if (!keyword) return results
 
-    return results.filter((result) =>
+    return results.filter(result =>
       [
         result.location,
         result.provider,
@@ -129,14 +129,14 @@ export function HomePage() {
         result.target_as_name,
       ]
         .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
-        .some((value) => value.toLowerCase().includes(keyword)),
+        .some(value => value.toLowerCase().includes(keyword))
     )
   }, [filterKeyword, results])
 
   const probeMarkers = useMemo<ProbeMarker[]>(
     () =>
       filteredResults
-        .map<ProbeMarker | null>((result) => {
+        .map<ProbeMarker | null>(result => {
           const probe = probesMap.get(result.probe_id)
           const latitude = probe?.latitude ?? null
           const longitude = probe?.longitude ?? null
@@ -149,17 +149,20 @@ export function HomePage() {
             longitude: longitude as number,
             latency: result.last_latency ?? result.avg_latency,
             status:
-              result.status === 'success' || result.status === 'failed' || result.status === 'timeout'
+              result.status === 'success' ||
+              result.status === 'failed' ||
+              result.status === 'timeout'
                 ? result.status
                 : 'pending',
             packetLoss: result.packet_loss,
           } satisfies ProbeMarker
         })
         .filter((marker): marker is ProbeMarker => marker !== null),
-    [filteredResults, probesMap],
+    [filteredResults, probesMap]
   )
 
-  const resultsColumnCount = 9 + (testType === 'http_test' ? 1 : 0) + (pageMode === 'continuous' ? 1 : 0)
+  const resultsColumnCount =
+    9 + (testType === 'http_test' ? 1 : 0) + (pageMode === 'continuous' ? 1 : 0)
 
   async function startTest() {
     if (!target.trim() || testing) return
@@ -215,7 +218,7 @@ export function HomePage() {
             taskStatusRef.current === 'completed' || taskStatusRef.current === 'failed'
               ? 'timeout'
               : 'pending',
-        }),
+        })
       )
 
       if (testType === 'icmp_ping' || testType === 'tcp_ping') {
@@ -278,7 +281,7 @@ export function HomePage() {
 
     const probe = probesMap.get(probeId)
     if (!probe || !probeSupportsTaskType(probe, 'mtr')) {
-      setAutoMTRErrors((current) => ({
+      setAutoMTRErrors(current => ({
         ...current,
         [probeId]: String(t('results.autoMtrUnsupported')),
       }))
@@ -286,16 +289,16 @@ export function HomePage() {
     }
 
     const resolvedTarget =
-      rawResultsRef.current.find((item) => item.probe_id === probeId)?.target || target.trim()
+      rawResultsRef.current.find(item => item.probe_id === probeId)?.target || target.trim()
     if (!resolvedTarget) return
 
-    setAutoMTRErrors((current) => {
+    setAutoMTRErrors(current => {
       const next = { ...current }
       delete next[probeId]
       return next
     })
-    setAutoMTRLoadingProbeIds((current) =>
-      current.includes(probeId) ? current : [...current, probeId],
+    setAutoMTRLoadingProbeIds(current =>
+      current.includes(probeId) ? current : [...current, probeId]
     )
 
     try {
@@ -314,11 +317,11 @@ export function HomePage() {
 
       for (let attempt = 0; attempt < 30; attempt += 1) {
         const detail = await api.get<TaskDetailResponse>(`/tasks/${task.task_id}`)
-        const result = (detail.results || []).find((item) => item.probe_id === probeId)
+        const result = (detail.results || []).find(item => item.probe_id === probeId)
         const parsed = result ? getMTRResult(result.result_data) : undefined
 
         if (parsed?.hops?.length) {
-          setMTRData((current) => ({
+          setMTRData(current => ({
             ...current,
             [probeId]: parsed,
           }))
@@ -330,7 +333,7 @@ export function HomePage() {
           detail.task?.status === 'failed' ||
           detail.task?.status === 'cancelled'
         ) {
-          setAutoMTRErrors((current) => ({
+          setAutoMTRErrors(current => ({
             ...current,
             [probeId]:
               detail.task?.status === 'completed'
@@ -340,20 +343,20 @@ export function HomePage() {
           return
         }
 
-        await new Promise((resolve) => window.setTimeout(resolve, 1000))
+        await new Promise(resolve => window.setTimeout(resolve, 1000))
       }
 
-      setAutoMTRErrors((current) => ({
+      setAutoMTRErrors(current => ({
         ...current,
         [probeId]: String(t('results.autoMtrFailed')),
       }))
     } catch {
-      setAutoMTRErrors((current) => ({
+      setAutoMTRErrors(current => ({
         ...current,
         [probeId]: String(t('results.autoMtrFailed')),
       }))
     } finally {
-      setAutoMTRLoadingProbeIds((current) => current.filter((id) => id !== probeId))
+      setAutoMTRLoadingProbeIds(current => current.filter(id => id !== probeId))
     }
   }
 
@@ -370,20 +373,40 @@ export function HomePage() {
               value={testType}
               onValueChange={setTestType}
               options={[
-                { value: 'icmp_ping', label: String(t('taskTable.typeNames.icmp_ping')), testId: 'home-type-option-icmp_ping' },
-                { value: 'tcp_ping', label: String(t('taskTable.typeNames.tcp_ping')), testId: 'home-type-option-tcp_ping' },
-                { value: 'http_test', label: String(t('taskTable.typeNames.http_test')), testId: 'home-type-option-http_test' },
-                { value: 'traceroute', label: String(t('taskTable.typeNames.traceroute')), testId: 'home-type-option-traceroute' },
-                { value: 'mtr', label: String(t('taskTable.typeNames.mtr')), testId: 'home-type-option-mtr' },
+                {
+                  value: 'icmp_ping',
+                  label: String(t('taskTable.typeNames.icmp_ping')),
+                  testId: 'home-type-option-icmp_ping',
+                },
+                {
+                  value: 'tcp_ping',
+                  label: String(t('taskTable.typeNames.tcp_ping')),
+                  testId: 'home-type-option-tcp_ping',
+                },
+                {
+                  value: 'http_test',
+                  label: String(t('taskTable.typeNames.http_test')),
+                  testId: 'home-type-option-http_test',
+                },
+                {
+                  value: 'traceroute',
+                  label: String(t('taskTable.typeNames.traceroute')),
+                  testId: 'home-type-option-traceroute',
+                },
+                {
+                  value: 'mtr',
+                  label: String(t('taskTable.typeNames.mtr')),
+                  testId: 'home-type-option-mtr',
+                },
               ]}
               testId="home-type-select"
             />
             <div data-testid="home-target">
-              <Input value={target} onChange={(event) => setTarget(event.target.value)} />
+              <Input value={target} onChange={event => setTarget(event.target.value)} />
             </div>
             <SelectField
               value={ipVersion}
-              onValueChange={(value) => setIPVersion(value as 'auto' | 'ipv4' | 'ipv6')}
+              onValueChange={value => setIPVersion(value as 'auto' | 'ipv4' | 'ipv6')}
               options={[
                 { value: 'auto', label: String(t('home.ipAuto')) },
                 { value: 'ipv4', label: String(t('home.ipV4')) },
@@ -396,35 +419,39 @@ export function HomePage() {
                 {testing ? t('common.loading') : t('home.startTest')}
               </Button>
               {currentTaskId ? (
-                <Button variant="danger" data-testid="home-stop-test" onClick={() => void stopTask()}>
+                <Button
+                  variant="danger"
+                  data-testid="home-stop-test"
+                  onClick={() => void stopTask()}
+                >
                   {t('home.stopTest')}
                 </Button>
               ) : null}
             </div>
           </div>
           {supportsProbeSelection ? (
-            <div className="rounded-sm border border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
+            <div className="rounded-sm border border-stone-300 bg-stone-50 p-4 dark:border-stone-700 dark:bg-stone-900">
               <div className="mb-3 text-sm font-medium">{t('home.probeLabel')}</div>
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {routeCapableProbes.map((probe) => {
+                {routeCapableProbes.map(probe => {
                   const checked = targetedProbeIds.includes(probe.probe_id)
                   return (
                     <label
                       key={probe.probe_id}
-                      className="flex cursor-pointer items-start gap-3 rounded-sm border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-950"
+                      className="flex cursor-pointer items-start gap-3 rounded-sm border border-stone-300 bg-[var(--surface)] p-3 dark:border-stone-700 dark:bg-[var(--surface)]"
                     >
                       <Checkbox
                         checked={checked}
-                        onCheckedChange={(next) => {
-                          setSelectedProbeIds((current) => {
+                        onCheckedChange={next => {
+                          setSelectedProbeIds(current => {
                             if (next) return Array.from(new Set([...current, probe.probe_id]))
-                            return current.filter((item) => item !== probe.probe_id)
+                            return current.filter(item => item !== probe.probe_id)
                           })
                         }}
                       />
                       <div className="min-w-0">
                         <div className="font-medium">{probe.location || t('common.unknown')}</div>
-                        <div className="truncate text-xs text-slate-500 dark:text-slate-400">
+                        <div className="truncate text-xs text-stone-500 dark:text-stone-400">
                           {probe.name || probe.probe_id}
                         </div>
                       </div>
@@ -448,7 +475,7 @@ export function HomePage() {
               <div className="w-full max-w-sm">
                 <Input
                   value={filterKeyword}
-                  onChange={(event) => setFilterKeyword(event.target.value)}
+                  onChange={event => setFilterKeyword(event.target.value)}
                   placeholder={String(t('common.search'))}
                 />
               </div>
@@ -477,7 +504,7 @@ export function HomePage() {
                   </tr>
                 </DenseTableHead>
                 <tbody>
-                  {filteredResults.map((result) => {
+                  {filteredResults.map(result => {
                     const isExpanded = expandedProbeIds.includes(result.probe_id)
                     const resultAttempts = getHTTPAttempts(httpData[result.probe_id])
                     const autoMTRLoading = autoMTRLoadingProbeIds.includes(result.probe_id)
@@ -488,14 +515,14 @@ export function HomePage() {
                         key={result.probe_id}
                         main={
                           <tr
-                            className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900"
+                            className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900"
                             data-testid="home-result-row"
                             onClick={() => {
                               const willExpand = !expandedProbeIds.includes(result.probe_id)
-                              setExpandedProbeIds((current) =>
+                              setExpandedProbeIds(current =>
                                 current.includes(result.probe_id)
-                                  ? current.filter((item) => item !== result.probe_id)
-                                  : [...current, result.probe_id],
+                                  ? current.filter(item => item !== result.probe_id)
+                                  : [...current, result.probe_id]
                               )
                               if (willExpand) {
                                 void ensureAutoMTR(result.probe_id)
@@ -529,7 +556,10 @@ export function HomePage() {
                                 {result.http_status_code ?? '-'}
                               </DenseCell>
                             ) : null}
-                            <DenseCell align="right" className={getLossTextClass(result.packet_loss)}>
+                            <DenseCell
+                              align="right"
+                              className={getLossTextClass(result.packet_loss)}
+                            >
                               {formatLossPercent(result.packet_loss)}
                             </DenseCell>
                             {pageMode === 'continuous' ? (
@@ -543,13 +573,23 @@ export function HomePage() {
                             >
                               {formatLatencyMs(result.last_latency, t)}
                             </DenseCell>
-                            <DenseCell align="right" className={getLatencyTextClass(result.avg_latency)}>
+                            <DenseCell
+                              align="right"
+                              className={getLatencyTextClass(result.avg_latency)}
+                            >
                               {formatLatencyMs(result.avg_latency, t)}
                             </DenseCell>
-                            <DenseCell align="right">{formatLatencyMs(result.min_latency, t)}</DenseCell>
-                            <DenseCell align="right">{formatLatencyMs(result.max_latency, t)}</DenseCell>
                             <DenseCell align="right">
-                              <div className="ml-auto w-[96px]" onClick={(event) => event.stopPropagation()}>
+                              {formatLatencyMs(result.min_latency, t)}
+                            </DenseCell>
+                            <DenseCell align="right">
+                              {formatLatencyMs(result.max_latency, t)}
+                            </DenseCell>
+                            <DenseCell align="right">
+                              <div
+                                className="ml-auto w-[96px]"
+                                onClick={event => event.stopPropagation()}
+                              >
                                 <SparkBars
                                   samples={samples[result.probe_id] || []}
                                   fallbackLatency={result.avg_latency}
@@ -561,14 +601,17 @@ export function HomePage() {
                         }
                         detail={
                           isExpanded ? (
-                        <tr>
-                          <DenseCell colSpan={resultsColumnCount} className="bg-slate-50 py-4 dark:bg-slate-900">
-                            <div className="space-y-5">
+                            <tr>
+                              <DenseCell
+                                colSpan={resultsColumnCount}
+                                className="bg-stone-50 py-4 dark:bg-stone-900"
+                              >
+                                <div className="space-y-5">
                                   {renderTraceroute(tracerouteData[result.probe_id], t)}
                                   {renderMTR(mtrData[result.probe_id], t)}
                                   {renderHTTP(httpData[result.probe_id], t)}
                                   {autoMTRLoading ? (
-                                    <div className="text-sm text-slate-500 dark:text-slate-400">
+                                    <div className="text-sm text-stone-500 dark:text-stone-400">
                                       {t('results.autoMtrLoading')}
                                     </div>
                                   ) : null}
@@ -582,7 +625,7 @@ export function HomePage() {
                                   resultAttempts.length === 0 &&
                                   !autoMTRLoading &&
                                   !autoMTRError ? (
-                                    <div className="text-sm text-slate-500 dark:text-slate-400">
+                                    <div className="text-sm text-stone-500 dark:text-stone-400">
                                       {testType === 'http_test'
                                         ? t('results.noHttpData')
                                         : testType === 'mtr'
@@ -601,14 +644,14 @@ export function HomePage() {
                 </tbody>
               </DenseTable>
             ) : (
-              <div className="rounded-sm border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              <div className="rounded-sm border border-dashed border-stone-300 px-4 py-6 text-sm text-stone-500 dark:border-stone-700 dark:text-stone-400">
                 {t('home.noMatchedResults')}
               </div>
             )}
 
             {probeMarkers.length ? (
               <div className="space-y-2">
-                <div className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                <div className="text-xs uppercase tracking-[0.08em] text-stone-500 dark:text-stone-400">
                   {t('singleResult.worldMap')}
                 </div>
                 <WorldMap probes={probeMarkers} height={320} />
@@ -621,13 +664,7 @@ export function HomePage() {
   )
 }
 
-function FragmentRow({
-  main,
-  detail,
-}: {
-  main: ReactNode
-  detail: ReactNode
-}) {
+function FragmentRow({ main, detail }: { main: ReactNode; detail: ReactNode }) {
   return (
     <>
       {main}
@@ -638,7 +675,7 @@ function FragmentRow({
 
 function renderTraceroute(
   data: TracerouteResultData | undefined,
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: (key: string, options?: Record<string, unknown>) => string
 ) {
   if (!data?.hops?.length) return null
 
@@ -654,17 +691,19 @@ function renderTraceroute(
           </tr>
         </DenseTableHead>
         <tbody>
-          {data.hops.map((hop) => (
+          {data.hops.map(hop => (
             <tr key={`tr-${hop.hop}`}>
               <DenseCell>{hop.hop}</DenseCell>
               <DenseCell>
                 <div>{hop.ip || '*'}</div>
                 {hop.hostname ? (
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{hop.hostname}</div>
+                  <div className="text-xs text-stone-500 dark:text-stone-400">{hop.hostname}</div>
                 ) : null}
                 {hop.geo ? (
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city].filter(Boolean).join(' ')}
+                  <div className="text-xs text-stone-500 dark:text-stone-400">
+                    {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city]
+                      .filter(Boolean)
+                      .join(' ')}
                   </div>
                 ) : null}
               </DenseCell>
@@ -688,7 +727,7 @@ function renderTraceroute(
 
 function renderMTR(
   data: MTRResultData | undefined,
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: (key: string, options?: Record<string, unknown>) => string
 ) {
   if (!data?.hops?.length) return null
 
@@ -708,17 +747,19 @@ function renderMTR(
           </tr>
         </DenseTableHead>
         <tbody>
-          {data.hops.map((hop) => (
+          {data.hops.map(hop => (
             <tr key={`mtr-${hop.hop}`} data-testid="home-mtr-hop-row">
               <DenseCell>{hop.hop}</DenseCell>
               <DenseCell>
                 <div>{hop.ip || '*'}</div>
                 {hop.hostname ? (
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{hop.hostname}</div>
+                  <div className="text-xs text-stone-500 dark:text-stone-400">{hop.hostname}</div>
                 ) : null}
                 {hop.geo ? (
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city].filter(Boolean).join(' ')}
+                  <div className="text-xs text-stone-500 dark:text-stone-400">
+                    {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city]
+                      .filter(Boolean)
+                      .join(' ')}
                   </div>
                 ) : null}
               </DenseCell>
@@ -735,7 +776,9 @@ function renderMTR(
                   : '-'}
               </DenseCell>
               <DenseCell align="right">
-                {hop.stddevRttMs !== undefined ? `${hop.stddevRttMs.toFixed(1)} ${t('common.ms')}` : '-'}
+                {hop.stddevRttMs !== undefined
+                  ? `${hop.stddevRttMs.toFixed(1)} ${t('common.ms')}`
+                  : '-'}
               </DenseCell>
               <DenseCell align="right">
                 {hop.timeout ? t('common.timeout') : hop.ip ? t('home.route.arrived') : '-'}
@@ -750,7 +793,7 @@ function renderMTR(
 
 function renderHTTP(
   resultData: unknown,
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: (key: string, options?: Record<string, unknown>) => string
 ) {
   const attempts = getHTTPAttempts(resultData)
   if (!attempts.length) return null
@@ -769,15 +812,17 @@ function renderHTTP(
           </tr>
         </DenseTableHead>
         <tbody>
-          {attempts.map((attempt) => (
+          {attempts.map(attempt => (
             <tr key={`http-${attempt.seq ?? 0}`}>
               <DenseCell>{attempt.seq ?? '-'}</DenseCell>
               <DenseCell align="right">{attempt.statusCode ?? '-'}</DenseCell>
               <DenseCell align="right">
-                {attempt.timeMs !== undefined ? `${attempt.timeMs.toFixed(1)} ${t('common.ms')}` : '-'}
+                {attempt.timeMs !== undefined
+                  ? `${attempt.timeMs.toFixed(1)} ${t('common.ms')}`
+                  : '-'}
               </DenseCell>
               <DenseCell mono>{attempt.resolvedIP || '-'}</DenseCell>
-              <DenseCell className="max-w-[320px] break-all text-slate-500 dark:text-slate-400">
+              <DenseCell className="max-w-[320px] break-all text-stone-500 dark:text-stone-400">
                 {attempt.finalURL || '-'}
               </DenseCell>
               <DenseCell align="right">{getResultStatusText(attempt.status, t)}</DenseCell>

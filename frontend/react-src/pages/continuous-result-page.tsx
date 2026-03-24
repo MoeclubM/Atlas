@@ -28,11 +28,7 @@ import {
 import api from '@/lib/api-client'
 import { normalizeProbe, type ProbeRecord, type TaskInfo, type TaskResult } from '@/lib/domain'
 import { getProbeProviderLabel } from '@/lib/probe'
-import {
-  formatLatencyMs,
-  formatLossPercent,
-  getLossTextClass,
-} from '@/lib/result-presentation'
+import { formatLatencyMs, formatLossPercent, getLossTextClass } from '@/lib/result-presentation'
 
 type ContinuousStatRow = {
   probe_id: string
@@ -73,22 +69,21 @@ export function ContinuousResultPage() {
     queryKey: ['continuous-probes', id],
     queryFn: async () => {
       const response = await api.get<{ probes?: ProbeRecord[] }>('/probes')
-      return (response.probes || []).map((probe) => normalizeProbe(probe))
+      return (response.probes || []).map(probe => normalizeProbe(probe))
     },
   })
 
   const probeMap = useMemo(
-    () => new Map((probesQuery.data || []).map((probe) => [probe.probe_id, probe])),
-    [probesQuery.data],
+    () => new Map((probesQuery.data || []).map(probe => [probe.probe_id, probe])),
+    [probesQuery.data]
   )
 
   const results = useMemo(() => resultsQuery.data?.results || [], [resultsQuery.data?.results])
   const chartOption = useMemo(() => buildChartOption(results, probeMap, t), [probeMap, results, t])
-  const stats = useMemo(() => buildStats(results, probeMap, taskQuery.data?.task?.target || ''), [
-    probeMap,
-    results,
-    taskQuery.data?.task?.target,
-  ])
+  const stats = useMemo(
+    () => buildStats(results, probeMap, taskQuery.data?.task?.target || ''),
+    [probeMap, results, taskQuery.data?.task?.target]
+  )
 
   async function stopTask() {
     await api.delete(`/tasks/${id}`)
@@ -104,7 +99,7 @@ export function ContinuousResultPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-semibold">{t('route.continuousResult')}</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{id}</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">{id}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -140,10 +135,13 @@ export function ContinuousResultPage() {
               </tr>
             </DenseTableHead>
             <tbody>
-              {stats.map((row) => (
-                <tr key={row.probe_id} className="hover:bg-slate-50 dark:hover:bg-slate-900">
+              {stats.map(row => (
+                <tr key={row.probe_id} className="hover:bg-stone-50 dark:hover:bg-stone-900">
                   <DenseCell>
-                    <ProbeSummaryCell location={row.location} provider={row.provider || row.probe_name} />
+                    <ProbeSummaryCell
+                      location={row.location}
+                      provider={row.provider || row.probe_name}
+                    />
                   </DenseCell>
                   <DenseCell mono>{row.resolved_ip || '-'}</DenseCell>
                   <DenseCell>
@@ -157,10 +155,16 @@ export function ContinuousResultPage() {
                     {formatLossPercent(row.packet_loss)}
                   </DenseCell>
                   <DenseCell align="right">{row.test_count}</DenseCell>
-                  <DenseCell align="right" className={getLatencyTextClass(row.last_latency, 'success')}>
+                  <DenseCell
+                    align="right"
+                    className={getLatencyTextClass(row.last_latency, 'success')}
+                  >
                     {formatLatencyMs(row.last_latency, t)}
                   </DenseCell>
-                  <DenseCell align="right" className={getLatencyTextClass(row.avg_latency, 'success')}>
+                  <DenseCell
+                    align="right"
+                    className={getLatencyTextClass(row.avg_latency, 'success')}
+                  >
                     {formatLatencyMs(row.avg_latency, t)}
                   </DenseCell>
                   <DenseCell align="right">{formatLatencyMs(row.min_latency, t)}</DenseCell>
@@ -188,7 +192,7 @@ export function ContinuousResultPage() {
 function buildChartOption(
   results: TaskResult[],
   probeMap: Map<string, ProbeRecord>,
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: (key: string, options?: Record<string, unknown>) => string
 ) {
   const seriesMap = new Map<string, Array<[number, number | null]>>()
   for (const result of results) {
@@ -220,7 +224,7 @@ function buildChartOption(
 function buildStats(
   results: TaskResult[],
   probeMap: Map<string, ProbeRecord>,
-  target: string,
+  target: string
 ): ContinuousStatRow[] {
   const grouped = new Map<string, TaskResult[]>()
   for (const result of results) {
@@ -233,7 +237,7 @@ function buildStats(
     .map(([probeId, items]) => {
       const probe = probeMap.get(probeId)
       const latencies = items
-        .map((item) => getAvgLatency(item.summary, item.result_data))
+        .map(item => getAvgLatency(item.summary, item.result_data))
         .filter((value): value is number => value !== undefined)
       const last = items[items.length - 1]
       const targetNetwork = getTargetNetworkInfo(last?.summary, last?.result_data)
@@ -246,7 +250,7 @@ function buildStats(
           }
           return sum
         },
-        { failed: 0, total: 0 },
+        { failed: 0, total: 0 }
       )
       const avgLatency = latencies.length
         ? latencies.reduce((sum, current) => sum + current, 0) / latencies.length
@@ -260,17 +264,23 @@ function buildStats(
         test_count: items.length,
         last_latency: getAvgLatency(last?.summary, last?.result_data),
         avg_latency: avgLatency,
-        min_latency: latencies.length ? Math.min(...latencies) : getMinLatency(last?.summary, last?.result_data),
-        max_latency: latencies.length ? Math.max(...latencies) : getMaxLatency(last?.summary, last?.result_data),
+        min_latency: latencies.length
+          ? Math.min(...latencies)
+          : getMinLatency(last?.summary, last?.result_data),
+        max_latency: latencies.length
+          ? Math.max(...latencies)
+          : getMaxLatency(last?.summary, last?.result_data),
         packet_loss:
           lossStats.total > 0
             ? (lossStats.failed / lossStats.total) * 100
             : getPacketLossPercent(last?.summary, last?.result_data),
-        stddev: avgLatency !== undefined && latencies.length > 0
-          ? Math.sqrt(
-              latencies.reduce((sum, value) => sum + Math.pow(value - avgLatency, 2), 0) / latencies.length,
-            )
-          : getStddevLatency(last?.summary, last?.result_data),
+        stddev:
+          avgLatency !== undefined && latencies.length > 0
+            ? Math.sqrt(
+                latencies.reduce((sum, value) => sum + Math.pow(value - avgLatency, 2), 0) /
+                  latencies.length
+              )
+            : getStddevLatency(last?.summary, last?.result_data),
         resolved_ip: getResolvedIP(last?.summary, last?.result_data, target),
         target_isp: targetNetwork.isp,
         target_asn: targetNetwork.asn,

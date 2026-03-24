@@ -31,8 +31,8 @@ type ConfigResponse = {
 export function AdminPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const notify = useAppStore((state) => state.notify)
-  const confirmAction = useAppStore((state) => state.confirmAction)
+  const notify = useAppStore(state => state.notify)
+  const confirmAction = useAppStore(state => state.confirmAction)
   const [activeTab, setActiveTab] = useState('nodes')
   const [config, setConfig] = useState<AdminConfig>({
     shared_secret: '',
@@ -50,7 +50,7 @@ export function AdminPage() {
     queryKey: ['admin-probes'],
     queryFn: async () => {
       const response = await api.get<{ probes?: ProbeRecord[] }>('/admin/probes')
-      return (response.probes || []).map((probe) => buildAdminProbeRow(probe))
+      return (response.probes || []).map(probe => buildAdminProbeRow(probe))
     },
     refetchInterval: 10000,
   })
@@ -66,7 +66,7 @@ export function AdminPage() {
         tcp_ping_max_runs: normalizePositiveNumber(response.tcp_ping_max_runs, 100),
         traceroute_timeout_seconds: normalizePositiveNumber(
           response.traceroute_timeout_seconds,
-          60,
+          60
         ),
         mtr_timeout_seconds: normalizePositiveNumber(response.mtr_timeout_seconds, 60),
       } satisfies AdminConfig
@@ -81,7 +81,7 @@ export function AdminPage() {
 
   useEffect(() => {
     const rows = probesQuery.data || []
-    setProbeEdits((current) => {
+    setProbeEdits(current => {
       const next = { ...current }
       for (const probe of rows) {
         if (!(probe.probe_id in next)) {
@@ -103,7 +103,7 @@ export function AdminPage() {
   }
 
   async function updateProbe(probe: AdminProbeRow) {
-    setSavingIds((current) => [...current, probe.probe_id])
+    setSavingIds(current => [...current, probe.probe_id])
     try {
       await api.put(`/admin/probes/${probe.probe_id}`, {
         name: (probeEdits[probe.probe_id] || probe.name || '').trim(),
@@ -113,7 +113,7 @@ export function AdminPage() {
     } catch {
       notify(String(t('admin.updateFailed')), 'error')
     } finally {
-      setSavingIds((current) => current.filter((id) => id !== probe.probe_id))
+      setSavingIds(current => current.filter(id => id !== probe.probe_id))
     }
   }
 
@@ -129,17 +129,22 @@ export function AdminPage() {
 
     const confirmed = await confirmAction(
       requestedVersion
-        ? String(t('admin.upgradeConfirmVersion', { target: probe.name || probe.probe_id, version: requestedVersion }))
+        ? String(
+            t('admin.upgradeConfirmVersion', {
+              target: probe.name || probe.probe_id,
+              version: requestedVersion,
+            })
+          )
         : String(t('admin.upgradeConfirmLatest', { target: probe.name || probe.probe_id })),
-      { title: String(t('common.confirm')) },
+      { title: String(t('common.confirm')) }
     )
     if (!confirmed) return
 
-    setUpgradingIds((current) => [...current, probe.probe_id])
+    setUpgradingIds(current => [...current, probe.probe_id])
     try {
       const response = await api.post<{ upgrade?: AdminProbeUpgrade }>(
         `/admin/probes/${probe.probe_id}/upgrade`,
-        requestedVersion ? { version: requestedVersion } : {},
+        requestedVersion ? { version: requestedVersion } : {}
       )
       await probesQuery.refetch()
       const targetVersion = response.upgrade?.target_version || requestedVersion || '-'
@@ -147,12 +152,12 @@ export function AdminPage() {
         requestedVersion
           ? String(t('admin.upgradeQueuedVersion', { version: targetVersion }))
           : String(t('admin.upgradeQueuedLatest', { version: targetVersion })),
-        'success',
+        'success'
       )
     } catch {
       notify(String(t('admin.upgradeFailed')), 'error')
     } finally {
-      setUpgradingIds((current) => current.filter((id) => id !== probe.probe_id))
+      setUpgradingIds(current => current.filter(id => id !== probe.probe_id))
     }
   }
 
@@ -192,7 +197,7 @@ export function AdminPage() {
     try {
       const response = await api.get<{ shared_secret?: string }>('/admin/generate-secret')
       if (response.shared_secret) {
-        setConfig((current) => ({ ...current, shared_secret: response.shared_secret || '' }))
+        setConfig(current => ({ ...current, shared_secret: response.shared_secret || '' }))
         notify(String(t('admin.generateSuccess')), 'success')
       }
     } catch {
@@ -217,9 +222,7 @@ export function AdminPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">{t('admin.title')}</h1>
-          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {t('route.admin')}
-          </p>
+          <p className="mt-1 text-sm text-stone-500 dark:text-stone-400">{t('route.admin')}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => void probesQuery.refetch()}>
@@ -251,94 +254,123 @@ export function AdminPage() {
 
         <TabsContent value="nodes" className="mt-5">
           <div className="grid gap-4 lg:grid-cols-2">
-            {probes.map((probe) => (
-              <Card key={probe.probe_id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <CardTitle>{probe.name || probe.probe_id}</CardTitle>
-                      <CardDescription className="mt-1 break-all">{probe.probe_id}</CardDescription>
-                    </div>
-                    <Badge variant={probe.status === 'online' ? 'success' : 'default'}>
-                      {probe.status === 'online' ? t('admin.statusOnline') : t('admin.statusOffline')}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <FieldValue label={t('admin.version')} value={probe.version || '-'} mono />
-                    <FieldValue label={t('admin.providerLabel')} value={probe.provider_label || '-'} />
-                    <FieldValue label={t('admin.location')} value={probe.location || '-'} />
-                    <FieldValue label={t('admin.connectionIp')} value={probe.ip_address || '-'} mono />
-                  </div>
+            {probes.map(probe => {
+              const upgradeDisabledReason = getUpgradeDisabledReason(probe, t)
+              const showDisabledReason =
+                upgradeDisabledReason && upgradeDisabledReason !== probe.upgrade_reason
 
-                  {probe.latest_upgrade ? (
-                    <div className="rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-medium">{t('admin.latestUpgrade')}</span>
-                        <Badge variant={getUpgradeStatusVariant(probe.latest_upgrade.status)}>
-                          {getUpgradeStatusLabel(probe.latest_upgrade.status, t)}
-                        </Badge>
-                        <span className="font-mono text-xs text-slate-500 dark:text-slate-400">
-                          {probe.latest_upgrade.target_version}
-                        </span>
+              return (
+                <Card key={probe.probe_id}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <CardTitle>{probe.name || probe.probe_id}</CardTitle>
+                        <CardDescription className="mt-1 break-all">
+                          {probe.probe_id}
+                        </CardDescription>
                       </div>
-                      {probe.latest_upgrade.error_message ? (
-                        <p className="mt-2 text-xs text-rose-600 dark:text-rose-300">
-                          {probe.latest_upgrade.error_message}
-                        </p>
-                      ) : null}
+                      <Badge variant={probe.status === 'online' ? 'success' : 'default'}>
+                        {probe.status === 'online'
+                          ? t('admin.statusOnline')
+                          : t('admin.statusOffline')}
+                      </Badge>
                     </div>
-                  ) : null}
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <FieldValue label={t('admin.version')} value={probe.version || '-'} mono />
+                      <FieldValue
+                        label={t('admin.providerLabel')}
+                        value={probe.provider_label || '-'}
+                      />
+                      <FieldValue label={t('admin.location')} value={probe.location || '-'} />
+                      <FieldValue
+                        label={t('admin.connectionIp')}
+                        value={probe.ip_address || '-'}
+                        mono
+                      />
+                    </div>
 
-                  {!probe.upgrade_supported && probe.upgrade_reason ? (
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {probe.upgrade_reason}
-                    </p>
-                  ) : null}
+                    {probe.latest_upgrade ? (
+                      <div className="rounded-sm border border-stone-200 bg-stone-50 px-4 py-3 text-sm dark:border-stone-700 dark:bg-stone-900">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium">{t('admin.latestUpgrade')}</span>
+                          <Badge variant={getUpgradeStatusVariant(probe.latest_upgrade.status)}>
+                            {getUpgradeStatusLabel(probe.latest_upgrade.status, t)}
+                          </Badge>
+                          <span className="font-mono text-xs text-stone-500 dark:text-stone-400">
+                            {probe.latest_upgrade.target_version}
+                          </span>
+                        </div>
+                        {probe.latest_upgrade.error_message ? (
+                          <p className="mt-2 text-xs text-rose-600 dark:text-rose-300">
+                            {probe.latest_upgrade.error_message}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
 
-                  <div>
-                    <Label htmlFor={`probe-name-${probe.probe_id}`}>{t('admin.nodeName')}</Label>
-                    <Input
-                      id={`probe-name-${probe.probe_id}`}
-                      value={probeEdits[probe.probe_id] ?? probe.name ?? ''}
-                      onChange={(event) =>
-                        setProbeEdits((current) => ({
-                          ...current,
-                          [probe.probe_id]: event.target.value,
-                        }))
-                      }
-                    />
-                  </div>
+                    {probe.upgrade_channel === 'legacy_request_file' ? (
+                      <p className="text-sm text-stone-500 dark:text-stone-400">
+                        {t('admin.upgradeLegacyCompatible')}
+                      </p>
+                    ) : null}
 
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="secondary"
-                      onClick={() => void updateProbe(probe)}
-                      disabled={savingIds.includes(probe.probe_id)}
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      {t('common.save')}
-                    </Button>
-                    <Button
-                      variant="primary"
-                      onClick={() => void upgradeProbe(probe)}
-                      disabled={
-                        upgradingIds.includes(probe.probe_id) ||
-                        Boolean(getUpgradeDisabledReason(probe, t))
-                      }
-                    >
-                      <Rocket className="mr-2 h-4 w-4" />
-                      {t('admin.upgrade')}
-                    </Button>
-                    <Button variant="danger" onClick={() => void deleteProbe(probe.probe_id)}>
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      {t('admin.delete')}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    {!probe.upgrade_supported && probe.upgrade_reason ? (
+                      <p className="text-sm text-stone-500 dark:text-stone-400">
+                        {probe.upgrade_reason}
+                      </p>
+                    ) : null}
+
+                    {showDisabledReason ? (
+                      <p className="text-sm text-stone-500 dark:text-stone-400">
+                        {upgradeDisabledReason}
+                      </p>
+                    ) : null}
+
+                    <div>
+                      <Label htmlFor={`probe-name-${probe.probe_id}`}>{t('admin.nodeName')}</Label>
+                      <Input
+                        id={`probe-name-${probe.probe_id}`}
+                        value={probeEdits[probe.probe_id] ?? probe.name ?? ''}
+                        onChange={event =>
+                          setProbeEdits(current => ({
+                            ...current,
+                            [probe.probe_id]: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="secondary"
+                        onClick={() => void updateProbe(probe)}
+                        disabled={savingIds.includes(probe.probe_id)}
+                      >
+                        <Save className="mr-2 h-4 w-4" />
+                        {t('common.save')}
+                      </Button>
+                      <Button
+                        variant="primary"
+                        onClick={() => void upgradeProbe(probe)}
+                        disabled={
+                          upgradingIds.includes(probe.probe_id) || Boolean(upgradeDisabledReason)
+                        }
+                        title={upgradeDisabledReason || undefined}
+                      >
+                        <Rocket className="mr-2 h-4 w-4" />
+                        {t('admin.upgrade')}
+                      </Button>
+                      <Button variant="danger" onClick={() => void deleteProbe(probe.probe_id)}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        {t('admin.delete')}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         </TabsContent>
 
@@ -355,8 +387,8 @@ export function AdminPage() {
                   <Input
                     id="shared-secret"
                     value={config.shared_secret}
-                    onChange={(event) =>
-                      setConfig((current) => ({ ...current, shared_secret: event.target.value }))
+                    onChange={event =>
+                      setConfig(current => ({ ...current, shared_secret: event.target.value }))
                     }
                   />
                 </div>
@@ -379,7 +411,7 @@ export function AdminPage() {
                 <CardDescription>{t('admin.installCommand')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="rounded-lg border border-slate-300 bg-slate-50 p-4 font-mono text-sm break-all dark:border-slate-700 dark:bg-slate-900">
+                <div className="rounded-sm border border-stone-300 bg-stone-50 p-4 font-mono text-sm break-all dark:border-stone-700 dark:bg-stone-900">
                   {wsUrl}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -406,8 +438,8 @@ export function AdminPage() {
             <CardContent className="space-y-4">
               <Textarea
                 value={config.blocked_networks}
-                onChange={(event) =>
-                  setConfig((current) => ({ ...current, blocked_networks: event.target.value }))
+                onChange={event =>
+                  setConfig(current => ({ ...current, blocked_networks: event.target.value }))
                 }
               />
               <Button onClick={() => void saveConfig()}>
@@ -430,26 +462,22 @@ export function AdminPage() {
                 label={t('admin.pingMaxRuns')}
                 value={config.ping_max_runs}
                 testId="admin-ping-max-runs"
-                onChange={(value) =>
-                  setConfig((current) => ({ ...current, ping_max_runs: value }))
-                }
+                onChange={value => setConfig(current => ({ ...current, ping_max_runs: value }))}
               />
               <NumericField
                 id="tcp-ping-max-runs"
                 label={t('admin.tcpPingMaxRuns')}
                 value={config.tcp_ping_max_runs}
                 testId="admin-tcp-ping-max-runs"
-                onChange={(value) =>
-                  setConfig((current) => ({ ...current, tcp_ping_max_runs: value }))
-                }
+                onChange={value => setConfig(current => ({ ...current, tcp_ping_max_runs: value }))}
               />
               <NumericField
                 id="traceroute-timeout"
                 label={t('admin.tracerouteTimeoutSeconds')}
                 value={config.traceroute_timeout_seconds}
                 testId="admin-traceroute-timeout"
-                onChange={(value) =>
-                  setConfig((current) => ({ ...current, traceroute_timeout_seconds: value }))
+                onChange={value =>
+                  setConfig(current => ({ ...current, traceroute_timeout_seconds: value }))
                 }
               />
               <NumericField
@@ -457,8 +485,8 @@ export function AdminPage() {
                 label={t('admin.mtrTimeoutSeconds')}
                 value={config.mtr_timeout_seconds}
                 testId="admin-mtr-timeout"
-                onChange={(value) =>
-                  setConfig((current) => ({ ...current, mtr_timeout_seconds: value }))
+                onChange={value =>
+                  setConfig(current => ({ ...current, mtr_timeout_seconds: value }))
                 }
               />
               <div className="md:col-span-2">
@@ -482,7 +510,7 @@ function normalizePositiveNumber(value: string | number | undefined, fallback: n
 
 function getUpgradeStatusLabel(
   status: string | undefined,
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: (key: string, options?: Record<string, unknown>) => string
 ) {
   const normalized = (status || '').trim()
   const key = `admin.upgradeStates.${normalized}`
@@ -508,7 +536,7 @@ function getUpgradeStatusVariant(status: string | undefined) {
 
 function getUpgradeDisabledReason(
   probe: AdminProbeRow,
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: (key: string, options?: Record<string, unknown>) => string
 ) {
   if (!probe.upgrade_supported) {
     return probe.upgrade_reason || String(t('admin.upgradeUnsupported'))
@@ -520,10 +548,18 @@ function getUpgradeDisabledReason(
   return ''
 }
 
-function FieldValue({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function FieldValue({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string
+  value: string
+  mono?: boolean
+}) {
   return (
-    <div className="rounded-lg border border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
-      <div className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</div>
+    <div className="rounded-sm border border-stone-300 bg-stone-50 p-3 dark:border-stone-700 dark:bg-stone-900">
+      <div className="text-xs uppercase tracking-[0.08em] text-stone-400">{label}</div>
       <div className={mono ? 'mt-2 break-all font-mono text-sm' : 'mt-2 text-sm'}>{value}</div>
     </div>
   )
@@ -551,7 +587,7 @@ function NumericField({
           type="number"
           inputMode="numeric"
           value={String(value)}
-          onChange={(event) => onChange(Number(event.target.value))}
+          onChange={event => onChange(Number(event.target.value))}
         />
       </div>
     </div>

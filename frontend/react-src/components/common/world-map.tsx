@@ -20,7 +20,7 @@ function FitBounds({ markers }: { markers: ProbeMarker[] }) {
 
   useEffect(() => {
     if (!markers.length) return
-    const bounds = L.latLngBounds(markers.map((marker) => [marker.latitude, marker.longitude]))
+    const bounds = L.latLngBounds(markers.map(marker => [marker.latitude, marker.longitude]))
     if (!bounds.isValid()) return
     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 6 })
   }, [map, markers])
@@ -29,29 +29,27 @@ function FitBounds({ markers }: { markers: ProbeMarker[] }) {
 }
 
 export function WorldMap({ probes, height = 420 }: { probes: ProbeMarker[]; height?: number }) {
-  const theme = useAppStore((state) => state.theme)
-  const tileUrl = theme === 'dark'
-    ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+  const theme = useAppStore(state => state.theme)
+  const tileUrl =
+    theme === 'dark'
+      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
 
   const markers = useMemo(() => probes, [probes])
 
   if (!markers.length) return null
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700">
+    <div className="overflow-hidden rounded-sm border border-stone-300 dark:border-stone-700">
       <MapContainer
         center={[25, 5]}
         zoom={2}
         scrollWheelZoom={false}
         style={{ height: `${height}px`, width: '100%' }}
       >
-        <TileLayer
-          attribution='&copy; OpenStreetMap contributors'
-          url={tileUrl}
-        />
+        <TileLayer attribution="&copy; OpenStreetMap contributors" url={tileUrl} />
         <FitBounds markers={markers} />
-        {markers.map((probe) => (
+        {markers.map(probe => (
           <CircleMarker
             key={probe.probe_id}
             center={[probe.latitude, probe.longitude]}

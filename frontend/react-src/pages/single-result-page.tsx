@@ -84,13 +84,13 @@ export function SingleResultPage() {
     queryKey: ['single-probes', id],
     queryFn: async () => {
       const response = await api.get<{ probes?: ProbeRecord[] }>('/probes')
-      return (response.probes || []).map((probe) => normalizeProbe(probe))
+      return (response.probes || []).map(probe => normalizeProbe(probe))
     },
   })
 
   const probeMap = useMemo(
-    () => new Map((probesQuery.data || []).map((probe) => [probe.probe_id, probe])),
-    [probesQuery.data],
+    () => new Map((probesQuery.data || []).map(probe => [probe.probe_id, probe])),
+    [probesQuery.data]
   )
 
   const results = useMemo(() => taskQuery.data?.results || [], [taskQuery.data?.results])
@@ -98,7 +98,7 @@ export function SingleResultPage() {
   const markers = useMemo<ProbeMarker[]>(
     () =>
       results
-        .map<ProbeMarker | null>((result) => {
+        .map<ProbeMarker | null>(result => {
           const probe = probeMap.get(result.probe_id)
           if (!probe || !hasValidCoordinates(probe.latitude, probe.longitude)) return null
           return {
@@ -109,18 +109,20 @@ export function SingleResultPage() {
             longitude: probe.longitude as number,
             latency: getAvgLatency(result.summary, result.result_data),
             status:
-              result.status === 'success' || result.status === 'failed' || result.status === 'timeout'
+              result.status === 'success' ||
+              result.status === 'failed' ||
+              result.status === 'timeout'
                 ? result.status
                 : 'pending',
             packetLoss: getPacketLossPercent(result.summary, result.result_data),
           } satisfies ProbeMarker
         })
         .filter((marker): marker is ProbeMarker => marker !== null),
-    [probeMap, results, t],
+    [probeMap, results, t]
   )
 
   const rows = useMemo<SingleResultRow[]>(() => {
-    return results.map((result) => {
+    return results.map(result => {
       const probe = probeMap.get(result.probe_id)
       const targetNetwork = getTargetNetworkInfo(result.summary, result.result_data)
       const latestAttempt = getLatestHTTPAttempt(result.result_data)
@@ -163,7 +165,7 @@ export function SingleResultPage() {
     })
   }, [probeMap, results, t])
 
-  const isHTTPTask = rows.some((row) => row.test_type === 'http_test')
+  const isHTTPTask = rows.some(row => row.test_type === 'http_test')
   const columnCount = 7 + (isHTTPTask ? 1 : 0)
 
   return (
@@ -174,7 +176,7 @@ export function SingleResultPage() {
         </Button>
         <div>
           <h1 className="text-2xl font-semibold">{t('route.singleResult')}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{id}</p>
+          <p className="text-sm text-stone-500 dark:text-stone-400">{id}</p>
         </div>
       </div>
 
@@ -189,7 +191,9 @@ export function SingleResultPage() {
                 <DenseHeaderCell>{t('home.probeLabel')}</DenseHeaderCell>
                 <DenseHeaderCell>{t('results.resolvedIP')}</DenseHeaderCell>
                 <DenseHeaderCell>{t('results.targetISP')}</DenseHeaderCell>
-                {isHTTPTask ? <DenseHeaderCell align="right">{t('results.httpStatus')}</DenseHeaderCell> : null}
+                {isHTTPTask ? (
+                  <DenseHeaderCell align="right">{t('results.httpStatus')}</DenseHeaderCell>
+                ) : null}
                 <DenseHeaderCell align="right">{t('singleResult.latency')}</DenseHeaderCell>
                 <DenseHeaderCell align="right">{t('singleResult.lossRate')}</DenseHeaderCell>
                 <DenseHeaderCell>{t('singleResult.stats')}</DenseHeaderCell>
@@ -197,19 +201,19 @@ export function SingleResultPage() {
               </tr>
             </DenseTableHead>
             <tbody>
-              {rows.map((row) => {
+              {rows.map(row => {
                 const isExpanded = expandedProbeIds.includes(row.probe_id)
                 return (
                   <FragmentRow
                     key={row.key}
                     main={
                       <tr
-                        className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900"
+                        className="cursor-pointer hover:bg-stone-50 dark:hover:bg-stone-900"
                         onClick={() =>
-                          setExpandedProbeIds((current) =>
+                          setExpandedProbeIds(current =>
                             current.includes(row.probe_id)
-                              ? current.filter((item) => item !== row.probe_id)
-                              : [...current, row.probe_id],
+                              ? current.filter(item => item !== row.probe_id)
+                              : [...current, row.probe_id]
                           )
                         }
                       >
@@ -233,11 +237,17 @@ export function SingleResultPage() {
                           />
                         </DenseCell>
                         {isHTTPTask ? (
-                          <DenseCell align="right" className={getHTTPStatusTextClass(row.http_status_code)}>
+                          <DenseCell
+                            align="right"
+                            className={getHTTPStatusTextClass(row.http_status_code)}
+                          >
                             {row.http_status_code ?? '-'}
                           </DenseCell>
                         ) : null}
-                        <DenseCell align="right" className={getLatencyTextClass(row.latency, row.status)}>
+                        <DenseCell
+                          align="right"
+                          className={getLatencyTextClass(row.latency, row.status)}
+                        >
                           {formatLatencyMs(row.latency, t)}
                         </DenseCell>
                         <DenseCell align="right" className={getLossTextClass(row.packet_loss)}>
@@ -254,13 +264,18 @@ export function SingleResultPage() {
                     detail={
                       isExpanded ? (
                         <tr>
-                          <DenseCell colSpan={columnCount} className="bg-slate-50 py-4 dark:bg-slate-900">
+                          <DenseCell
+                            colSpan={columnCount}
+                            className="bg-stone-50 py-4 dark:bg-stone-900"
+                          >
                             <div className="space-y-5">
                               {renderTracerouteDetail(row.traceroute, t)}
                               {renderMTRDetail(row.mtr, t)}
                               {renderHTTPDetail(row.result_data, t)}
-                              {!row.traceroute && !row.mtr && getHTTPAttempts(row.result_data).length === 0 ? (
-                                <div className="text-sm text-slate-500 dark:text-slate-400">
+                              {!row.traceroute &&
+                              !row.mtr &&
+                              getHTTPAttempts(row.result_data).length === 0 ? (
+                                <div className="text-sm text-stone-500 dark:text-stone-400">
                                   {t('results.noRouteData')}
                                 </div>
                               ) : null}
@@ -277,7 +292,7 @@ export function SingleResultPage() {
 
           {markers.length ? (
             <div className="space-y-2">
-              <div className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+              <div className="text-xs uppercase tracking-[0.08em] text-stone-500 dark:text-stone-400">
                 {t('singleResult.worldMap')}
               </div>
               <WorldMap probes={markers} height={320} />
@@ -289,13 +304,7 @@ export function SingleResultPage() {
   )
 }
 
-function FragmentRow({
-  main,
-  detail,
-}: {
-  main: ReactNode
-  detail: ReactNode
-}) {
+function FragmentRow({ main, detail }: { main: ReactNode; detail: ReactNode }) {
   return (
     <>
       {main}
@@ -306,12 +315,12 @@ function FragmentRow({
 
 function renderStatsSummary(
   row: SingleResultRow,
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: (key: string, options?: Record<string, unknown>) => string
 ) {
   if (row.test_type === 'traceroute' && row.traceroute) {
     const totalHops = row.traceroute.totalHops ?? row.traceroute.hops.length
     return (
-      <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+      <div className="space-y-1 text-xs text-stone-500 dark:text-stone-400">
         <div>{`${t('singleResult.routeHops')}: ${totalHops}`}</div>
         <div>{row.traceroute.success ? t('home.route.arrived') : t('common.failed')}</div>
       </div>
@@ -321,7 +330,7 @@ function renderStatsSummary(
   if (row.test_type === 'mtr' && row.mtr) {
     const totalHops = row.mtr.totalHops ?? row.mtr.hops.length
     return (
-      <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+      <div className="space-y-1 text-xs text-stone-500 dark:text-stone-400">
         <div>{`${t('singleResult.routeHops')}: ${totalHops}`}</div>
         <div>{row.mtr.success ? t('home.route.arrived') : t('common.failed')}</div>
       </div>
@@ -329,7 +338,7 @@ function renderStatsSummary(
   }
 
   return (
-    <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+    <div className="space-y-1 text-xs text-stone-500 dark:text-stone-400">
       <div>{`${t('singleResult.min')}: ${formatLatencyMs(row.min_latency, t)}`}</div>
       <div>{`${t('singleResult.max')}: ${formatLatencyMs(row.max_latency, t)}`}</div>
       <div>{`${t('singleResult.stdev')}: ${formatLatencyMs(row.stddev, t)}`}</div>
@@ -339,7 +348,7 @@ function renderStatsSummary(
 
 function renderTracerouteDetail(
   data: TracerouteResultData | undefined,
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: (key: string, options?: Record<string, unknown>) => string
 ) {
   if (!data?.hops?.length) return null
 
@@ -355,17 +364,19 @@ function renderTracerouteDetail(
           </tr>
         </DenseTableHead>
         <tbody>
-          {data.hops.map((hop) => (
+          {data.hops.map(hop => (
             <tr key={`single-tr-${hop.hop}`}>
               <DenseCell>{hop.hop}</DenseCell>
               <DenseCell>
                 <div>{hop.ip || '*'}</div>
                 {hop.hostname ? (
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{hop.hostname}</div>
+                  <div className="text-xs text-stone-500 dark:text-stone-400">{hop.hostname}</div>
                 ) : null}
                 {hop.geo ? (
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city].filter(Boolean).join(' ')}
+                  <div className="text-xs text-stone-500 dark:text-stone-400">
+                    {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city]
+                      .filter(Boolean)
+                      .join(' ')}
                   </div>
                 ) : null}
               </DenseCell>
@@ -373,7 +384,7 @@ function renderTracerouteDetail(
                 {hop.timeout
                   ? '-'
                   : hop.rtts?.length
-                    ? hop.rtts.map((value) => `${value.toFixed(1)} ${t('common.ms')}`).join(' / ')
+                    ? hop.rtts.map(value => `${value.toFixed(1)} ${t('common.ms')}`).join(' / ')
                     : '-'}
               </DenseCell>
               <DenseCell align="right">
@@ -389,7 +400,7 @@ function renderTracerouteDetail(
 
 function renderMTRDetail(
   data: MTRResultData | undefined,
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: (key: string, options?: Record<string, unknown>) => string
 ) {
   if (!data?.hops?.length) return null
 
@@ -409,17 +420,19 @@ function renderMTRDetail(
           </tr>
         </DenseTableHead>
         <tbody>
-          {data.hops.map((hop) => (
+          {data.hops.map(hop => (
             <tr key={`single-mtr-${hop.hop}`}>
               <DenseCell>{hop.hop}</DenseCell>
               <DenseCell>
                 <div>{hop.ip || '*'}</div>
                 {hop.hostname ? (
-                  <div className="text-xs text-slate-500 dark:text-slate-400">{hop.hostname}</div>
+                  <div className="text-xs text-stone-500 dark:text-stone-400">{hop.hostname}</div>
                 ) : null}
                 {hop.geo ? (
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city].filter(Boolean).join(' ')}
+                  <div className="text-xs text-stone-500 dark:text-stone-400">
+                    {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city]
+                      .filter(Boolean)
+                      .join(' ')}
                   </div>
                 ) : null}
               </DenseCell>
@@ -436,7 +449,9 @@ function renderMTRDetail(
                   : '-'}
               </DenseCell>
               <DenseCell align="right">
-                {hop.stddevRttMs !== undefined ? `${hop.stddevRttMs.toFixed(1)} ${t('common.ms')}` : '-'}
+                {hop.stddevRttMs !== undefined
+                  ? `${hop.stddevRttMs.toFixed(1)} ${t('common.ms')}`
+                  : '-'}
               </DenseCell>
               <DenseCell align="right">
                 {hop.timeout ? t('common.timeout') : hop.ip ? t('home.route.arrived') : '-'}
@@ -451,7 +466,7 @@ function renderMTRDetail(
 
 function renderHTTPDetail(
   resultData: unknown,
-  t: (key: string, options?: Record<string, unknown>) => string,
+  t: (key: string, options?: Record<string, unknown>) => string
 ) {
   const attempts = getHTTPAttempts(resultData)
   if (!attempts.length) return null
@@ -470,15 +485,17 @@ function renderHTTPDetail(
           </tr>
         </DenseTableHead>
         <tbody>
-          {attempts.map((attempt) => (
+          {attempts.map(attempt => (
             <tr key={`single-http-${attempt.seq ?? 0}`}>
               <DenseCell>{attempt.seq ?? '-'}</DenseCell>
               <DenseCell align="right">{attempt.statusCode ?? '-'}</DenseCell>
               <DenseCell align="right">
-                {attempt.timeMs !== undefined ? `${attempt.timeMs.toFixed(1)} ${t('common.ms')}` : '-'}
+                {attempt.timeMs !== undefined
+                  ? `${attempt.timeMs.toFixed(1)} ${t('common.ms')}`
+                  : '-'}
               </DenseCell>
               <DenseCell mono>{attempt.resolvedIP || '-'}</DenseCell>
-              <DenseCell className="max-w-[320px] break-all text-slate-500 dark:text-slate-400">
+              <DenseCell className="max-w-[320px] break-all text-stone-500 dark:text-stone-400">
                 {attempt.finalURL || '-'}
               </DenseCell>
               <DenseCell align="right">{getResultStatusText(attempt.status, t)}</DenseCell>

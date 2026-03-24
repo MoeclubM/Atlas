@@ -12,17 +12,17 @@ export function TopBar() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
-  const theme = useAppStore((state) => state.theme)
-  const setTheme = useAppStore((state) => state.setTheme)
-  const locale = useAppStore((state) => state.locale)
-  const setStoreLocale = useAppStore((state) => state.setLocale)
+  const theme = useAppStore(state => state.theme)
+  const setTheme = useAppStore(state => state.setTheme)
+  const locale = useAppStore(state => state.locale)
+  const setStoreLocale = useAppStore(state => state.setLocale)
 
   const localeItems = useMemo(
     () => [
       { label: t('common.locale.zh'), value: 'zh-CN' as SupportedLocale },
       { label: t('common.locale.en'), value: 'en-US' as SupportedLocale },
     ],
-    [t],
+    [t]
   )
 
   if (location.pathname === '/login') return null
@@ -35,20 +35,21 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 md:px-6">
+    <header className="sticky top-0 z-40 border-b border-stone-200 bg-[var(--surface)] dark:border-stone-700 dark:bg-[var(--surface)]">
+      <div className="mx-auto flex h-16 w-full max-w-[1180px] items-center justify-between px-4 md:px-8">
         <button
           type="button"
-          className="flex items-center gap-3 rounded-sm px-2 py-1 text-left outline-none"
+          className="flex items-center gap-4 rounded-sm px-1 py-1 text-left outline-none"
           onClick={() => navigate('/test')}
           data-testid="topbar"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-sm border border-slate-300 bg-white text-sm font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
-            A
-          </span>
           <div>
-            <div className="text-sm font-semibold text-slate-950 dark:text-white">Atlas</div>
-            <div className="text-xs text-slate-500 dark:text-slate-400">Network observability</div>
+            <div className="text-sm font-semibold tracking-tight text-stone-950 dark:text-stone-50">
+              Atlas
+            </div>
+            <div className="text-xs text-stone-500 dark:text-stone-400">
+              Distributed network tests
+            </div>
           </div>
         </button>
 
@@ -67,7 +68,7 @@ export function TopBar() {
               <Button variant="secondary" size="sm" className="gap-2">
                 <Languages className="h-4 w-4" />
                 <span className="hidden sm:inline">
-                  {localeItems.find((item) => item.value === locale)?.label || locale}
+                  {localeItems.find(item => item.value === locale)?.label || locale}
                 </span>
               </Button>
             </DropdownMenu.Trigger>
@@ -75,15 +76,15 @@ export function TopBar() {
               <DropdownMenu.Content
                 sideOffset={8}
                 align="end"
-                className="z-[70] min-w-40 rounded-md border border-slate-300 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-950"
+                className="z-[70] min-w-40 rounded-sm border border-stone-300 bg-[var(--surface)] p-1.5 dark:border-stone-700 dark:bg-[var(--surface)]"
               >
-                {localeItems.map((item) => (
+                {localeItems.map(item => (
                   <DropdownMenu.Item
                     key={item.value}
                     onClick={() => void handleLocaleChange(item.value)}
                     className={cn(
-                      'cursor-pointer rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-900',
-                      item.value === locale && 'bg-slate-100 dark:bg-slate-900',
+                      'cursor-pointer rounded-sm px-3 py-2 text-sm outline-none hover:bg-stone-100 dark:hover:bg-stone-800',
+                      item.value === locale && 'bg-stone-100 dark:bg-stone-800'
                     )}
                   >
                     {item.label}

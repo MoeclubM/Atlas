@@ -161,6 +161,7 @@ export default {
     upgradeQueuedVersion: '升级任务已创建，目标版本 {version}，等待节点确认并重启',
     upgradeFailed: '下发升级失败',
     latestUpgrade: '最近升级',
+    upgradeLegacyCompatible: '当前节点为旧版兼容升级模式，仍可通过 request-file 方式下发升级。',
     upgradeUnsupported: '当前节点不支持后台在线升级',
     upgradeInProgress: '当前已有升级任务进行中',
     upgradeStates: {

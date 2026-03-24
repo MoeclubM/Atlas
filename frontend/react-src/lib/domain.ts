@@ -21,6 +21,10 @@ export type ProbeRecord = {
   status?: string
   ip_address?: string
   region?: string
+  upgrade_supported?: boolean
+  upgrade_reason?: string
+  deploy_mode?: string
+  upgrade_channel?: string
   latest_upgrade?: AdminProbeUpgrade | null
 }
 
@@ -106,17 +110,35 @@ export function probeSupportsTaskType(probe: ProbeRecord, taskTypeValue: string)
 export function buildAdminProbeRow(probe: ProbeRecord): AdminProbeRow {
   const metadata = getProbeMetadataSummary(probe.metadata)
   const rawMetadata = parseMaybeJSON(probe.metadata)
+  const metadataUpgradeSupported =
+    rawMetadata['upgrade_supported'] === true || rawMetadata['upgrade_supported'] === 'true'
+
   return {
     ...normalizeProbe(probe),
     version: metadata.version || '',
     provider_label: metadata.providerLabel || '',
     upgrade_supported:
-      rawMetadata['upgrade_supported'] === true || rawMetadata['upgrade_supported'] === 'true',
+      typeof probe.upgrade_supported === 'boolean'
+        ? probe.upgrade_supported
+        : metadataUpgradeSupported,
     upgrade_reason:
-      typeof rawMetadata['upgrade_reason'] === 'string' ? rawMetadata['upgrade_reason'] : '',
-    deploy_mode: typeof rawMetadata['deploy_mode'] === 'string' ? rawMetadata['deploy_mode'] : '',
+      typeof probe.upgrade_reason === 'string'
+        ? probe.upgrade_reason
+        : typeof rawMetadata['upgrade_reason'] === 'string'
+          ? rawMetadata['upgrade_reason']
+          : '',
+    deploy_mode:
+      typeof probe.deploy_mode === 'string'
+        ? probe.deploy_mode
+        : typeof rawMetadata['deploy_mode'] === 'string'
+          ? rawMetadata['deploy_mode']
+          : '',
     upgrade_channel:
-      typeof rawMetadata['upgrade_channel'] === 'string' ? rawMetadata['upgrade_channel'] : '',
+      typeof probe.upgrade_channel === 'string'
+        ? probe.upgrade_channel
+        : typeof rawMetadata['upgrade_channel'] === 'string'
+          ? rawMetadata['upgrade_channel']
+          : '',
     latest_upgrade: probe.latest_upgrade || null,
   }
 }
