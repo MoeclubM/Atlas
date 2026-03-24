@@ -3,16 +3,16 @@ import { forwardRef, type ButtonHTMLAttributes } from 'react'
 import { cn } from '@/lib/cn'
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center rounded-xl border text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60 disabled:pointer-events-none disabled:opacity-50',
+  'inline-flex items-center justify-center rounded-md border text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/40 disabled:pointer-events-none disabled:opacity-50',
   {
     variants: {
       variant: {
-        primary: 'border-sky-600 bg-sky-600 text-white shadow-panel hover:bg-sky-500',
+        primary: 'border-sky-600 bg-sky-600 text-white hover:bg-sky-700',
         secondary:
-          'border-slate-200 bg-white/80 text-slate-900 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-50 dark:hover:bg-slate-900',
+          'border-slate-300 bg-white text-slate-900 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-50 dark:hover:bg-slate-900',
         ghost:
           'border-transparent bg-transparent text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-900',
-        danger: 'border-rose-600 bg-rose-600 text-white hover:bg-rose-500',
+        danger: 'border-rose-600 bg-rose-600 text-white hover:bg-rose-700',
       },
       size: {
         sm: 'h-9 px-3',

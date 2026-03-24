@@ -25,21 +25,21 @@ export function ToastRegion() {
             if (!open) dismissToast(toast.id)
           }}
           className={cn(
-            'flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-soft',
+            'flex items-start gap-3 rounded-md border px-4 py-3',
             toast.type === 'success' &&
-              'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900 dark:bg-emerald-950/90 dark:text-emerald-100',
+              'border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100',
             toast.type === 'warning' &&
-              'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/90 dark:text-amber-100',
+              'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100',
             toast.type === 'error' &&
-              'border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900 dark:bg-rose-950/90 dark:text-rose-100',
+              'border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-100',
             toast.type === 'info' &&
-              'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-900 dark:bg-sky-950/90 dark:text-sky-100',
+              'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100',
           )}
           data-testid="ui-snackbar"
         >
           <ToastIcon type={toast.type} />
           <Toast.Title className="flex-1 text-sm font-medium">{toast.message}</Toast.Title>
-          <Toast.Close className="rounded-full p-1 text-current/70 hover:bg-black/5 dark:hover:bg-white/5">
+          <Toast.Close className="rounded-md p-1 text-current/70 hover:bg-black/5 dark:hover:bg-white/5">
             <X className="h-4 w-4" />
           </Toast.Close>
         </Toast.Root>

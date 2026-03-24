@@ -1,29 +1,72 @@
 import {
   getAvgLatency,
   getHTTPAttempts,
+  getHTTPStatusTextClass,
+  getHTTPStatusCode,
+  getLatestHTTPAttempt,
+  getMaxLatency,
   getMTRResult,
+  getMinLatency,
   getPacketLossPercent,
   getResolvedIP,
+  getStddevLatency,
   getTargetNetworkInfo,
   getTracerouteResult,
+  type MTRResultData,
+  type TracerouteResultData,
 } from '@/lib/result'
+import { getLatencyTextClass } from '@/lib/latency'
 import { hasValidCoordinates } from '@/lib/coordinate'
 import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { HttpHeadersGrid } from '@/components/common/http-headers-grid'
+import {
+  DenseCell,
+  DenseHeaderCell,
+  DenseTable,
+  DenseTableHead,
+  DetailBlock,
+  ProbeSummaryCell,
+  TargetNetworkCell,
+} from '@/components/common/result-table'
 import { WorldMap, type ProbeMarker } from '@/components/common/world-map'
 import api from '@/lib/api-client'
 import { normalizeProbe, type ProbeRecord, type TaskInfo, type TaskResult } from '@/lib/domain'
+import { getProbeProviderLabel } from '@/lib/probe'
+
+type SingleResultRow = {
+  key: string
+  probe_id: string
+  location: string
+  provider?: string
+  target: string
+  resolved_ip: string
+  target_isp?: string
+  target_asn?: string
+  target_as_name?: string
+  latency?: number
+  http_status_code?: number
+  packet_loss?: number
+  min_latency?: number
+  max_latency?: number
+  stddev?: number
+  status: string
+  test_type?: string
+  traceroute?: TracerouteResultData
+  mtr?: MTRResultData
+  result_data?: unknown
+}
 
 export function SingleResultPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { id = '' } = useParams()
+  const [expandedProbeIds, setExpandedProbeIds] = useState<string[]>([])
 
   const taskQuery = useQuery({
     queryKey: ['single-task', id],
@@ -44,13 +87,14 @@ export function SingleResultPage() {
   )
 
   const results = useMemo(() => taskQuery.data?.results || [], [taskQuery.data?.results])
+
   const markers = useMemo<ProbeMarker[]>(
     () =>
       results
-        .map((result) => {
+        .map<ProbeMarker | null>((result) => {
           const probe = probeMap.get(result.probe_id)
           if (!probe || !hasValidCoordinates(probe.latitude, probe.longitude)) return null
-          const marker: ProbeMarker = {
+          return {
             probe_id: result.probe_id,
             name: probe.name || probe.probe_id,
             location: probe.location || t('common.unknown'),
@@ -62,12 +106,58 @@ export function SingleResultPage() {
                 ? result.status
                 : 'pending',
             packetLoss: getPacketLossPercent(result.summary, result.result_data),
-          }
-          return marker
+          } satisfies ProbeMarker
         })
         .filter((marker): marker is ProbeMarker => marker !== null),
     [probeMap, results, t],
   )
+
+  const rows = useMemo<SingleResultRow[]>(() => {
+    return results.map((result) => {
+      const probe = probeMap.get(result.probe_id)
+      const targetNetwork = getTargetNetworkInfo(result.summary, result.result_data)
+      const latestAttempt = getLatestHTTPAttempt(result.result_data)
+      const traceroute = getTracerouteResult(result.result_data)
+      const mtr = getMTRResult(result.result_data)
+      const derivedStatus = latestAttempt?.status
+        ? latestAttempt.status
+        : mtr
+          ? mtr.success === false
+            ? 'failed'
+            : result.status || 'success'
+          : traceroute
+            ? traceroute.success === false
+              ? 'failed'
+              : result.status || 'success'
+            : result.status || 'unknown'
+
+      return {
+        key: result.result_id || result.probe_id,
+        probe_id: result.probe_id,
+        location: probe?.location || t('common.unknown'),
+        provider: getProbeProviderLabel(probe?.metadata),
+        target: result.target || '',
+        resolved_ip: getResolvedIP(result.summary, result.result_data, result.target) || '-',
+        target_isp: targetNetwork.isp,
+        target_asn: targetNetwork.asn,
+        target_as_name: targetNetwork.asName,
+        latency: latestAttempt?.timeMs ?? getAvgLatency(result.summary, result.result_data),
+        http_status_code: getHTTPStatusCode(result.summary, result.result_data),
+        packet_loss: getPacketLossPercent(result.summary, result.result_data),
+        min_latency: getMinLatency(result.summary, result.result_data),
+        max_latency: getMaxLatency(result.summary, result.result_data),
+        stddev: getStddevLatency(result.summary, result.result_data),
+        status: derivedStatus,
+        test_type: result.test_type,
+        traceroute,
+        mtr,
+        result_data: result.result_data,
+      }
+    })
+  }, [probeMap, results, t])
+
+  const isHTTPTask = rows.some((row) => row.test_type === 'http_test')
+  const columnCount = 7 + (isHTTPTask ? 1 : 0)
 
   return (
     <div className="space-y-6">
@@ -81,102 +171,310 @@ export function SingleResultPage() {
         </div>
       </div>
 
-      {markers.length ? <WorldMap probes={markers} /> : null}
-
-      <div className="grid gap-4">
-        {results.map((result) => {
-          const probe = probeMap.get(result.probe_id)
-          const targetNetwork = getTargetNetworkInfo(result.summary, result.result_data)
-          const traceroute = getTracerouteResult(result.result_data)
-          const mtr = getMTRResult(result.result_data)
-          const attempts = getHTTPAttempts(result.result_data)
-
-          return (
-            <Card key={result.result_id || result.probe_id}>
-              <CardHeader>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <CardTitle>{probe?.location || t('common.unknown')}</CardTitle>
-                  <Badge variant={statusVariant(result.status)}>{result.status || t('common.pending')}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  <Metric label={t('results.resolvedIP')} value={getResolvedIP(result.summary, result.result_data, result.target) || '-'} />
-                  <Metric label={t('results.targetISP')} value={targetNetwork.isp || '-'} />
-                  <Metric label={t('singleResult.latency')} value={formatLatency(getAvgLatency(result.summary, result.result_data), t)} />
-                  <Metric label={t('results.loss')} value={formatLoss(getPacketLossPercent(result.summary, result.result_data))} />
-                </div>
-                {traceroute?.hops?.length ? (
-                  <RouteTable
-                    title={t('results.tracerouteDetail')}
-                    rows={traceroute.hops.map((hop) => [
-                      String(hop.hop),
-                      hop.ip || '*',
-                      hop.timeout ? '-' : hop.rtts?.length ? `${hop.rtts[0].toFixed(1)} ${t('common.ms')}` : '-',
-                    ])}
-                  />
-                ) : null}
-                {mtr?.hops?.length ? (
-                  <RouteTable
-                    title={t('results.mtrDetail')}
-                    rows={mtr.hops.map((hop) => [
-                      String(hop.hop),
-                      hop.ip || '*',
-                      hop.lossPercent !== undefined ? `${hop.lossPercent.toFixed(1)}%` : '-',
-                      hop.avgRttMs !== undefined ? `${hop.avgRttMs.toFixed(1)} ${t('common.ms')}` : '-',
-                    ])}
-                  />
-                ) : null}
-                {attempts.length ? (
-                  <RouteTable
-                    title={t('results.httpDetail')}
-                    rows={attempts.map((attempt) => [
-                      String(attempt.seq ?? '-'),
-                      String(attempt.statusCode ?? '-'),
-                      attempt.timeMs !== undefined ? `${attempt.timeMs.toFixed(1)} ${t('common.ms')}` : '-',
-                      attempt.resolvedIP || '-',
-                    ])}
-                  />
-                ) : null}
-                {attempts.length ? <HttpHeadersGrid resultData={result.result_data} /> : null}
-              </CardContent>
-            </Card>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/60">
-      <div className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</div>
-      <div className="mt-2 text-sm">{value}</div>
-    </div>
-  )
-}
-
-function RouteTable({ title, rows }: { title: string; rows: string[][] }) {
-  return (
-    <div>
-      <div className="mb-3 text-sm font-semibold">{title}</div>
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <tbody>
-            {rows.map((row, index) => (
-              <tr key={`${title}-${index}`} className="border-t border-slate-200 dark:border-slate-800">
-                {row.map((cell, cellIndex) => (
-                  <td key={`${title}-${index}-${cellIndex}`} className="py-2 pr-4">
-                    {cell}
-                  </td>
-                ))}
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('singleResult.probeData')}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <DenseTable minWidthClassName="min-w-[1080px]">
+            <DenseTableHead>
+              <tr>
+                <DenseHeaderCell>{t('home.probeLabel')}</DenseHeaderCell>
+                <DenseHeaderCell>{t('results.resolvedIP')}</DenseHeaderCell>
+                <DenseHeaderCell>{t('results.targetISP')}</DenseHeaderCell>
+                {isHTTPTask ? <DenseHeaderCell align="right">{t('results.httpStatus')}</DenseHeaderCell> : null}
+                <DenseHeaderCell align="right">{t('singleResult.latency')}</DenseHeaderCell>
+                <DenseHeaderCell align="right">{t('singleResult.lossRate')}</DenseHeaderCell>
+                <DenseHeaderCell>{t('singleResult.stats')}</DenseHeaderCell>
+                <DenseHeaderCell align="right">{t('results.status')}</DenseHeaderCell>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </DenseTableHead>
+            <tbody>
+              {rows.map((row) => {
+                const isExpanded = expandedProbeIds.includes(row.probe_id)
+                return (
+                  <FragmentRow
+                    key={row.key}
+                    main={
+                      <tr
+                        className="cursor-pointer transition hover:bg-sky-50/55 dark:hover:bg-slate-900/80"
+                        onClick={() =>
+                          setExpandedProbeIds((current) =>
+                            current.includes(row.probe_id)
+                              ? current.filter((item) => item !== row.probe_id)
+                              : [...current, row.probe_id],
+                          )
+                        }
+                      >
+                        <DenseCell>
+                          <ProbeSummaryCell
+                            location={row.location}
+                            provider={row.provider}
+                            badge={<Badge variant={statusVariant(row.status)}>{statusText(row.status, t)}</Badge>}
+                          />
+                        </DenseCell>
+                        <DenseCell mono>{row.resolved_ip}</DenseCell>
+                        <DenseCell>
+                          <TargetNetworkCell
+                            isp={row.target_isp}
+                            asn={row.target_asn}
+                            asName={row.target_as_name}
+                          />
+                        </DenseCell>
+                        {isHTTPTask ? (
+                          <DenseCell align="right" className={getHTTPStatusTextClass(row.http_status_code)}>
+                            {row.http_status_code ?? '-'}
+                          </DenseCell>
+                        ) : null}
+                        <DenseCell align="right" className={getLatencyTextClass(row.latency, row.status)}>
+                          {formatLatency(row.latency, t)}
+                        </DenseCell>
+                        <DenseCell align="right" className={lossTextClass(row.packet_loss)}>
+                          {formatLoss(row.packet_loss)}
+                        </DenseCell>
+                        <DenseCell>{renderStatsSummary(row, t)}</DenseCell>
+                        <DenseCell align="right">
+                          <Badge variant={statusVariant(row.status)}>{statusText(row.status, t)}</Badge>
+                        </DenseCell>
+                      </tr>
+                    }
+                    detail={
+                      isExpanded ? (
+                        <tr>
+                          <DenseCell colSpan={columnCount} className="bg-slate-50 py-4 dark:bg-slate-900">
+                            <div className="space-y-5">
+                              {renderTracerouteDetail(row.traceroute, t)}
+                              {renderMTRDetail(row.mtr, t)}
+                              {renderHTTPDetail(row.result_data, t)}
+                              {!row.traceroute && !row.mtr && getHTTPAttempts(row.result_data).length === 0 ? (
+                                <div className="text-sm text-slate-500 dark:text-slate-400">
+                                  {t('results.noRouteData')}
+                                </div>
+                              ) : null}
+                            </div>
+                          </DenseCell>
+                        </tr>
+                      ) : null
+                    }
+                  />
+                )
+              })}
+            </tbody>
+          </DenseTable>
+
+          {markers.length ? (
+            <div className="space-y-2">
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                {t('singleResult.worldMap')}
+              </div>
+              <WorldMap probes={markers} height={320} />
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
     </div>
+  )
+}
+
+function FragmentRow({
+  main,
+  detail,
+}: {
+  main: ReactNode
+  detail: ReactNode
+}) {
+  return (
+    <>
+      {main}
+      {detail}
+    </>
+  )
+}
+
+function renderStatsSummary(
+  row: SingleResultRow,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  if (row.test_type === 'traceroute' && row.traceroute) {
+    const totalHops = row.traceroute.totalHops ?? row.traceroute.hops.length
+    return (
+      <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+        <div>{`${t('singleResult.routeHops')}: ${totalHops}`}</div>
+        <div>{row.traceroute.success ? t('home.route.arrived') : t('common.failed')}</div>
+      </div>
+    )
+  }
+
+  if (row.test_type === 'mtr' && row.mtr) {
+    const totalHops = row.mtr.totalHops ?? row.mtr.hops.length
+    return (
+      <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+        <div>{`${t('singleResult.routeHops')}: ${totalHops}`}</div>
+        <div>{row.mtr.success ? t('home.route.arrived') : t('common.failed')}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
+      <div>{`${t('singleResult.min')}: ${formatLatency(row.min_latency, t)}`}</div>
+      <div>{`${t('singleResult.max')}: ${formatLatency(row.max_latency, t)}`}</div>
+      <div>{`${t('singleResult.stdev')}: ${formatLatency(row.stddev, t)}`}</div>
+    </div>
+  )
+}
+
+function renderTracerouteDetail(
+  data: TracerouteResultData | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  if (!data?.hops?.length) return null
+
+  return (
+    <DetailBlock title={t('results.tracerouteDetail')}>
+      <DenseTable minWidthClassName="min-w-[860px]">
+        <DenseTableHead>
+          <tr>
+            <DenseHeaderCell>{t('home.route.hop')}</DenseHeaderCell>
+            <DenseHeaderCell>{t('home.route.ip')}</DenseHeaderCell>
+            <DenseHeaderCell align="right">{t('home.route.rtt')}</DenseHeaderCell>
+            <DenseHeaderCell align="right">{t('results.status')}</DenseHeaderCell>
+          </tr>
+        </DenseTableHead>
+        <tbody>
+          {data.hops.map((hop) => (
+            <tr key={`single-tr-${hop.hop}`}>
+              <DenseCell>{hop.hop}</DenseCell>
+              <DenseCell>
+                <div>{hop.ip || '*'}</div>
+                {hop.hostname ? (
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{hop.hostname}</div>
+                ) : null}
+                {hop.geo ? (
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city].filter(Boolean).join(' ')}
+                  </div>
+                ) : null}
+              </DenseCell>
+              <DenseCell align="right">
+                {hop.timeout
+                  ? '-'
+                  : hop.rtts?.length
+                    ? hop.rtts.map((value) => `${value.toFixed(1)} ${t('common.ms')}`).join(' / ')
+                    : '-'}
+              </DenseCell>
+              <DenseCell align="right">
+                {hop.timeout ? t('common.timeout') : hop.ip ? t('home.route.arrived') : '-'}
+              </DenseCell>
+            </tr>
+          ))}
+        </tbody>
+      </DenseTable>
+    </DetailBlock>
+  )
+}
+
+function renderMTRDetail(
+  data: MTRResultData | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  if (!data?.hops?.length) return null
+
+  return (
+    <DetailBlock title={t('results.mtrDetail')}>
+      <DenseTable minWidthClassName="min-w-[1080px]">
+        <DenseTableHead>
+          <tr>
+            <DenseHeaderCell>{t('home.route.hop')}</DenseHeaderCell>
+            <DenseHeaderCell>{t('home.route.ip')}</DenseHeaderCell>
+            <DenseHeaderCell align="right">{t('home.route.lossPercent')}</DenseHeaderCell>
+            <DenseHeaderCell align="right">{t('home.route.sent')}</DenseHeaderCell>
+            <DenseHeaderCell align="right">{t('home.route.avg')}</DenseHeaderCell>
+            <DenseHeaderCell align="right">{`${t('home.route.best')}/${t('home.route.worst')}`}</DenseHeaderCell>
+            <DenseHeaderCell align="right">{t('home.route.stdev')}</DenseHeaderCell>
+            <DenseHeaderCell align="right">{t('results.status')}</DenseHeaderCell>
+          </tr>
+        </DenseTableHead>
+        <tbody>
+          {data.hops.map((hop) => (
+            <tr key={`single-mtr-${hop.hop}`}>
+              <DenseCell>{hop.hop}</DenseCell>
+              <DenseCell>
+                <div>{hop.ip || '*'}</div>
+                {hop.hostname ? (
+                  <div className="text-xs text-slate-500 dark:text-slate-400">{hop.hostname}</div>
+                ) : null}
+                {hop.geo ? (
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
+                    {[hop.geo.isp, hop.geo.country, hop.geo.region, hop.geo.city].filter(Boolean).join(' ')}
+                  </div>
+                ) : null}
+              </DenseCell>
+              <DenseCell align="right">
+                {hop.lossPercent !== undefined ? `${hop.lossPercent.toFixed(1)}%` : '-'}
+              </DenseCell>
+              <DenseCell align="right">{hop.sent ?? '-'}</DenseCell>
+              <DenseCell align="right">
+                {hop.avgRttMs !== undefined ? `${hop.avgRttMs.toFixed(1)} ${t('common.ms')}` : '-'}
+              </DenseCell>
+              <DenseCell align="right">
+                {hop.bestRttMs !== undefined || hop.worstRttMs !== undefined
+                  ? `${hop.bestRttMs?.toFixed(1) ?? '-'} / ${hop.worstRttMs?.toFixed(1) ?? '-'} ${t('common.ms')}`
+                  : '-'}
+              </DenseCell>
+              <DenseCell align="right">
+                {hop.stddevRttMs !== undefined ? `${hop.stddevRttMs.toFixed(1)} ${t('common.ms')}` : '-'}
+              </DenseCell>
+              <DenseCell align="right">
+                {hop.timeout ? t('common.timeout') : hop.ip ? t('home.route.arrived') : '-'}
+              </DenseCell>
+            </tr>
+          ))}
+        </tbody>
+      </DenseTable>
+    </DetailBlock>
+  )
+}
+
+function renderHTTPDetail(
+  resultData: unknown,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  const attempts = getHTTPAttempts(resultData)
+  if (!attempts.length) return null
+
+  return (
+    <DetailBlock title={t('results.httpDetail')}>
+      <DenseTable minWidthClassName="min-w-[1040px]">
+        <DenseTableHead>
+          <tr>
+            <DenseHeaderCell>{t('results.attempt')}</DenseHeaderCell>
+            <DenseHeaderCell align="right">{t('results.statusCode')}</DenseHeaderCell>
+            <DenseHeaderCell align="right">{t('singleResult.latency')}</DenseHeaderCell>
+            <DenseHeaderCell>{t('results.resolvedIP')}</DenseHeaderCell>
+            <DenseHeaderCell>{t('results.finalUrl')}</DenseHeaderCell>
+            <DenseHeaderCell align="right">{t('results.status')}</DenseHeaderCell>
+          </tr>
+        </DenseTableHead>
+        <tbody>
+          {attempts.map((attempt) => (
+            <tr key={`single-http-${attempt.seq ?? 0}`}>
+              <DenseCell>{attempt.seq ?? '-'}</DenseCell>
+              <DenseCell align="right">{attempt.statusCode ?? '-'}</DenseCell>
+              <DenseCell align="right">
+                {attempt.timeMs !== undefined ? `${attempt.timeMs.toFixed(1)} ${t('common.ms')}` : '-'}
+              </DenseCell>
+              <DenseCell mono>{attempt.resolvedIP || '-'}</DenseCell>
+              <DenseCell className="max-w-[320px] break-all text-slate-500 dark:text-slate-400">
+                {attempt.finalURL || '-'}
+              </DenseCell>
+              <DenseCell align="right">{statusText(attempt.status, t)}</DenseCell>
+            </tr>
+          ))}
+        </tbody>
+      </DenseTable>
+      <HttpHeadersGrid resultData={resultData} />
+    </DetailBlock>
   )
 }
 
@@ -191,8 +489,28 @@ function formatLatency(
   return value !== undefined ? `${value.toFixed(1)} ${t('common.ms')}` : '-'
 }
 
+function lossTextClass(value?: number) {
+  if (value === undefined) return ''
+  if (value === 0) return 'text-emerald-600 dark:text-emerald-400'
+  if (value < 5) return 'text-amber-600 dark:text-amber-400'
+  return 'text-rose-600 dark:text-rose-400'
+}
+
 function statusVariant(status?: string) {
   if (status === 'success' || status === 'completed') return 'success' as const
   if (status === 'failed' || status === 'timeout' || status === 'cancelled') return 'danger' as const
   return 'default' as const
+}
+
+function statusText(
+  status: string | undefined,
+  t: (key: string, options?: Record<string, unknown>) => string,
+) {
+  if (status === 'success' || status === 'completed') return t('common.success')
+  if (status === 'failed') return t('common.failed')
+  if (status === 'timeout') return t('common.timeout')
+  if (status === 'cancelled') return t('common.cancelled')
+  if (status === 'running') return t('common.running')
+  if (status === 'pending' || status === 'scheduling') return t('common.pending')
+  return status || t('common.unknown')
 }

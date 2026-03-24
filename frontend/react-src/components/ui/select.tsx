@@ -29,7 +29,7 @@ export function SelectField({
     <RadixSelect.Root value={value} onValueChange={onValueChange}>
       <RadixSelect.Trigger
         className={cn(
-          'inline-flex h-10 w-full items-center justify-between rounded-xl border border-slate-200 bg-white/80 px-3 text-sm text-slate-900 shadow-sm outline-none focus:ring-2 focus:ring-sky-400/30 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-100',
+          'inline-flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-sky-400/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100',
           className,
         )}
         data-testid={testId}
@@ -44,7 +44,7 @@ export function SelectField({
         <RadixSelect.Content
           position="popper"
           sideOffset={8}
-          className="z-[70] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft dark:border-slate-800 dark:bg-slate-950"
+          className="z-[70] min-w-[var(--radix-select-trigger-width)] overflow-hidden rounded-md border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950"
         >
           <RadixSelect.Viewport className="p-1.5">
             {options.map((option) => (
@@ -52,7 +52,7 @@ export function SelectField({
                 key={option.value}
                 value={option.value}
                 data-testid={option.testId}
-                className="relative flex cursor-pointer select-none items-center rounded-lg px-8 py-2 text-sm text-slate-700 outline-none data-[highlighted]:bg-slate-100 dark:text-slate-200 dark:data-[highlighted]:bg-slate-900"
+                className="relative flex cursor-pointer select-none items-center rounded-md px-8 py-2 text-sm text-slate-700 outline-none data-[highlighted]:bg-slate-100 dark:text-slate-200 dark:data-[highlighted]:bg-slate-900"
               >
                 <RadixSelect.ItemIndicator className="absolute left-2">
                   <Check className="h-4 w-4" />

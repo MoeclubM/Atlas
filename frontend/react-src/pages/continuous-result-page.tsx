@@ -1,11 +1,15 @@
 import ReactECharts from 'echarts-for-react'
 import {
   getAvgLatency,
+  getMaxLatency,
+  getMinLatency,
   getPacketLossPercent,
   getPacketLossStats,
   getResolvedIP,
+  getStddevLatency,
   getTargetNetworkInfo,
 } from '@/lib/result'
+import { getLatencyTextClass } from '@/lib/latency'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -13,8 +17,35 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  DenseCell,
+  DenseHeaderCell,
+  DenseTable,
+  DenseTableHead,
+  ProbeSummaryCell,
+  TargetNetworkCell,
+} from '@/components/common/result-table'
 import api from '@/lib/api-client'
 import { normalizeProbe, type ProbeRecord, type TaskInfo, type TaskResult } from '@/lib/domain'
+import { getProbeProviderLabel } from '@/lib/probe'
+
+type ContinuousStatRow = {
+  probe_id: string
+  probe_name: string
+  provider: string
+  location: string
+  test_count: number
+  last_latency?: number
+  avg_latency?: number
+  min_latency?: number
+  max_latency?: number
+  packet_loss?: number
+  stddev?: number
+  resolved_ip?: string
+  target_isp?: string
+  target_asn?: string
+  target_as_name?: string
+}
 
 export function ContinuousResultPage() {
   const { t } = useTranslation()
@@ -85,27 +116,66 @@ export function ContinuousResultPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>{t('singleResult.probeData')}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DenseTable minWidthClassName="min-w-[1180px]">
+            <DenseTableHead>
+              <tr>
+                <DenseHeaderCell>{t('home.probeLabel')}</DenseHeaderCell>
+                <DenseHeaderCell>{t('results.resolvedIP')}</DenseHeaderCell>
+                <DenseHeaderCell>{t('results.targetISP')}</DenseHeaderCell>
+                <DenseHeaderCell align="right">{t('results.loss')}</DenseHeaderCell>
+                <DenseHeaderCell align="right">{t('continuous.count')}</DenseHeaderCell>
+                <DenseHeaderCell align="right">{t('continuous.last')}</DenseHeaderCell>
+                <DenseHeaderCell align="right">{t('results.avg')}</DenseHeaderCell>
+                <DenseHeaderCell align="right">{t('results.min')}</DenseHeaderCell>
+                <DenseHeaderCell align="right">{t('results.max')}</DenseHeaderCell>
+                <DenseHeaderCell align="right">{t('continuous.stdev')}</DenseHeaderCell>
+              </tr>
+            </DenseTableHead>
+            <tbody>
+              {stats.map((row) => (
+                <tr key={row.probe_id} className="transition hover:bg-sky-50/55 dark:hover:bg-slate-900/80">
+                  <DenseCell>
+                    <ProbeSummaryCell location={row.location} provider={row.provider || row.probe_name} />
+                  </DenseCell>
+                  <DenseCell mono>{row.resolved_ip || '-'}</DenseCell>
+                  <DenseCell>
+                    <TargetNetworkCell
+                      isp={row.target_isp}
+                      asn={row.target_asn}
+                      asName={row.target_as_name}
+                    />
+                  </DenseCell>
+                  <DenseCell align="right" className={lossTextClass(row.packet_loss)}>
+                    {formatLoss(row.packet_loss)}
+                  </DenseCell>
+                  <DenseCell align="right">{row.test_count}</DenseCell>
+                  <DenseCell align="right" className={getLatencyTextClass(row.last_latency, 'success')}>
+                    {formatLatency(row.last_latency, t)}
+                  </DenseCell>
+                  <DenseCell align="right" className={getLatencyTextClass(row.avg_latency, 'success')}>
+                    {formatLatency(row.avg_latency, t)}
+                  </DenseCell>
+                  <DenseCell align="right">{formatLatency(row.min_latency, t)}</DenseCell>
+                  <DenseCell align="right">{formatLatency(row.max_latency, t)}</DenseCell>
+                  <DenseCell align="right">{formatLatency(row.stddev, t)}</DenseCell>
+                </tr>
+              ))}
+            </tbody>
+          </DenseTable>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>{t('continuous.latencyChart')}</CardTitle>
         </CardHeader>
         <CardContent>
           <ReactECharts option={chartOption} style={{ height: 360 }} />
         </CardContent>
       </Card>
-
-      <div className="grid gap-4">
-        {stats.map((row) => (
-          <Card key={row.probe_id}>
-            <CardContent className="grid gap-3 py-5 sm:grid-cols-2 xl:grid-cols-6">
-              <Metric label={t('admin.nodeName')} value={row.probe_name} />
-              <Metric label={t('admin.location')} value={row.location} />
-              <Metric label={t('results.resolvedIP')} value={row.resolved_ip || '-'} />
-              <Metric label={t('results.avg')} value={formatLatency(row.avg_latency, t)} />
-              <Metric label={t('results.loss')} value={formatLoss(row.packet_loss)} />
-              <Metric label={t('results.targetISP')} value={row.target_isp || '-'} />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
     </div>
   )
 }
@@ -142,7 +212,11 @@ function buildChartOption(
   }
 }
 
-function buildStats(results: TaskResult[], probeMap: Map<string, ProbeRecord>, target: string) {
+function buildStats(
+  results: TaskResult[],
+  probeMap: Map<string, ProbeRecord>,
+  target: string,
+): ContinuousStatRow[] {
   const grouped = new Map<string, TaskResult[]>()
   for (const result of results) {
     const current = grouped.get(result.probe_id) || []
@@ -150,49 +224,55 @@ function buildStats(results: TaskResult[], probeMap: Map<string, ProbeRecord>, t
     grouped.set(result.probe_id, current)
   }
 
-  return Array.from(grouped.entries()).map(([probeId, items]) => {
-    const probe = probeMap.get(probeId)
-    const latencies = items
-      .map((item) => getAvgLatency(item.summary, item.result_data))
-      .filter((value): value is number => value !== undefined)
-    const avgLatency = latencies.length
-      ? latencies.reduce((sum, current) => sum + current, 0) / latencies.length
-      : undefined
-    const lossStats = items.reduce(
-      (sum, item) => {
-        const next = getPacketLossStats(item.result_data)
-        if (next) {
-          sum.failed += next.failed
-          sum.total += next.total
-        }
-        return sum
-      },
-      { failed: 0, total: 0 },
-    )
-    const last = items[items.length - 1]
-    const targetNetwork = getTargetNetworkInfo(last?.summary, last?.result_data)
-    return {
-      probe_id: probeId,
-      probe_name: probe?.name || probeId,
-      location: probe?.location || '',
-      avg_latency: avgLatency,
-      packet_loss:
-        lossStats.total > 0
-          ? (lossStats.failed / lossStats.total) * 100
-          : getPacketLossPercent(last?.summary, last?.result_data),
-      resolved_ip: getResolvedIP(last?.summary, last?.result_data, target),
-      target_isp: targetNetwork.isp,
-    }
-  })
-}
+  return Array.from(grouped.entries())
+    .map(([probeId, items]) => {
+      const probe = probeMap.get(probeId)
+      const latencies = items
+        .map((item) => getAvgLatency(item.summary, item.result_data))
+        .filter((value): value is number => value !== undefined)
+      const last = items[items.length - 1]
+      const targetNetwork = getTargetNetworkInfo(last?.summary, last?.result_data)
+      const lossStats = items.reduce(
+        (sum, item) => {
+          const next = getPacketLossStats(item.result_data)
+          if (next) {
+            sum.failed += next.failed
+            sum.total += next.total
+          }
+          return sum
+        },
+        { failed: 0, total: 0 },
+      )
+      const avgLatency = latencies.length
+        ? latencies.reduce((sum, current) => sum + current, 0) / latencies.length
+        : undefined
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/60">
-      <div className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</div>
-      <div className="mt-2 text-sm">{value}</div>
-    </div>
-  )
+      return {
+        probe_id: probeId,
+        probe_name: probe?.name || probeId,
+        provider: getProbeProviderLabel(probe?.metadata),
+        location: probe?.location || '',
+        test_count: items.length,
+        last_latency: getAvgLatency(last?.summary, last?.result_data),
+        avg_latency: avgLatency,
+        min_latency: latencies.length ? Math.min(...latencies) : getMinLatency(last?.summary, last?.result_data),
+        max_latency: latencies.length ? Math.max(...latencies) : getMaxLatency(last?.summary, last?.result_data),
+        packet_loss:
+          lossStats.total > 0
+            ? (lossStats.failed / lossStats.total) * 100
+            : getPacketLossPercent(last?.summary, last?.result_data),
+        stddev: avgLatency !== undefined && latencies.length > 0
+          ? Math.sqrt(
+              latencies.reduce((sum, value) => sum + Math.pow(value - avgLatency, 2), 0) / latencies.length,
+            )
+          : getStddevLatency(last?.summary, last?.result_data),
+        resolved_ip: getResolvedIP(last?.summary, last?.result_data, target),
+        target_isp: targetNetwork.isp,
+        target_asn: targetNetwork.asn,
+        target_as_name: targetNetwork.asName,
+      } satisfies ContinuousStatRow
+    })
+    .sort((left, right) => left.location.localeCompare(right.location))
 }
 
 function formatLoss(value?: number) {
@@ -204,6 +284,13 @@ function formatLatency(
   t: (key: string, options?: Record<string, unknown>) => string,
 ) {
   return value !== undefined ? `${value.toFixed(1)} ${t('common.ms')}` : '-'
+}
+
+function lossTextClass(value?: number) {
+  if (value === undefined) return ''
+  if (value === 0) return 'text-emerald-600 dark:text-emerald-400'
+  if (value < 5) return 'text-amber-600 dark:text-amber-400'
+  return 'text-rose-600 dark:text-rose-400'
 }
 
 function statusVariant(status?: string) {

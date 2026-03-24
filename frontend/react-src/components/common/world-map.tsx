@@ -39,7 +39,7 @@ export function WorldMap({ probes, height = 420 }: { probes: ProbeMarker[]; heig
   if (!markers.length) return null
 
   return (
-    <div className="overflow-hidden rounded-[1.5rem] border border-slate-200/80 shadow-soft dark:border-slate-800/80">
+    <div className="overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700">
       <MapContainer
         center={[25, 5]}
         zoom={2}

@@ -273,7 +273,7 @@ export function AdminPage() {
                   </div>
 
                   {probe.latest_upgrade ? (
-                    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm dark:border-slate-800 dark:bg-slate-900/60">
+                    <div className="rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 text-sm dark:border-slate-700 dark:bg-slate-900">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-medium">{t('admin.latestUpgrade')}</span>
                         <Badge variant={getUpgradeStatusVariant(probe.latest_upgrade.status)}>
@@ -379,7 +379,7 @@ export function AdminPage() {
                 <CardDescription>{t('admin.installCommand')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 font-mono text-sm break-all dark:border-slate-800 dark:bg-slate-900/60">
+                <div className="rounded-lg border border-slate-300 bg-slate-50 p-4 font-mono text-sm break-all dark:border-slate-700 dark:bg-slate-900">
                   {wsUrl}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -522,7 +522,7 @@ function getUpgradeDisabledReason(
 
 function FieldValue({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-800 dark:bg-slate-900/60">
+    <div className="rounded-lg border border-slate-300 bg-slate-50 p-3 dark:border-slate-700 dark:bg-slate-900">
       <div className="text-xs uppercase tracking-[0.18em] text-slate-400">{label}</div>
       <div className={mono ? 'mt-2 break-all font-mono text-sm' : 'mt-2 text-sm'}>{value}</div>
     </div>

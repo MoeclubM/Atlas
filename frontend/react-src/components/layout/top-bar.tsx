@@ -35,15 +35,15 @@ export function TopBar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/20 bg-white/80 backdrop-blur dark:border-slate-900/70 dark:bg-slate-950/80">
+    <header className="sticky top-0 z-40 border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950">
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 md:px-6">
         <button
           type="button"
-          className="flex items-center gap-3 rounded-full px-2 py-1 text-left outline-none transition hover:bg-slate-100 dark:hover:bg-slate-900"
+          className="flex items-center gap-3 rounded-md px-2 py-1 text-left outline-none transition-colors hover:bg-slate-100 dark:hover:bg-slate-900"
           onClick={() => navigate('/test')}
           data-testid="topbar"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-600 text-sm font-bold text-white shadow-panel">
+          <span className="flex h-9 w-9 items-center justify-center rounded-md border border-sky-700 bg-sky-600 text-sm font-bold text-white">
             A
           </span>
           <div>
@@ -75,14 +75,14 @@ export function TopBar() {
               <DropdownMenu.Content
                 sideOffset={8}
                 align="end"
-                className="z-[70] min-w-40 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-soft dark:border-slate-800 dark:bg-slate-950"
+                className="z-[70] min-w-40 rounded-md border border-slate-300 bg-white p-1.5 dark:border-slate-700 dark:bg-slate-950"
               >
                 {localeItems.map((item) => (
                   <DropdownMenu.Item
                     key={item.value}
                     onClick={() => void handleLocaleChange(item.value)}
                     className={cn(
-                      'cursor-pointer rounded-xl px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-900',
+                      'cursor-pointer rounded-md px-3 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-900',
                       item.value === locale && 'bg-slate-100 dark:bg-slate-900',
                     )}
                   >
