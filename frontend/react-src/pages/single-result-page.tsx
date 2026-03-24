@@ -204,7 +204,7 @@ export function SingleResultPage() {
                     key={row.key}
                     main={
                       <tr
-                        className="cursor-pointer transition hover:bg-sky-50/55 dark:hover:bg-slate-900/80"
+                        className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900"
                         onClick={() =>
                           setExpandedProbeIds((current) =>
                             current.includes(row.probe_id)

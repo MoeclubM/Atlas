@@ -141,7 +141,7 @@ export function ContinuousResultPage() {
             </DenseTableHead>
             <tbody>
               {stats.map((row) => (
-                <tr key={row.probe_id} className="transition hover:bg-sky-50/55 dark:hover:bg-slate-900/80">
+                <tr key={row.probe_id} className="hover:bg-slate-50 dark:hover:bg-slate-900">
                   <DenseCell>
                     <ProbeSummaryCell location={row.location} provider={row.provider || row.probe_name} />
                   </DenseCell>

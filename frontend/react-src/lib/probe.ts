@@ -16,6 +16,16 @@ function getNonEmptyString(...values: unknown[]): string | undefined {
   return undefined
 }
 
+function joinUniqueStrings(values: Array<string | undefined>, separator: string): string | undefined {
+  const unique = values.filter((value, index, items): value is string => {
+    if (!value) return false
+    return items.indexOf(value) === index
+  })
+
+  if (!unique.length) return undefined
+  return unique.join(separator)
+}
+
 export type ProbeMetadataSummary = {
   version?: string
   providerLabel?: string
@@ -27,10 +37,12 @@ export type ProbeMetadataSummary = {
 
 export function getProbeMetadataSummary(metadataValue: unknown): ProbeMetadataSummary {
   const metadata = parseMaybeJSON(metadataValue)
+  const provider = getNonEmptyString(metadata['provider'], metadata['isp'])
+  const asn = getNonEmptyString(metadata['asn'])
 
   return {
     version: getNonEmptyString(metadata['version']),
-    providerLabel: getNonEmptyString(metadata['provider'], metadata['isp'], metadata['asn']),
+    providerLabel: joinUniqueStrings([provider, asn], ' / ') || asn,
     city: getNonEmptyString(metadata['city'], metadata['location_city']),
     country: getNonEmptyString(
       metadata['country'],

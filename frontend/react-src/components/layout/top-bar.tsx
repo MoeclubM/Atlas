@@ -39,11 +39,11 @@ export function TopBar() {
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 md:px-6">
         <button
           type="button"
-          className="flex items-center gap-3 rounded-md px-2 py-1 text-left outline-none transition-colors hover:bg-slate-100 dark:hover:bg-slate-900"
+          className="flex items-center gap-3 rounded-sm px-2 py-1 text-left outline-none"
           onClick={() => navigate('/test')}
           data-testid="topbar"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-md border border-sky-700 bg-sky-600 text-sm font-bold text-white">
+          <span className="flex h-9 w-9 items-center justify-center rounded-sm border border-slate-300 bg-white text-sm font-bold text-slate-900 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100">
             A
           </span>
           <div>

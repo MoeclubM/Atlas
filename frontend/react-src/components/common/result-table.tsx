@@ -34,7 +34,7 @@ export function DenseTable({
   minWidthClassName = 'min-w-[1100px]',
 }: DenseTableProps) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950">
+    <div className="overflow-x-auto rounded-sm border border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-950">
       <table className={cn('w-full border-collapse text-sm', minWidthClassName, className)}>
         {children}
       </table>

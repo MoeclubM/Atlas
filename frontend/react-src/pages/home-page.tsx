@@ -65,6 +65,8 @@ export function HomePage() {
   const [expandedProbeIds, setExpandedProbeIds] = useState<string[]>([])
   const [filterKeyword, setFilterKeyword] = useState('')
   const [mtrData, setMTRData] = useState<Record<string, MTRResultData>>({})
+  const [autoMTRLoadingProbeIds, setAutoMTRLoadingProbeIds] = useState<string[]>([])
+  const [autoMTRErrors, setAutoMTRErrors] = useState<Record<string, string>>({})
   const [tracerouteData, setTracerouteData] = useState<Record<string, TracerouteResultData>>({})
   const [httpData, setHTTPData] = useState<Record<string, unknown>>({})
   const [samples, setSamples] = useState<Record<string, Array<number | null>>>({})
@@ -171,6 +173,8 @@ export function HomePage() {
     setExpandedProbeIds([])
     setSamples({})
     setMTRData({})
+    setAutoMTRLoadingProbeIds([])
+    setAutoMTRErrors({})
     setTracerouteData({})
     setHTTPData({})
 
@@ -268,6 +272,91 @@ export function HomePage() {
     setCurrentTaskId('')
   }
 
+  async function ensureAutoMTR(probeId: string) {
+    if (testType !== 'icmp_ping' && testType !== 'tcp_ping') return
+    if (mtrData[probeId] || autoMTRLoadingProbeIds.includes(probeId)) return
+
+    const probe = probesMap.get(probeId)
+    if (!probe || !probeSupportsTaskType(probe, 'mtr')) {
+      setAutoMTRErrors((current) => ({
+        ...current,
+        [probeId]: String(t('results.autoMtrUnsupported')),
+      }))
+      return
+    }
+
+    const resolvedTarget =
+      rawResultsRef.current.find((item) => item.probe_id === probeId)?.target || target.trim()
+    if (!resolvedTarget) return
+
+    setAutoMTRErrors((current) => {
+      const next = { ...current }
+      delete next[probeId]
+      return next
+    })
+    setAutoMTRLoadingProbeIds((current) =>
+      current.includes(probeId) ? current : [...current, probeId],
+    )
+
+    try {
+      const task = await api.post<{ task_id: string }>('/tasks', {
+        task_type: 'mtr',
+        mode: 'single',
+        target: resolvedTarget,
+        ip_version: ipVersion,
+        parameters: {
+          ip_version: ipVersion,
+          count: 4,
+        },
+        assigned_probes: [probeId],
+        priority: 5,
+      })
+
+      for (let attempt = 0; attempt < 30; attempt += 1) {
+        const detail = await api.get<TaskDetailResponse>(`/tasks/${task.task_id}`)
+        const result = (detail.results || []).find((item) => item.probe_id === probeId)
+        const parsed = result ? getMTRResult(result.result_data) : undefined
+
+        if (parsed?.hops?.length) {
+          setMTRData((current) => ({
+            ...current,
+            [probeId]: parsed,
+          }))
+          return
+        }
+
+        if (
+          detail.task?.status === 'completed' ||
+          detail.task?.status === 'failed' ||
+          detail.task?.status === 'cancelled'
+        ) {
+          setAutoMTRErrors((current) => ({
+            ...current,
+            [probeId]:
+              detail.task?.status === 'completed'
+                ? String(t('results.noMtrData'))
+                : String(t('results.autoMtrFailed')),
+          }))
+          return
+        }
+
+        await new Promise((resolve) => window.setTimeout(resolve, 1000))
+      }
+
+      setAutoMTRErrors((current) => ({
+        ...current,
+        [probeId]: String(t('results.autoMtrFailed')),
+      }))
+    } catch {
+      setAutoMTRErrors((current) => ({
+        ...current,
+        [probeId]: String(t('results.autoMtrFailed')),
+      }))
+    } finally {
+      setAutoMTRLoadingProbeIds((current) => current.filter((id) => id !== probeId))
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Card>
@@ -314,7 +403,7 @@ export function HomePage() {
             </div>
           </div>
           {supportsProbeSelection ? (
-            <div className="rounded-lg border border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
+            <div className="rounded-sm border border-slate-300 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-900">
               <div className="mb-3 text-sm font-medium">{t('home.probeLabel')}</div>
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {routeCapableProbes.map((probe) => {
@@ -322,7 +411,7 @@ export function HomePage() {
                   return (
                     <label
                       key={probe.probe_id}
-                      className="flex cursor-pointer items-start gap-3 rounded-md border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-950"
+                      className="flex cursor-pointer items-start gap-3 rounded-sm border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-950"
                     >
                       <Checkbox
                         checked={checked}
@@ -391,21 +480,27 @@ export function HomePage() {
                   {filteredResults.map((result) => {
                     const isExpanded = expandedProbeIds.includes(result.probe_id)
                     const resultAttempts = getHTTPAttempts(httpData[result.probe_id])
+                    const autoMTRLoading = autoMTRLoadingProbeIds.includes(result.probe_id)
+                    const autoMTRError = autoMTRErrors[result.probe_id]
 
                     return (
                       <FragmentRow
                         key={result.probe_id}
                         main={
                           <tr
-                            className="cursor-pointer transition hover:bg-sky-50/55 dark:hover:bg-slate-900/80"
+                            className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900"
                             data-testid="home-result-row"
-                            onClick={() =>
+                            onClick={() => {
+                              const willExpand = !expandedProbeIds.includes(result.probe_id)
                               setExpandedProbeIds((current) =>
                                 current.includes(result.probe_id)
                                   ? current.filter((item) => item !== result.probe_id)
                                   : [...current, result.probe_id],
                               )
-                            }
+                              if (willExpand) {
+                                void ensureAutoMTR(result.probe_id)
+                              }
+                            }}
                           >
                             <DenseCell>
                               <ProbeSummaryCell
@@ -472,9 +567,21 @@ export function HomePage() {
                                   {renderTraceroute(tracerouteData[result.probe_id], t)}
                                   {renderMTR(mtrData[result.probe_id], t)}
                                   {renderHTTP(httpData[result.probe_id], t)}
+                                  {autoMTRLoading ? (
+                                    <div className="text-sm text-slate-500 dark:text-slate-400">
+                                      {t('results.autoMtrLoading')}
+                                    </div>
+                                  ) : null}
+                                  {autoMTRError ? (
+                                    <div className="text-sm text-rose-600 dark:text-rose-300">
+                                      {autoMTRError}
+                                    </div>
+                                  ) : null}
                                   {!tracerouteData[result.probe_id] &&
                                   !mtrData[result.probe_id] &&
-                                  resultAttempts.length === 0 ? (
+                                  resultAttempts.length === 0 &&
+                                  !autoMTRLoading &&
+                                  !autoMTRError ? (
                                     <div className="text-sm text-slate-500 dark:text-slate-400">
                                       {testType === 'http_test'
                                         ? t('results.noHttpData')
@@ -494,7 +601,7 @@ export function HomePage() {
                 </tbody>
               </DenseTable>
             ) : (
-              <div className="rounded-[1.25rem] border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              <div className="rounded-sm border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 {t('home.noMatchedResults')}
               </div>
             )}

@@ -7,6 +7,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 export default [
   {
     ignores: [
+      'coverage/**',
       'dist/**',
       'node_modules/**',
       'playwright-report/**',
@@ -14,7 +15,7 @@ export default [
     ],
   },
   {
-    files: ['react-src/**/*.{ts,tsx}', 'tests/**/*.ts'],
+    files: ['react-src/**/*.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
     languageOptions: {
       parser: tsParser,
       ecmaVersion: 'latest',

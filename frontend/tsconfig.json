@@ -30,7 +30,9 @@
     "react-src/**/*.ts",
     "react-src/**/*.tsx",
     "react-src/**/*.d.ts",
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
+    "vitest.config.ts"
   ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
