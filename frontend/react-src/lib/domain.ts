@@ -1,4 +1,9 @@
-import { getProbeMetadataSummary, normalizeProbeCoordinates } from '@/lib/probe'
+import {
+  getProbeMetadataSummary,
+  getProbeSystemSupportSummary,
+  normalizeProbeCoordinates,
+  type ProbeSystemSupportSummary,
+} from '@/lib/probe'
 
 export type DisplayTaskStatus =
   | 'idle'
@@ -25,6 +30,7 @@ export type ProbeRecord = {
   deploy_mode?: string
   upgrade_channel?: string
   latest_upgrade?: AdminProbeUpgrade | null
+  system_support?: unknown
 }
 
 export type TaskInfo = {
@@ -63,6 +69,7 @@ export type AdminProbeRow = ProbeRecord & {
   upgrade_reason?: string
   deploy_mode?: string
   upgrade_channel?: string
+  system_support: ProbeSystemSupportSummary
 }
 
 export type AdminConfig = {
@@ -108,6 +115,7 @@ export function probeSupportsTaskType(probe: ProbeRecord, taskTypeValue: string)
 
 export function buildAdminProbeRow(probe: ProbeRecord): AdminProbeRow {
   const metadata = getProbeMetadataSummary(probe.metadata)
+  const systemSupport = getProbeSystemSupportSummary(probe.system_support, probe.metadata)
 
   return {
     ...normalizeProbe(probe),
@@ -118,6 +126,7 @@ export function buildAdminProbeRow(probe: ProbeRecord): AdminProbeRow {
     deploy_mode: typeof probe.deploy_mode === 'string' ? probe.deploy_mode : '',
     upgrade_channel: typeof probe.upgrade_channel === 'string' ? probe.upgrade_channel : '',
     latest_upgrade: probe.latest_upgrade || null,
+    system_support: systemSupport,
   }
 }
 

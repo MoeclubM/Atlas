@@ -4,7 +4,6 @@ import (
 	"flag"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 
@@ -13,40 +12,6 @@ import (
 	"atlas/probe/internal/geoip"
 	"atlas/probe/internal/manager"
 )
-
-func hasCommand(name string) bool {
-	_, err := exec.LookPath(name)
-	return err == nil
-}
-
-func filterCapabilities(caps []string) []string {
-	filtered := make([]string, 0, len(caps))
-	for _, c := range caps {
-		switch c {
-		case "icmp_ping":
-			if hasCommand("ping") {
-				filtered = append(filtered, c)
-			}
-		case "tcp_ping":
-			filtered = append(filtered, c)
-		case "traceroute":
-			if hasCommand("traceroute") {
-				filtered = append(filtered, c)
-			}
-		case "mtr":
-			if hasCommand("mtr") {
-				filtered = append(filtered, c)
-			}
-		case "bird_route":
-			if hasCommand("birdc") {
-				filtered = append(filtered, c)
-			}
-		default:
-			filtered = append(filtered, c)
-		}
-	}
-	return filtered
-}
 
 func main() {
 	log.Println("=== Atlas Probe ===")
@@ -77,8 +42,22 @@ func main() {
 	if !seen["mtr"] {
 		caps = append(caps, "mtr")
 	}
-	cfg.Capabilities = filterCapabilities(caps)
+	systemSupport := manager.DetectSystemSupport()
+	cfg.Capabilities = manager.FilterCapabilitiesBySupport(caps, systemSupport)
 	log.Printf("Capabilities: %v", cfg.Capabilities)
+	log.Printf(
+		"System support: platform=%s raw_icmp_ipv4=%t raw_icmp_ipv6=%t bird_route=%t",
+		systemSupport.Platform,
+		systemSupport.RawICMPIPv4,
+		systemSupport.RawICMPIPv6,
+		systemSupport.BirdRoute,
+	)
+	if reason := systemSupport.RawICMPReason(); reason != "" {
+		log.Printf("Raw ICMP limitation: %s", reason)
+	}
+	if reason := systemSupport.BirdRouteReason; reason != "" {
+		log.Printf("BIRD limitation: %s", reason)
+	}
 
 	// 自动获取IP和地理位置信息
 	log.Println("Auto-detecting IP and geolocation...")

@@ -34,6 +34,19 @@ function createProbe(probeId: string, overrides: Partial<ProbeRecord> = {}): Pro
     upgrade_supported: true,
     deploy_mode: 'systemd',
     upgrade_channel: 'queue_dir',
+    system_support: {
+      reported: true,
+      platform: 'linux/amd64',
+      raw_icmp_ipv4: true,
+      raw_icmp_ipv6: true,
+      icmp_ping: true,
+      tcp_ping: true,
+      http_test: true,
+      traceroute: true,
+      mtr: true,
+      bird_route: true,
+      bird_socket_path: '/run/bird.ctl',
+    },
     metadata: {
       provider: `${probeId}-isp`,
       version: 'v1.0.0',
@@ -164,12 +177,16 @@ describe('AdminPage', () => {
       route: '/admin',
     })
 
+    expect(await screen.findByTestId('admin-nodes-table')).toBeInTheDocument()
     expect(await screen.findByText('Tokyo Node')).toBeInTheDocument()
     expect(screen.getByText('boom')).toBeInTheDocument()
     expect(screen.getByText('admin.upgradeStates.applied')).toBeInTheDocument()
     expect(screen.getByText('admin.upgradeStates.accepted')).toBeInTheDocument()
     expect(screen.getByText('admin.upgradeStates.mystery')).toBeInTheDocument()
     expect(screen.getByText('no systemd')).toBeInTheDocument()
+    expect(
+      within(screen.getByTestId('admin-node-row-p1')).getByText('home.typeNames.icmp_ping')
+    ).toBeInTheDocument()
     expect(screen.getAllByText('admin.upgrade')[1]).toBeDisabled()
 
     const nameInputs = screen.getAllByLabelText('admin.nodeName')
@@ -258,6 +275,7 @@ describe('AdminPage', () => {
       route: '/admin',
     })
 
+    expect(await screen.findByTestId('admin-node-row-p1')).toBeInTheDocument()
     expect(await screen.findByText('Cancel Node')).toBeInTheDocument()
 
     await user.click(screen.getByText('admin.upgrade'))
@@ -317,6 +335,7 @@ describe('AdminPage', () => {
       route: '/admin',
     })
 
+    expect(await screen.findByTestId('admin-node-row-p1')).toBeInTheDocument()
     expect(await screen.findByText('Error Node')).toBeInTheDocument()
 
     await user.click(screen.getByText('common.save'))

@@ -24,6 +24,7 @@ import {
 import {
   getProbeMetadataSummary,
   getProbeProviderLabel,
+  getProbeSystemSupportSummary,
   normalizeProbeCoordinates,
 } from '@/lib/probe'
 import {
@@ -138,6 +139,32 @@ describe('probe and domain helpers', () => {
         metadata: { latitude: '1.1', longitude: '2.2' },
       })
     ).toMatchObject({ latitude: 1.1, longitude: 2.2 })
+
+    expect(
+      getProbeSystemSupportSummary(
+        {
+          reported: true,
+          platform: 'linux/amd64',
+          raw_icmp_ipv4: true,
+          raw_icmp_ipv6: false,
+          icmp_ping: true,
+          tcp_ping: true,
+          http_test: true,
+          traceroute: true,
+          mtr: true,
+          bird_route: false,
+          bird_route_reason: 'bird control socket not found',
+        },
+        null
+      )
+    ).toMatchObject({
+      reported: true,
+      platform: 'linux/amd64',
+      rawICMPIPv4: true,
+      rawICMPIPv6: false,
+      birdRoute: false,
+      birdRouteReason: 'bird control socket not found',
+    })
   })
 
   it('normalizes probe capabilities and admin probe rows', () => {
@@ -154,6 +181,18 @@ describe('probe and domain helpers', () => {
       upgrade_reason: 'ok',
       deploy_mode: 'systemd',
       upgrade_channel: 'stable',
+      system_support: {
+        reported: true,
+        platform: 'linux/amd64',
+        raw_icmp_ipv4: true,
+        raw_icmp_ipv6: true,
+        icmp_ping: true,
+        tcp_ping: true,
+        http_test: true,
+        traceroute: true,
+        mtr: true,
+        bird_route: true,
+      },
       metadata: JSON.stringify({
         version: 'v2.0.0',
         provider: 'Cloud-A',
@@ -182,6 +221,18 @@ describe('probe and domain helpers', () => {
       upgrade_reason: 'ok',
       deploy_mode: 'systemd',
       upgrade_channel: 'stable',
+      system_support: {
+        reported: true,
+        platform: 'linux/amd64',
+        rawICMPIPv4: true,
+        rawICMPIPv6: true,
+        icmpPing: true,
+        tcpPing: true,
+        httpTest: true,
+        traceroute: true,
+        mtr: true,
+        birdRoute: true,
+      },
     })
     expect(parseAssignedProbes('["p1","p2"]')).toEqual(['p1', 'p2'])
     expect(parseAssignedProbes('bad')).toEqual([])

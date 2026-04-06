@@ -130,6 +130,7 @@ func (c *Client) register() error {
 		"arch":    runtime.GOARCH,
 		"version": Version,
 	}
+	manager.DetectSystemSupport().ApplyMetadata(metadata)
 
 	upgradeCfg := detectRemoteUpgradeConfig()
 	metadata["deploy_mode"] = upgradeCfg.DeployMode
