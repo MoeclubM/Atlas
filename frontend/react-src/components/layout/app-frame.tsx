@@ -11,7 +11,6 @@ const routeTitles: Array<{ match: RegExp; key: string }> = [
   { match: /^\/test/, key: 'route.continuousTest' },
   { match: /^\/admin/, key: 'route.admin' },
   { match: /^\/results\/single\//, key: 'route.singleResult' },
-  { match: /^\/results\/continuous\//, key: 'route.continuousResult' },
   { match: /^\/login/, key: 'route.login' },
 ]
 

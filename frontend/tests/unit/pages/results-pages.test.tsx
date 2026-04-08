@@ -1,7 +1,6 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ContinuousResultPage } from '@/pages/continuous-result-page'
 import { SingleResultPage } from '@/pages/single-result-page'
 import type { ProbeRecord, TaskResult } from '@/lib/domain'
 import { renderRoute } from '../test-utils'
@@ -20,15 +19,13 @@ vi.mock('@/lib/api-client', () => ({
 }))
 
 vi.mock('@/components/common/world-map', () => ({
-  WorldMap: ({ probes }: { probes: unknown[] }) => (
-    <div data-testid="world-map">{`markers:${probes.length}`}</div>
-  ),
-}))
-
-vi.mock('echarts-for-react', () => ({
-  default: ({ option }: { option: { series?: unknown[] } }) => (
-    <div data-testid="echarts">{`series:${option.series?.length ?? 0}`}</div>
-  ),
+  WorldMap: ({
+    probes = [],
+    routes = [],
+  }: {
+    probes?: unknown[]
+    routes?: Array<{ points?: unknown[] }>
+  }) => <div data-testid="world-map">{`markers:${probes.length};routes:${routes.length}`}</div>,
 }))
 
 function createProbe(probeId: string, overrides: Partial<ProbeRecord> = {}): ProbeRecord {
@@ -129,7 +126,7 @@ describe('result pages', () => {
 
     expect(await screen.findByText('Tokyo')).toBeInTheDocument()
     expect(screen.getByText('Osaka')).toBeInTheDocument()
-    expect(screen.getByTestId('world-map')).toHaveTextContent('markers:2')
+    expect(screen.getByTestId('world-map')).toHaveTextContent('markers:2;routes:0')
 
     await user.click(screen.getByText('Tokyo'))
     expect(await screen.findByText('results.tracerouteDetail')).toBeInTheDocument()
@@ -177,7 +174,12 @@ describe('result pages', () => {
       if (url === '/probes') {
         return {
           probes: [
-            createProbe('mtr', { name: 'Delhi MTR', location: 'Delhi', latitude: null, longitude: null }),
+            createProbe('mtr', {
+              name: 'Delhi MTR',
+              location: 'Delhi',
+              latitude: null,
+              longitude: null,
+            }),
           ],
         }
       }
@@ -198,6 +200,53 @@ describe('result pages', () => {
 
     await user.click(screen.getByText('common.unknown'))
     expect(await screen.findByText('results.noRouteData')).toBeInTheDocument()
+  })
+
+  it('renders a traceroute route map when the task is traceroute', async () => {
+    const user = userEvent.setup()
+
+    apiMock.get.mockImplementation(async (url: string) => {
+      if (url === '/tasks/task-single-trace') {
+        return {
+          task: { task_id: 'task-single-trace', status: 'completed', task_type: 'traceroute' },
+          results: [
+            createResult('trace-only', {
+              test_type: 'traceroute',
+              result_data: {
+                hops: [
+                  {
+                    hop: 1,
+                    ip: '10.0.0.1',
+                    hostname: 'router',
+                    rtts: [1.1, 1.2],
+                    geo: { isp: 'ISP-A', country: 'JP', latitude: 35.68, longitude: 139.76 },
+                  },
+                ],
+                total_hops: 1,
+                success: true,
+              },
+            }),
+          ],
+        }
+      }
+      if (url === '/probes') {
+        return {
+          probes: [createProbe('trace-only', { name: 'Tokyo Trace', location: 'Tokyo' })],
+        }
+      }
+      throw new Error(`unexpected GET ${url}`)
+    })
+
+    renderRoute(<SingleResultPage />, {
+      path: '/results/single/:id',
+      route: '/results/single/task-single-trace',
+    })
+
+    expect(await screen.findByText('Tokyo')).toBeInTheDocument()
+    expect(screen.getByTestId('world-map')).toHaveTextContent('markers:0;routes:1')
+
+    await user.click(screen.getByText('Tokyo'))
+    expect(await screen.findByText('results.tracerouteDetail')).toBeInTheDocument()
   })
 
   it('collapses expanded single-result rows and navigates back to the test workspace', async () => {
@@ -237,122 +286,5 @@ describe('result pages', () => {
 
     await user.click(screen.getByText('common.back'))
     expect(await screen.findByTestId('route-test')).toBeInTheDocument()
-  })
-
-  it('renders continuous statistics, chart series and stops running tasks', async () => {
-    const user = userEvent.setup()
-
-    apiMock.get.mockImplementation(async (url: string) => {
-      if (url === '/tasks/task-continuous') {
-        return {
-          task: {
-            task_id: 'task-continuous',
-            target: 'example.com',
-            status: 'running',
-          },
-        }
-      }
-      if (url === '/results') {
-        return {
-          results: [
-            createResult('p1', {
-              summary: { avg_rtt_ms: 20, min_rtt_ms: 10, max_rtt_ms: 30 },
-              result_data: {
-                packets_sent: 4,
-                packets_received: 4,
-                resolved_ip: '1.1.1.1',
-                target_isp: 'ISP-A',
-              },
-              created_at: '2026-03-24T00:00:00Z',
-            }),
-            createResult('p1', {
-              summary: { avg_rtt_ms: 30, min_rtt_ms: 12, max_rtt_ms: 36 },
-              result_data: {
-                packets_sent: 4,
-                packets_received: 3,
-                resolved_ip: '1.1.1.1',
-                target_isp: 'ISP-A',
-              },
-              created_at: '2026-03-24T00:01:00Z',
-            }),
-            createResult('p2', {
-              summary: { avg_rtt_ms: 50, min_rtt_ms: 40, max_rtt_ms: 60 },
-              result_data: {
-                packets_sent: 4,
-                packets_received: 4,
-                resolved_ip: '2.2.2.2',
-                target_isp: 'ISP-B',
-              },
-              created_at: '2026-03-24T00:02:00Z',
-            }),
-          ],
-        }
-      }
-      if (url === '/probes') {
-        return {
-          probes: [
-            createProbe('p1', { name: 'Tokyo Node', location: 'Tokyo' }),
-            createProbe('p2', { name: 'Seoul Node', location: 'Seoul' }),
-          ],
-        }
-      }
-      throw new Error(`unexpected GET ${url}`)
-    })
-    apiMock.delete.mockResolvedValue({ success: true })
-
-    renderRoute(<ContinuousResultPage />, {
-      path: '/results/continuous/:id',
-      route: '/results/continuous/task-continuous',
-    })
-
-    expect(await screen.findByText('Tokyo')).toBeInTheDocument()
-    expect(screen.getByText('Seoul')).toBeInTheDocument()
-    expect(screen.getByTestId('echarts')).toHaveTextContent('series:2')
-    expect(screen.getByText('running')).toBeInTheDocument()
-
-    await user.click(screen.getByText('home.stopTest'))
-    await waitFor(() => expect(apiMock.delete).toHaveBeenCalledWith('/tasks/task-continuous'))
-  })
-
-  it('renders completed continuous tasks with fallback probe names and hidden stop action', async () => {
-    apiMock.get.mockImplementation(async (url: string) => {
-      if (url === '/tasks/task-complete') {
-        return {
-          task: {
-            task_id: 'task-complete',
-            target: 'example.com',
-            status: 'cancelled',
-          },
-        }
-      }
-      if (url === '/results') {
-        return {
-          results: [
-            createResult('ghost', {
-              status: 'failed',
-              summary: {},
-              result_data: {
-                packet_loss_percent: 50,
-              },
-              created_at: undefined,
-            }),
-          ],
-        }
-      }
-      if (url === '/probes') {
-        return { probes: [] }
-      }
-      throw new Error(`unexpected GET ${url}`)
-    })
-
-    renderRoute(<ContinuousResultPage />, {
-      path: '/results/continuous/:id',
-      route: '/results/continuous/task-complete',
-    })
-
-    expect(await screen.findByText('ghost')).toBeInTheDocument()
-    expect(screen.getByText('cancelled')).toBeInTheDocument()
-    expect(screen.queryByText('home.stopTest')).not.toBeInTheDocument()
-    expect(screen.getByTestId('echarts')).toHaveTextContent('series:1')
   })
 })

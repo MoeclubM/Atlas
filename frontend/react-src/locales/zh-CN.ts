@@ -3,7 +3,6 @@ export default {
     continuousTest: '持续监控',
     admin: '后台管理',
     singleResult: '测试结果',
-    continuousResult: '持续监控结果',
     login: '登录',
   },
   common: {

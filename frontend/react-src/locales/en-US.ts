@@ -3,7 +3,6 @@ export default {
     continuousTest: 'Continuous Monitor',
     admin: 'Admin',
     singleResult: 'Results',
-    continuousResult: 'Continuous Results',
     login: 'Login',
   },
   common: {
