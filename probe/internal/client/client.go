@@ -27,6 +27,7 @@ type Client struct {
 	config      *config.Config
 	taskManager *manager.Manager
 	probeID     string
+	support     manager.SystemSupport
 
 	connMu sync.RWMutex
 	conn   *websocket.Conn
@@ -38,7 +39,7 @@ type Client struct {
 }
 
 // New 创建新的客户端
-func New(cfg *config.Config, taskMgr *manager.Manager) *Client {
+func New(cfg *config.Config, taskMgr *manager.Manager, support manager.SystemSupport) *Client {
 	probeID, err := loadOrCreateStableProbeID()
 	if err != nil {
 		log.Printf("[Client] Warning: failed to persist probe_id: %v, using UUID", err)
@@ -49,6 +50,7 @@ func New(cfg *config.Config, taskMgr *manager.Manager) *Client {
 		config:      cfg,
 		taskManager: taskMgr,
 		probeID:     probeID,
+		support:     support,
 		stopChan:    make(chan struct{}),
 	}
 }
@@ -130,7 +132,7 @@ func (c *Client) register() error {
 		"arch":    runtime.GOARCH,
 		"version": Version,
 	}
-	manager.DetectSystemSupport().ApplyMetadata(metadata)
+	c.support.ApplyMetadata(metadata)
 
 	upgradeCfg := detectRemoteUpgradeConfig()
 	metadata["deploy_mode"] = upgradeCfg.DeployMode

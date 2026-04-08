@@ -96,7 +96,7 @@ func main() {
 	taskManager.Start()
 
 	// 创建WebSocket客户端
-	wsClient := client.New(cfg, taskManager)
+	wsClient := client.New(cfg, taskManager, systemSupport)
 
 	// 连接到服务端
 	if err := wsClient.Connect(); err != nil {

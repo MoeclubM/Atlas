@@ -47,11 +47,6 @@ func executeBirdRoute(target string, params map[string]interface{}) (*protocol.B
 	}, nil
 }
 
-func BirdControlSocketAvailable() bool {
-	_, err := resolveBirdSocketPath(nil)
-	return err == nil
-}
-
 func resolveBirdSocketPath(params map[string]interface{}) (string, error) {
 	candidates := make([]string, 0, len(defaultBirdSocketCandidates)+3)
 
