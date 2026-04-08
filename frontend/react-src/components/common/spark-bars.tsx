@@ -25,11 +25,11 @@ export function SparkBars({
   }
 
   const scale = buildLatencyScale(samples)
+  const barWidth = 90 / samples.length
   return (
     <svg viewBox="0 0 90 24" className="h-6 w-[90px]">
       {samples.map((sample, index) => {
-        const x = (index / samples.length) * 90
-        const width = Math.max(1, 90 / samples.length)
+        const x = index * barWidth
         const scaleFloor = scale?.floor ?? 0
         const scaleCeiling = scale?.ceiling ?? Math.max(sample ?? 1, 1)
         const scaleRange = Math.max(1, scaleCeiling - scaleFloor)
@@ -43,7 +43,7 @@ export function SparkBars({
             key={`spark-${index}`}
             x={x}
             y={24 - barHeight}
-            width={width}
+            width={barWidth}
             height={barHeight}
             fill={sample === null ? getLatencyHex(undefined, 'failed') : getLatencyHex(sample, 'success')}
           />

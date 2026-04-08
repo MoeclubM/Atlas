@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { CircleMarker, MapContainer, Polyline, Popup, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import { useAppStore } from '@/state/app-store'
@@ -24,8 +24,10 @@ function FitBounds({
   routes: WorldMapRoute[]
 }) {
   const map = useMap()
+  const hasFitted = useRef(false)
 
   useEffect(() => {
+    if (hasFitted.current) return
     const coordinates = [
       ...markers.map(marker => [marker.latitude, marker.longitude] as [number, number]),
       ...routes.flatMap(route =>
@@ -36,6 +38,7 @@ function FitBounds({
     const bounds = L.latLngBounds(coordinates)
     if (!bounds.isValid()) return
     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 6 })
+    hasFitted.current = true
   }, [map, markers, routes])
 
   return null
@@ -68,7 +71,7 @@ export function WorldMap({
       <MapContainer
         center={[25, 5]}
         zoom={2}
-        scrollWheelZoom={false}
+        scrollWheelZoom
         style={{ height: `${height}px`, width: '100%' }}
       >
         <TileLayer attribution="&copy; OpenStreetMap contributors" url={tileUrl} />
