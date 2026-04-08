@@ -1,43 +1,18 @@
 package handler
 
 import (
-	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/gin-gonic/gin"
+
+	"atlas/shared/protocol"
+	"atlas/web/internal/model"
 )
-
-func TestNormalizeRequestedUpgradeVersion(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    string
-		wantErr bool
-	}{
-		{name: "already prefixed", input: "v1.2.3", want: "v1.2.3"},
-		{name: "missing prefix", input: "1.2.3", want: "v1.2.3"},
-		{name: "invalid", input: "release candidate", wantErr: true},
-		{name: "empty", input: "", wantErr: true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := normalizeRequestedUpgradeVersion(tt.input)
-			if tt.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got != tt.want {
-				t.Fatalf("expected %q, got %q", tt.want, got)
-			}
-		})
-	}
-}
 
 func TestParseProbeMetadataInfoFallbackReason(t *testing.T) {
 	info := parseProbeMetadataInfo(`{"deploy_mode":"dev-docker","upgrade_supported":"false"}`)
@@ -95,47 +70,125 @@ func TestParseProbeMetadataInfoSystemSupport(t *testing.T) {
 	}
 }
 
-func TestResolveLatestProbeVersionFromReleasePage(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/MoeclubM/Atlas/releases/latest" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		http.Redirect(w, r, "/MoeclubM/Atlas/releases/tag/v0.1.11", http.StatusFound)
-	}))
-	defer server.Close()
+func TestUpgradeProbeQueuesLatestCommandWithoutVersion(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 
-	version, err := resolveLatestProbeVersionFromReleasePage(
-		context.Background(),
-		server.URL+"/MoeclubM/Atlas/releases/latest",
-		server.Client(),
-	)
-	if err != nil {
-		t.Fatalf("resolveLatestProbeVersionFromReleasePage returned error: %v", err)
+	db := newTaskHandlerTestDB(t)
+	if err := db.SaveProbe(&model.Probe{
+		ProbeID:       "probe-upgrade-latest",
+		Name:          "probe-upgrade-latest",
+		Location:      "Test Lab",
+		Region:        "test",
+		Capabilities:  `["icmp_ping"]`,
+		Status:        "online",
+		LastHeartbeat: time.Now(),
+		Metadata:      `{"version":"v1.0.0","upgrade_supported":"true","deploy_mode":"systemd","upgrade_channel":"queue_dir"}`,
+	}); err != nil {
+		t.Fatalf("SaveProbe failed: %v", err)
 	}
-	if version != "v0.1.11" {
-		t.Fatalf("expected v0.1.11, got %q", version)
+
+	var sentProbeID string
+	var sentMessage protocol.ProbeUpgradeMessage
+	handler := &AdminHandler{
+		db: db,
+		sendProbeUpgrade: func(probeID string, message protocol.ProbeUpgradeMessage) error {
+			sentProbeID = probeID
+			sentMessage = message
+			return nil
+		},
+	}
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Params = gin.Params{{Key: "id", Value: "probe-upgrade-latest"}}
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/admin/probes/probe-upgrade-latest/upgrade", strings.NewReader(`{}`))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+
+	handler.UpgradeProbe(ctx)
+
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("expected status 202, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if sentProbeID != "probe-upgrade-latest" {
+		t.Fatalf("expected message sent to probe-upgrade-latest, got %q", sentProbeID)
+	}
+	if strings.TrimSpace(sentMessage.UpgradeID) == "" {
+		t.Fatal("expected upgrade id to be sent")
+	}
+	if sentMessage.Version != "" {
+		t.Fatalf("expected empty version in upgrade message, got %q", sentMessage.Version)
+	}
+
+	stored, err := db.GetLatestProbeUpgrade("probe-upgrade-latest")
+	if err != nil {
+		t.Fatalf("GetLatestProbeUpgrade failed: %v", err)
+	}
+	if stored == nil {
+		t.Fatal("expected stored upgrade record")
+	}
+	if stored.TargetVersion != model.ProbeUpgradeTargetLatest {
+		t.Fatalf("expected target version %q, got %q", model.ProbeUpgradeTargetLatest, stored.TargetVersion)
+	}
+	if stored.FromVersion != "v1.0.0" {
+		t.Fatalf("expected from version v1.0.0, got %q", stored.FromVersion)
+	}
+
+	var response struct {
+		Upgrade *model.ProbeUpgrade `json:"upgrade"`
+	}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if response.Upgrade == nil || response.Upgrade.TargetVersion != model.ProbeUpgradeTargetLatest {
+		t.Fatalf("expected response upgrade target version %q, got %#v", model.ProbeUpgradeTargetLatest, response.Upgrade)
 	}
 }
 
-func TestResolveLatestProbeVersionFromAPI(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/MoeclubM/Atlas/releases/latest" {
-			t.Fatalf("unexpected path: %s", r.URL.Path)
-		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"tag_name":"v0.1.11"}`))
-	}))
-	defer server.Close()
+func TestUpgradeProbeRejectsExplicitVersion(t *testing.T) {
+	gin.SetMode(gin.TestMode)
 
-	version, err := resolveLatestProbeVersionFromAPI(
-		context.Background(),
-		server.URL+"/repos/MoeclubM/Atlas/releases/latest",
-		server.Client(),
-	)
-	if err != nil {
-		t.Fatalf("resolveLatestProbeVersionFromAPI returned error: %v", err)
+	db := newTaskHandlerTestDB(t)
+	if err := db.SaveProbe(&model.Probe{
+		ProbeID:       "probe-upgrade-explicit",
+		Name:          "probe-upgrade-explicit",
+		Location:      "Test Lab",
+		Region:        "test",
+		Capabilities:  `["icmp_ping"]`,
+		Status:        "online",
+		LastHeartbeat: time.Now(),
+		Metadata:      `{"version":"v1.0.0","upgrade_supported":"true","deploy_mode":"systemd","upgrade_channel":"queue_dir"}`,
+	}); err != nil {
+		t.Fatalf("SaveProbe failed: %v", err)
 	}
-	if version != "v0.1.11" {
-		t.Fatalf("expected v0.1.11, got %q", version)
+
+	sendCalled := false
+	handler := &AdminHandler{
+		db: db,
+		sendProbeUpgrade: func(string, protocol.ProbeUpgradeMessage) error {
+			sendCalled = true
+			return nil
+		},
+	}
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Params = gin.Params{{Key: "id", Value: "probe-upgrade-explicit"}}
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/admin/probes/probe-upgrade-explicit/upgrade", strings.NewReader(`{"version":"v1.2.3"}`))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+
+	handler.UpgradeProbe(ctx)
+
+	if recorder.Code != http.StatusBadRequest {
+		t.Fatalf("expected status 400, got %d: %s", recorder.Code, recorder.Body.String())
+	}
+	if sendCalled {
+		t.Fatal("expected explicit version request to be rejected before sending probe message")
+	}
+	stored, err := db.GetLatestProbeUpgrade("probe-upgrade-explicit")
+	if err != nil {
+		t.Fatalf("GetLatestProbeUpgrade failed: %v", err)
+	}
+	if stored != nil {
+		t.Fatalf("expected no stored upgrade record, got %#v", stored)
 	}
 }

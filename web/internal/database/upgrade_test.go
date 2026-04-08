@@ -132,3 +132,63 @@ func TestTimeoutStaleProbeUpgrades(t *testing.T) {
 		t.Fatal("expected completed_at to be set")
 	}
 }
+
+func TestReconcileProbeUpgradeVersionAppliesLatestTargetWithReportedVersion(t *testing.T) {
+	db := newTestDatabase(t)
+	seedTestProbe(t, db, "probe-latest")
+
+	ackedAt := time.Now().Add(-time.Minute)
+	upgrade := &model.ProbeUpgrade{
+		UpgradeID:     "upgrade-latest",
+		ProbeID:       "probe-latest",
+		FromVersion:   "v1.0.0",
+		TargetVersion: model.ProbeUpgradeTargetLatest,
+		Status:        model.ProbeUpgradeStatusAccepted,
+		RequestedAt:   time.Now().Add(-2 * time.Minute),
+		AckedAt:       &ackedAt,
+	}
+	if err := db.CreateProbeUpgrade(upgrade); err != nil {
+		t.Fatalf("CreateProbeUpgrade failed: %v", err)
+	}
+
+	reconciled, err := db.ReconcileProbeUpgradeVersion(upgrade.ProbeID, "v1.1.0")
+	if err != nil {
+		t.Fatalf("ReconcileProbeUpgradeVersion failed: %v", err)
+	}
+	if reconciled == nil || reconciled.Status != model.ProbeUpgradeStatusApplied {
+		t.Fatalf("expected applied reconciled upgrade, got %#v", reconciled)
+	}
+	if reconciled.TargetVersion != "v1.1.0" {
+		t.Fatalf("expected target version to be updated to reported version, got %q", reconciled.TargetVersion)
+	}
+}
+
+func TestReconcileProbeUpgradeVersionAppliesAcceptedLatestEvenIfVersionUnchanged(t *testing.T) {
+	db := newTestDatabase(t)
+	seedTestProbe(t, db, "probe-same")
+
+	ackedAt := time.Now().Add(-time.Minute)
+	upgrade := &model.ProbeUpgrade{
+		UpgradeID:     "upgrade-same-version",
+		ProbeID:       "probe-same",
+		FromVersion:   "v1.0.0",
+		TargetVersion: model.ProbeUpgradeTargetLatest,
+		Status:        model.ProbeUpgradeStatusAccepted,
+		RequestedAt:   time.Now().Add(-2 * time.Minute),
+		AckedAt:       &ackedAt,
+	}
+	if err := db.CreateProbeUpgrade(upgrade); err != nil {
+		t.Fatalf("CreateProbeUpgrade failed: %v", err)
+	}
+
+	reconciled, err := db.ReconcileProbeUpgradeVersion(upgrade.ProbeID, "v1.0.0")
+	if err != nil {
+		t.Fatalf("ReconcileProbeUpgradeVersion failed: %v", err)
+	}
+	if reconciled == nil || reconciled.Status != model.ProbeUpgradeStatusApplied {
+		t.Fatalf("expected applied reconciled upgrade, got %#v", reconciled)
+	}
+	if reconciled.TargetVersion != "v1.0.0" {
+		t.Fatalf("expected target version to be updated to current version, got %q", reconciled.TargetVersion)
+	}
+}

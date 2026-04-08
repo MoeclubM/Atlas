@@ -9,6 +9,7 @@ const (
 	ProbeUpgradeStatusApplied  = "applied"
 	ProbeUpgradeStatusFailed   = "failed"
 	ProbeUpgradeStatusTimeout  = "timeout"
+	ProbeUpgradeTargetLatest   = "latest"
 )
 
 // Probe 探针模型

@@ -147,15 +147,25 @@ func (d *Database) MarkProbeUpgradeFailed(upgradeID, message string) error {
 
 // MarkProbeUpgradeApplied 标记升级完成
 func (d *Database) MarkProbeUpgradeApplied(upgradeID string) error {
+	return d.MarkProbeUpgradeAppliedWithVersion(upgradeID, "")
+}
+
+// MarkProbeUpgradeAppliedWithVersion 标记升级完成并在必要时回填最终版本
+func (d *Database) MarkProbeUpgradeAppliedWithVersion(upgradeID, version string) error {
 	now := time.Now()
+	version = strings.TrimSpace(version)
 	_, err := d.db.Exec(`
 		UPDATE probe_upgrades
 		SET status = ?,
+		    target_version = CASE
+		        WHEN ? <> '' THEN ?
+		        ELSE target_version
+		    END,
 		    acked_at = COALESCE(acked_at, ?),
 		    completed_at = COALESCE(completed_at, ?),
 		    error_message = NULL
 		WHERE upgrade_id = ? AND status IN (?, ?)
-	`, model.ProbeUpgradeStatusApplied, now, now, upgradeID, model.ProbeUpgradeStatusQueued, model.ProbeUpgradeStatusAccepted)
+	`, model.ProbeUpgradeStatusApplied, version, version, now, now, upgradeID, model.ProbeUpgradeStatusQueued, model.ProbeUpgradeStatusAccepted)
 	return err
 }
 
@@ -171,11 +181,23 @@ func (d *Database) ReconcileProbeUpgradeVersion(probeID, currentVersion string) 
 		return upgrade, err
 	}
 
-	if strings.TrimSpace(upgrade.TargetVersion) != currentVersion {
+	targetVersion := strings.TrimSpace(upgrade.TargetVersion)
+	if targetVersion == "" || strings.EqualFold(targetVersion, model.ProbeUpgradeTargetLatest) {
+		fromVersion := strings.TrimSpace(upgrade.FromVersion)
+		if currentVersion == fromVersion && upgrade.AckedAt == nil {
+			return upgrade, nil
+		}
+		if err := d.MarkProbeUpgradeAppliedWithVersion(upgrade.UpgradeID, currentVersion); err != nil {
+			return nil, err
+		}
+		return d.GetProbeUpgrade(upgrade.UpgradeID)
+	}
+
+	if targetVersion != currentVersion {
 		return upgrade, nil
 	}
 
-	if err := d.MarkProbeUpgradeApplied(upgrade.UpgradeID); err != nil {
+	if err := d.MarkProbeUpgradeAppliedWithVersion(upgrade.UpgradeID, currentVersion); err != nil {
 		return nil, err
 	}
 
@@ -200,7 +222,7 @@ func (d *Database) TimeoutStaleProbeUpgrades(timeout time.Duration) (int64, erro
 		    END
 		WHERE status IN (?, ?)
 		  AND COALESCE(acked_at, requested_at) < ?
-	`, model.ProbeUpgradeStatusTimeout, now, "probe did not report target version before timeout", model.ProbeUpgradeStatusQueued, model.ProbeUpgradeStatusAccepted, cutoff)
+	`, model.ProbeUpgradeStatusTimeout, now, "probe did not report upgraded version before timeout", model.ProbeUpgradeStatusQueued, model.ProbeUpgradeStatusAccepted, cutoff)
 	if err != nil {
 		return 0, err
 	}

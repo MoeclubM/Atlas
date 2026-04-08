@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -27,9 +26,7 @@ import (
 type AdminHandler struct {
 	db  *database.Database
 	cfg *config.Config
-	hub *websocket.Hub
-
-	resolveLatestProbeVersion latestProbeVersionResolver
+	sendProbeUpgrade func(string, protocol.ProbeUpgradeMessage) error
 }
 
 type adminConfigDTO struct {
@@ -54,10 +51,11 @@ type adminTokenPayload struct {
 
 func NewAdminHandler(db *database.Database, hub *websocket.Hub, cfg *config.Config) *AdminHandler {
 	return &AdminHandler{
-		db:                        db,
-		cfg:                       cfg,
-		hub:                       hub,
-		resolveLatestProbeVersion: defaultLatestProbeVersionResolver,
+		db:  db,
+		cfg: cfg,
+		sendProbeUpgrade: func(probeID string, message protocol.ProbeUpgradeMessage) error {
+			return hub.SendToProbe(probeID, protocol.MsgTypeProbeUpgrade, message)
+		},
 	}
 }
 
@@ -262,26 +260,13 @@ func (h *AdminHandler) UpgradeProbe(c *gin.Context) {
 	}
 
 	version := strings.TrimSpace(req.Version)
-	targetVersion := version
-	if targetVersion == "" {
-		targetVersion, err = h.resolveLatestProbeVersion(context.Background())
-		if err != nil {
-			c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-			return
-		}
-	} else {
-		targetVersion, err = normalizeRequestedUpgradeVersion(targetVersion)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-	}
-
-	currentVersion := strings.TrimSpace(metadata.Version)
-	if currentVersion != "" && targetVersion == currentVersion {
-		c.JSON(http.StatusConflict, gin.H{"error": "probe is already running the requested version"})
+	if version != "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "explicit upgrade versions are no longer supported"})
 		return
 	}
+
+	targetVersion := model.ProbeUpgradeTargetLatest
+	currentVersion := strings.TrimSpace(metadata.Version)
 
 	upgrade := &model.ProbeUpgrade{
 		UpgradeID:     uuid.New().String(),
@@ -296,9 +281,8 @@ func (h *AdminHandler) UpgradeProbe(c *gin.Context) {
 		return
 	}
 
-	if err := h.hub.SendToProbe(probeID, protocol.MsgTypeProbeUpgrade, protocol.ProbeUpgradeMessage{
+	if err := h.sendProbeUpgrade(probeID, protocol.ProbeUpgradeMessage{
 		UpgradeID: upgrade.UpgradeID,
-		Version:   targetVersion,
 	}); err != nil {
 		_ = h.db.MarkProbeUpgradeFailed(upgrade.UpgradeID, err.Error())
 		status := http.StatusInternalServerError
