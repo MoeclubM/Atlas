@@ -402,7 +402,7 @@ export function HomePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Card>
         <CardHeader>
           <CardTitle>{t('route.continuousTest')}</CardTitle>

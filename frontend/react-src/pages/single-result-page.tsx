@@ -189,7 +189,7 @@ export function SingleResultPage() {
   const columnCount = 7 + (isHTTPTask ? 1 : 0)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center gap-3">
         <Button variant="secondary" onClick={() => navigate('/test')}>
           {t('common.back')}

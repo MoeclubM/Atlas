@@ -58,7 +58,7 @@ export function DenseHeaderCell({
 }: DenseHeaderCellProps) {
   return (
     <th
-      className={cn('whitespace-nowrap px-4 py-3 font-semibold', getAlignClass(align), className)}
+      className={cn('whitespace-nowrap px-3 py-2.5 font-semibold', getAlignClass(align), className)}
       {...props}
     >
       {children}
@@ -76,7 +76,7 @@ export function DenseCell({
   return (
     <td
       className={cn(
-        'border-t border-[var(--border)] px-4 py-3 align-top',
+        'border-t border-[var(--border)] px-3 py-2.5 align-top',
         getAlignClass(align),
         mono ? 'font-mono text-[13px]' : '',
         className

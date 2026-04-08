@@ -38,7 +38,7 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen text-[var(--text)]">
       <TopBar />
-      <div className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-[1180px] flex-col px-4 pb-10 pt-8 md:px-8">
+      <div className="mx-auto flex min-h-[calc(100dvh-3.5rem)] w-full max-w-[1400px] flex-col px-4 pb-8 pt-6 md:px-8">
         {children}
       </div>
       <ToastRegion />

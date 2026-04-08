@@ -211,10 +211,10 @@ export function AdminPage() {
   const probes = probesQuery.data || []
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">{t('admin.title')}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('admin.title')}</h1>
           <p className="mt-1 text-sm text-[var(--text-2)]">{t('route.admin')}</p>
         </div>
         <div className="flex gap-2">
@@ -237,7 +237,7 @@ export function AdminPage() {
           <TabsTrigger value="test">{t('admin.testTab')}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="nodes" className="mt-5">
+        <TabsContent value="nodes" className="mt-4">
           <div>
             <DenseTable minWidthClassName="min-w-[1560px]">
               <DenseTableHead>
@@ -363,7 +363,7 @@ export function AdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="keys" className="mt-5">
+        <TabsContent value="keys" className="mt-4">
           <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
             <Card>
               <CardHeader>
@@ -418,7 +418,7 @@ export function AdminPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="blocked" className="mt-5">
+        <TabsContent value="blocked" className="mt-4">
           <Card>
             <CardHeader>
               <CardTitle>{t('admin.blockedNetworks')}</CardTitle>
@@ -439,7 +439,7 @@ export function AdminPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="test" className="mt-5">
+        <TabsContent value="test" className="mt-4">
           <Card>
             <CardHeader>
               <CardTitle>{t('admin.testTab')}</CardTitle>

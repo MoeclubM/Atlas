@@ -36,7 +36,7 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]">
-      <div className="mx-auto flex h-16 w-full max-w-[1180px] items-center justify-between px-4 md:px-8">
+      <div className="mx-auto flex h-14 w-full max-w-[1400px] items-center justify-between px-4 md:px-8">
         <button
           type="button"
           className="flex items-center gap-4 rounded-sm px-1 py-1 text-left outline-none"
