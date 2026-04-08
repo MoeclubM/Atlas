@@ -30,6 +30,7 @@ import {
 import { SparkBars } from '@/components/common/spark-bars'
 import { WorldMap, type ProbeMarker } from '@/components/common/world-map'
 import api from '@/lib/api-client'
+import { buildTracerouteWorldRoute } from '@/lib/route-map'
 import {
   formatLatencyMs,
   formatLossPercent,
@@ -103,17 +104,42 @@ export function HomePage() {
   const probes = useMemo(() => probesQuery.data || [], [probesQuery.data])
   const probesMap = useMemo(() => new Map(probes.map(probe => [probe.probe_id, probe])), [probes])
   const supportsProbeSelection = testType === 'traceroute' || testType === 'mtr'
+  const requiresSingleRouteProbe = testType === 'traceroute'
   const pageMode: 'single' | 'continuous' =
     testType === 'icmp_ping' || testType === 'tcp_ping' ? 'continuous' : 'single'
-  const routeCapableProbes = probes.filter(probe =>
-    supportsProbeSelection ? probeSupportsTaskType(probe, testType) : true
+  const routeCapableProbes = useMemo(
+    () =>
+      probes.filter(probe =>
+        supportsProbeSelection ? probeSupportsTaskType(probe, testType) : true
+      ),
+    [probes, supportsProbeSelection, testType]
+  )
+  const routeCapableProbeIds = useMemo(
+    () => routeCapableProbes.map(probe => probe.probe_id),
+    [routeCapableProbes]
   )
   const targetedProbeIds =
     supportsProbeSelection && selectedProbeIds.length > 0
       ? selectedProbeIds
-      : supportsProbeSelection
+      : testType === 'mtr'
         ? routeCapableProbes.map(probe => probe.probe_id)
         : []
+
+  useEffect(() => {
+    setSelectedProbeIds(current => {
+      if (testType === 'traceroute') {
+        if (current.length <= 1) {
+          return current
+        }
+        return current.slice(0, 1)
+      }
+      if (testType === 'mtr') {
+        const next = current.filter(id => routeCapableProbeIds.includes(id))
+        return next.length === current.length ? current : next
+      }
+      return current.length === 0 ? current : []
+    })
+  }, [routeCapableProbeIds, testType])
 
   const filteredResults = useMemo(() => {
     const keyword = filterKeyword.trim().toLowerCase()
@@ -160,6 +186,21 @@ export function HomePage() {
         .filter((marker): marker is ProbeMarker => marker !== null),
     [filteredResults, probesMap]
   )
+  const tracerouteMapRoutes = useMemo(() => {
+    if (testType !== 'traceroute') {
+      return []
+    }
+
+    return filteredResults
+      .map(result =>
+        buildTracerouteWorldRoute({
+          probe: probesMap.get(result.probe_id),
+          traceroute: tracerouteData[result.probe_id],
+          getUnknownLabel: () => String(t('common.unknown')),
+        })
+      )
+      .filter((route): route is NonNullable<typeof route> => route !== null)
+  }, [filteredResults, probesMap, t, testType, tracerouteData])
 
   const resultsColumnCount =
     9 + (testType === 'http_test' ? 1 : 0) + (pageMode === 'continuous' ? 1 : 0)
@@ -415,7 +456,15 @@ export function HomePage() {
               testId="home-ip-select"
             />
             <div className="flex gap-2">
-              <Button data-testid="home-start" onClick={() => void startTest()}>
+              <Button
+                data-testid="home-start"
+                disabled={
+                  testing ||
+                  !target.trim() ||
+                  (requiresSingleRouteProbe && targetedProbeIds.length !== 1)
+                }
+                onClick={() => void startTest()}
+              >
                 {testing ? t('common.loading') : t('home.startTest')}
               </Button>
               {currentTaskId ? (
@@ -444,6 +493,9 @@ export function HomePage() {
                         checked={checked}
                         onCheckedChange={next => {
                           setSelectedProbeIds(current => {
+                            if (requiresSingleRouteProbe) {
+                              return next ? [probe.probe_id] : []
+                            }
                             if (next) return Array.from(new Set([...current, probe.probe_id]))
                             return current.filter(item => item !== probe.probe_id)
                           })
@@ -458,6 +510,9 @@ export function HomePage() {
                     </label>
                   )
                 })}
+              </div>
+              <div className="mt-3 text-xs text-[var(--text-2)]">
+                {requiresSingleRouteProbe ? t('home.tracerouteHint') : t('home.mtrHint')}
               </div>
             </div>
           ) : null}
@@ -609,7 +664,9 @@ export function HomePage() {
                                 <div className="space-y-5">
                                   {renderTraceroute(tracerouteData[result.probe_id], t)}
                                   {renderMTR(mtrData[result.probe_id], t)}
-                                  {renderHTTP(httpData[result.probe_id], t)}
+                                  {testType === 'http_test'
+                                    ? renderHTTP(httpData[result.probe_id], t)
+                                    : null}
                                   {autoMTRLoading ? (
                                     <div className="text-sm text-[var(--text-2)]">
                                       {t('results.autoMtrLoading')}
@@ -649,12 +706,16 @@ export function HomePage() {
               </div>
             )}
 
-            {probeMarkers.length ? (
+            {(testType === 'traceroute' ? tracerouteMapRoutes.length > 0 : probeMarkers.length > 0) ? (
               <div className="space-y-2">
                 <div className="text-xs uppercase tracking-[0.08em] text-[var(--text-2)]">
                   {t('singleResult.worldMap')}
                 </div>
-                <WorldMap probes={probeMarkers} height={320} />
+                <WorldMap
+                  probes={testType === 'traceroute' ? [] : probeMarkers}
+                  routes={testType === 'traceroute' ? tracerouteMapRoutes : []}
+                  height={320}
+                />
               </div>
             ) : null}
           </CardContent>

@@ -38,6 +38,7 @@ import { WorldMap, type ProbeMarker } from '@/components/common/world-map'
 import api from '@/lib/api-client'
 import { normalizeProbe, type ProbeRecord, type TaskInfo, type TaskResult } from '@/lib/domain'
 import { getProbeProviderLabel } from '@/lib/probe'
+import { buildTracerouteWorldRoute } from '@/lib/route-map'
 import {
   formatLatencyMs,
   formatLossPercent,
@@ -94,6 +95,9 @@ export function SingleResultPage() {
   )
 
   const results = useMemo(() => taskQuery.data?.results || [], [taskQuery.data?.results])
+  const isTracerouteTask =
+    taskQuery.data?.task?.task_type === 'traceroute' ||
+    (results.length > 0 && results.every(result => result.test_type === 'traceroute'))
 
   const markers = useMemo<ProbeMarker[]>(
     () =>
@@ -164,6 +168,22 @@ export function SingleResultPage() {
       }
     })
   }, [probeMap, results, t])
+
+  const tracerouteRoutes = useMemo(() => {
+    if (!isTracerouteTask) {
+      return []
+    }
+
+    return rows
+      .map(row =>
+        buildTracerouteWorldRoute({
+          probe: probeMap.get(row.probe_id),
+          traceroute: row.traceroute,
+          getUnknownLabel: () => String(t('common.unknown')),
+        })
+      )
+      .filter((route): route is NonNullable<typeof route> => route !== null)
+  }, [isTracerouteTask, probeMap, rows, t])
 
   const isHTTPTask = rows.some(row => row.test_type === 'http_test')
   const columnCount = 7 + (isHTTPTask ? 1 : 0)
@@ -271,7 +291,9 @@ export function SingleResultPage() {
                             <div className="space-y-5">
                               {renderTracerouteDetail(row.traceroute, t)}
                               {renderMTRDetail(row.mtr, t)}
-                              {renderHTTPDetail(row.result_data, t)}
+                              {row.test_type === 'http_test'
+                                ? renderHTTPDetail(row.result_data, t)
+                                : null}
                               {!row.traceroute &&
                               !row.mtr &&
                               getHTTPAttempts(row.result_data).length === 0 ? (
@@ -290,12 +312,16 @@ export function SingleResultPage() {
             </tbody>
           </DenseTable>
 
-          {markers.length ? (
+          {(isTracerouteTask ? tracerouteRoutes.length > 0 : markers.length > 0) ? (
             <div className="space-y-2">
               <div className="text-xs uppercase tracking-[0.08em] text-[var(--text-2)]">
                 {t('singleResult.worldMap')}
               </div>
-              <WorldMap probes={markers} height={320} />
+              <WorldMap
+                probes={isTracerouteTask ? [] : markers}
+                routes={isTracerouteTask ? tracerouteRoutes : []}
+                height={320}
+              />
             </div>
           ) : null}
         </CardContent>

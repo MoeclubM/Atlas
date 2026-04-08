@@ -420,6 +420,39 @@ export type HTTPAttempt = {
   error?: string
 }
 
+function isHTTPAttemptShape(value: unknown): boolean {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const attempt = value as Record<string, unknown>
+  return (
+    'status_code' in attempt ||
+    'response_status' in attempt ||
+    'final_url' in attempt ||
+    'request_headers' in attempt ||
+    'response_headers' in attempt
+  )
+}
+
+function isHTTPResultShape(data: Record<string, unknown>): boolean {
+  if (
+    'status_code' in data ||
+    'response_status' in data ||
+    'final_url' in data ||
+    'request_headers' in data ||
+    'response_headers' in data
+  ) {
+    return true
+  }
+
+  if (!Array.isArray(data['attempts'])) {
+    return false
+  }
+
+  return data['attempts'].some(attempt => isHTTPAttemptShape(attempt))
+}
+
 function normalizeHTTPHeaders(value: unknown): HTTPHeaders | undefined {
   if (!value || typeof value !== 'object') {
     return undefined
@@ -478,7 +511,7 @@ function normalizeHTTPAttempt(value: unknown): HTTPAttempt | undefined {
 
 export function getHTTPAttempts(resultDataValue: unknown): HTTPAttempt[] {
   const data = parseMaybeJSON(resultDataValue)
-  if (!Array.isArray(data['attempts'])) {
+  if (!isHTTPResultShape(data) || !Array.isArray(data['attempts'])) {
     return []
   }
 
@@ -494,6 +527,9 @@ export function getLatestHTTPAttempt(resultDataValue: unknown): HTTPAttempt | un
   }
 
   const data = parseMaybeJSON(resultDataValue)
+  if (!isHTTPResultShape(data)) {
+    return undefined
+  }
   return normalizeHTTPAttempt({
     status: data['status'],
     time_ms: data['last_time_ms'],

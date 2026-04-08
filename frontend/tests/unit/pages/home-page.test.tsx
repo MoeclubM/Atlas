@@ -19,8 +19,14 @@ vi.mock('@/lib/api-client', () => ({
 }))
 
 vi.mock('@/components/common/world-map', () => ({
-  WorldMap: ({ probes }: { probes: unknown[] }) => (
-    <div data-testid="world-map">{`markers:${probes.length}`}</div>
+  WorldMap: ({
+    probes = [],
+    routes = [],
+  }: {
+    probes?: unknown[]
+    routes?: Array<{ points?: unknown[] }>
+  }) => (
+    <div data-testid="world-map">{`markers:${probes.length};routes:${routes.length}`}</div>
   ),
 }))
 
@@ -185,7 +191,7 @@ describe('HomePage', () => {
     expect(screen.getByText('Tokyo')).toBeInTheDocument()
     expect(screen.getByText('1.1.1.1')).toBeInTheDocument()
     expect(screen.getByText('Singapore')).toBeInTheDocument()
-    expect(screen.getByTestId('world-map')).toHaveTextContent('markers:1')
+    expect(screen.getByTestId('world-map')).toHaveTextContent('markers:1;routes:0')
 
     const resultPanel = await screen.findByTestId('home-results')
     await user.click(within(resultPanel).getByText('Tokyo'))
@@ -285,7 +291,7 @@ describe('HomePage', () => {
     expect(within(resultPanel).getAllByText('Seoul').length).toBeGreaterThan(0)
   })
 
-  it('renders traceroute details for route tasks', async () => {
+  it('limits traceroute to one selected probe and renders route map paths', async () => {
     const user = userEvent.setup()
 
     apiMock.get.mockImplementation(async (url: string) => {
@@ -297,6 +303,11 @@ describe('HomePage', () => {
               location: 'Berlin',
               capabilities: ['traceroute'],
             }),
+            createProbe('trace-2', {
+              name: 'Trace Backup',
+              location: 'Paris',
+              capabilities: ['traceroute'],
+            }),
           ],
         }
       }
@@ -304,7 +315,7 @@ describe('HomePage', () => {
         return {
           task: { task_id: 'task-trace', status: 'completed' },
           results: [
-            createResult('trace-1', {
+            createResult('trace-2', {
               test_type: 'traceroute',
               result_data: {
                 hops: [
@@ -313,7 +324,7 @@ describe('HomePage', () => {
                     ip: '10.0.0.1',
                     hostname: 'edge-router',
                     rtts: [3.4],
-                    geo: { isp: 'Transit', country: 'DE' },
+                    geo: { isp: 'Transit', country: 'DE', latitude: 52.52, longitude: 13.4 },
                   },
                 ],
                 total_hops: 1,
@@ -334,13 +345,28 @@ describe('HomePage', () => {
 
     await user.selectOptions(await screen.findByTestId('home-type-select'), 'traceroute')
     await user.type(within(screen.getByTestId('home-target')).getByRole('textbox'), 'example.com')
+    expect(screen.getByTestId('home-start')).toBeDisabled()
+    await user.click(screen.getByText('Berlin'))
+    expect(screen.getByTestId('home-start')).not.toBeDisabled()
+    await user.click(screen.getByText('Paris'))
     await user.click(screen.getByTestId('home-start'))
 
+    await waitFor(() =>
+      expect(apiMock.post).toHaveBeenCalledWith(
+        '/tasks',
+        expect.objectContaining({
+          task_type: 'traceroute',
+          assigned_probes: ['trace-2'],
+        }),
+      ),
+    )
+
     const resultPanel = await screen.findByTestId('home-results')
-    await user.click(within(resultPanel).getByText('Berlin'))
+    await user.click(within(resultPanel).getByText('Paris'))
 
     expect(await screen.findByTestId('home-traceroute-detail')).toBeInTheDocument()
     expect(screen.getAllByText('edge-router').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('world-map')).toHaveTextContent('markers:0;routes:1')
   })
 
   it('renders http details for single tests', async () => {
@@ -491,6 +517,63 @@ describe('HomePage', () => {
     const resultPanel = await screen.findByTestId('home-results')
     await user.click(within(resultPanel).getByText('Warsaw'))
 
+    expect(await screen.findByText('results.autoMtrUnsupported')).toBeInTheDocument()
+  })
+
+  it('does not render http detail blocks for tcp ping results', async () => {
+    const user = userEvent.setup()
+
+    apiMock.get.mockImplementation(async (url: string) => {
+      if (url === '/probes') {
+        return {
+          probes: [
+            createProbe('tcp-only', {
+              name: 'TCP Probe',
+              location: 'Zurich',
+              capabilities: ['tcp_ping'],
+            }),
+          ],
+        }
+      }
+      if (url === '/tasks/task-tcp') {
+        return {
+          task: { task_id: 'task-tcp', status: 'completed' },
+        }
+      }
+      if (url === '/results') {
+        return {
+          results: [
+            createResult('tcp-only', {
+              test_type: 'tcp_ping',
+              target: 'example.com:443',
+              summary: { avg_connect_time_ms: 12, min_connect_time_ms: 10, max_connect_time_ms: 14 },
+              result_data: {
+                resolved_ip: '1.1.1.1',
+                successful_connections: 1,
+                failed_connections: 0,
+                attempts: [{ seq: 1, status: 'success', time_ms: 12 }],
+              },
+            }),
+          ],
+        }
+      }
+      throw new Error(`unexpected GET ${url}`)
+    })
+    apiMock.post.mockResolvedValue({ task_id: 'task-tcp' })
+
+    renderRoute(<HomePage />, {
+      path: '/test',
+      route: '/test',
+    })
+
+    await user.selectOptions(await screen.findByTestId('home-type-select'), 'tcp_ping')
+    await user.type(within(screen.getByTestId('home-target')).getByRole('textbox'), 'example.com:443')
+    await user.click(screen.getByTestId('home-start'))
+
+    const resultPanel = await screen.findByTestId('home-results')
+    await user.click(within(resultPanel).getByText('Zurich'))
+
+    expect(screen.queryByText('results.httpDetail')).not.toBeInTheDocument()
     expect(await screen.findByText('results.autoMtrUnsupported')).toBeInTheDocument()
   })
 

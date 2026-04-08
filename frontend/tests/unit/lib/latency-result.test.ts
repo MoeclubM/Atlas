@@ -185,4 +185,22 @@ describe('result helpers', () => {
       { name: 'Server', value: 'nginx' },
     ])
   })
+
+  it('does not misclassify tcp ping attempts as http results', () => {
+    const tcpPingLikeResult = {
+      attempts: [
+        {
+          seq: 1,
+          status: 'success',
+          time_ms: 11.2,
+        },
+      ],
+      successful_connections: 1,
+      failed_connections: 0,
+    }
+
+    expect(getHTTPAttempts(tcpPingLikeResult)).toEqual([])
+    expect(getLatestHTTPAttempt(tcpPingLikeResult)).toBeUndefined()
+    expect(getHTTPStatusCode({}, tcpPingLikeResult)).toBeUndefined()
+  })
 })
