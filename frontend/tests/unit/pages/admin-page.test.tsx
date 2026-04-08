@@ -63,7 +63,6 @@ describe('AdminPage', () => {
     apiMock.delete.mockReset()
     apiMock.patch.mockReset()
     apiMock.request.mockReset()
-    globalThis.prompt = vi.fn(() => 'v2.0.0')
   })
 
   it('redirects to login when there is no admin session', async () => {
@@ -177,15 +176,16 @@ describe('AdminPage', () => {
       route: '/admin',
     })
 
-    expect(await screen.findByTestId('admin-nodes-table')).toBeInTheDocument()
     expect(await screen.findByText('Tokyo Node')).toBeInTheDocument()
     expect(screen.getByText('boom')).toBeInTheDocument()
     expect(screen.getByText('admin.upgradeStates.applied')).toBeInTheDocument()
     expect(screen.getByText('admin.upgradeStates.accepted')).toBeInTheDocument()
     expect(screen.getByText('admin.upgradeStates.mystery')).toBeInTheDocument()
     expect(screen.getByText('no systemd')).toBeInTheDocument()
+    const tokyoRow = screen.getByText('Tokyo Node').closest('tr')
+    expect(tokyoRow).not.toBeNull()
     expect(
-      within(screen.getByTestId('admin-node-row-p1')).getByText('home.typeNames.icmp_ping')
+      within(tokyoRow as HTMLTableRowElement).getByText('home.typeNames.icmp_ping')
     ).toBeInTheDocument()
     expect(screen.getAllByText('admin.upgrade')[1]).toBeDisabled()
 
@@ -201,27 +201,25 @@ describe('AdminPage', () => {
     )
 
     await user.click(screen.getAllByText('admin.upgrade')[0])
-    await waitFor(() =>
-      expect(apiMock.post).toHaveBeenCalledWith('/admin/probes/p1/upgrade', {
-        version: 'v2.0.0',
-      })
-    )
+    await waitFor(() => expect(apiMock.post).toHaveBeenCalledWith('/admin/probes/p1/upgrade', {}))
     expect(confirmAction).toHaveBeenCalled()
-
+    expect(confirmAction).toHaveBeenCalledWith('admin.upgradeConfirmLatest', {
+      title: 'common.confirm',
+    })
     await user.click(screen.getAllByText('admin.delete')[0])
     await waitFor(() => expect(apiMock.delete).toHaveBeenCalledWith('/admin/probes/p1'))
 
-    await user.click(screen.getByTestId('admin-tab-keys'))
+    await user.click(screen.getByRole('tab', { name: 'admin.keysTab' }))
     await user.click(screen.getByText('admin.generate'))
     await waitFor(() => expect(screen.getByDisplayValue('secret-2')).toBeInTheDocument())
     await user.click(screen.getByText('admin.copyAddress'))
     expect(writeTextSpy).toHaveBeenCalledWith(expect.stringContaining('ws://'))
 
-    await user.click(screen.getByTestId('admin-tab-test'))
-    const mtrTimeoutInput = within(screen.getByTestId('admin-mtr-timeout')).getByRole('spinbutton')
+    await user.click(screen.getByRole('tab', { name: 'admin.testTab' }))
+    const mtrTimeoutInput = screen.getByRole('spinbutton', { name: 'admin.mtrTimeoutSeconds' })
     await user.clear(mtrTimeoutInput)
     await user.type(mtrTimeoutInput, '75')
-    await user.click(screen.getByTestId('admin-save-test-config'))
+    await user.click(screen.getByRole('button', { name: 'common.save' }))
 
     await waitFor(() =>
       expect(apiMock.put).toHaveBeenCalledWith('/admin/config', {
@@ -238,7 +236,7 @@ describe('AdminPage', () => {
     expect(await screen.findByTestId('route-login')).toBeInTheDocument()
   })
 
-  it('skips upgrade and delete actions when prompt or confirmation is cancelled', async () => {
+  it('skips upgrade and delete actions when confirmation is cancelled', async () => {
     const user = userEvent.setup()
     const confirmAction = vi.fn().mockResolvedValue(false)
     useAppStore.setState({ confirmAction })
@@ -268,23 +266,16 @@ describe('AdminPage', () => {
       throw new Error(`unexpected GET ${url}`)
     })
 
-    globalThis.prompt = vi.fn(() => null)
-
     renderRoute(<AdminPage />, {
       path: '/admin',
       route: '/admin',
     })
 
-    expect(await screen.findByTestId('admin-node-row-p1')).toBeInTheDocument()
     expect(await screen.findByText('Cancel Node')).toBeInTheDocument()
 
     await user.click(screen.getByText('admin.upgrade'))
     expect(apiMock.post).not.toHaveBeenCalled()
-
-    globalThis.prompt = vi.fn(() => '')
-    await user.click(screen.getByText('admin.upgrade'))
     expect(confirmAction).toHaveBeenCalled()
-    expect(apiMock.post).not.toHaveBeenCalled()
 
     await user.click(screen.getByText('admin.delete'))
     expect(apiMock.delete).not.toHaveBeenCalled()
@@ -335,7 +326,6 @@ describe('AdminPage', () => {
       route: '/admin',
     })
 
-    expect(await screen.findByTestId('admin-node-row-p1')).toBeInTheDocument()
     expect(await screen.findByText('Error Node')).toBeInTheDocument()
 
     await user.click(screen.getByText('common.save'))
@@ -362,7 +352,7 @@ describe('AdminPage', () => {
       })
     )
 
-    await user.click(screen.getByTestId('admin-tab-keys'))
+    await user.click(screen.getByRole('tab', { name: 'admin.keysTab' }))
     await user.click(screen.getByText('admin.generate'))
     await waitFor(() =>
       expect(getLastToast()).toMatchObject({

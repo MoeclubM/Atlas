@@ -25,9 +25,7 @@ vi.mock('@/components/common/world-map', () => ({
   }: {
     probes?: unknown[]
     routes?: Array<{ points?: unknown[] }>
-  }) => (
-    <div data-testid="world-map">{`markers:${probes.length};routes:${routes.length}`}</div>
-  ),
+  }) => <div data-testid="world-map">{`markers:${probes.length};routes:${routes.length}`}</div>,
 }))
 
 vi.mock('@/components/ui/select', () => ({
@@ -35,19 +33,19 @@ vi.mock('@/components/ui/select', () => ({
     value,
     onValueChange,
     options,
-    testId,
+    ariaLabel,
   }: {
     value: string
     onValueChange: (value: string) => void
     options: Array<{ value: string; label: string }>
-    testId?: string
+    ariaLabel?: string
   }) => (
     <select
-      data-testid={testId}
+      aria-label={ariaLabel}
       value={value}
-      onChange={(event) => onValueChange(event.target.value)}
+      onChange={event => onValueChange(event.target.value)}
     >
-      {options.map((option) => (
+      {options.map(option => (
         <option key={option.value} value={option.value}>
           {option.label}
         </option>
@@ -79,6 +77,22 @@ function createResult(probeId: string, overrides: Partial<TaskResult> = {}): Tas
     result_data: {},
     ...overrides,
   }
+}
+
+function getTypeSelect() {
+  return screen.getByRole('combobox', { name: 'home.type' })
+}
+
+function getTargetInput() {
+  return screen.getByRole('textbox', { name: 'home.targetPlaceholder' })
+}
+
+function getStartButton() {
+  return screen.getByRole('button', { name: 'home.startTest' })
+}
+
+function getResultsTable() {
+  return screen.getAllByRole('table')[0]
 }
 
 describe('HomePage', () => {
@@ -174,11 +188,11 @@ describe('HomePage', () => {
       route: '/test',
     })
 
-    expect(await screen.findByTestId('home-type-select')).toHaveValue('icmp_ping')
-    await user.type(within(screen.getByTestId('home-target')).getByRole('textbox'), 'example.com')
-    await user.click(screen.getByTestId('home-start'))
+    expect(await screen.findByRole('combobox', { name: 'home.type' })).toHaveValue('icmp_ping')
+    await user.type(getTargetInput(), 'example.com')
+    await user.click(getStartButton())
 
-    expect(await screen.findByTestId('home-results')).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'results.results' })).toBeInTheDocument()
     expect(apiMock.post).toHaveBeenCalledWith(
       '/tasks',
       expect.objectContaining({
@@ -186,16 +200,15 @@ describe('HomePage', () => {
         mode: 'continuous',
         target: 'example.com',
         assigned_probes: [],
-      }),
+      })
     )
     expect(screen.getByText('Tokyo')).toBeInTheDocument()
     expect(screen.getByText('1.1.1.1')).toBeInTheDocument()
     expect(screen.getByText('Singapore')).toBeInTheDocument()
     expect(screen.getByTestId('world-map')).toHaveTextContent('markers:1;routes:0')
 
-    const resultPanel = await screen.findByTestId('home-results')
-    await user.click(within(resultPanel).getByText('Tokyo'))
-    expect(await screen.findByTestId('home-mtr-detail')).toBeInTheDocument()
+    await user.click(within(getResultsTable()).getByText('Tokyo'))
+    expect(await screen.findByText('results.mtrDetail')).toBeInTheDocument()
   })
 
   it('selects all mtr-capable probes and expands hop details', async () => {
@@ -262,15 +275,15 @@ describe('HomePage', () => {
       route: '/test',
     })
 
-    expect(await screen.findByTestId('home-type-select')).toHaveValue('icmp_ping')
-    await user.selectOptions(screen.getByTestId('home-type-select'), 'mtr')
-    await user.type(within(screen.getByTestId('home-target')).getByRole('textbox'), '8.8.8.8')
+    expect(await screen.findByRole('combobox', { name: 'home.type' })).toHaveValue('icmp_ping')
+    await user.selectOptions(getTypeSelect(), 'mtr')
+    await user.type(getTargetInput(), '8.8.8.8')
 
     expect(await screen.findByText('Tokyo')).toBeInTheDocument()
     expect(screen.getByText('Seoul')).toBeInTheDocument()
     expect(screen.queryByText('London')).not.toBeInTheDocument()
 
-    await user.click(screen.getByTestId('home-start'))
+    await user.click(getStartButton())
 
     await waitFor(() =>
       expect(apiMock.post).toHaveBeenCalledWith(
@@ -279,16 +292,15 @@ describe('HomePage', () => {
           task_type: 'mtr',
           mode: 'single',
           assigned_probes: ['m1', 'm2'],
-        }),
-      ),
+        })
+      )
     )
 
-    const resultPanel = await screen.findByTestId('home-results')
-    await user.click(within(resultPanel).getByText('Tokyo'))
+    await user.click(within(getResultsTable()).getByText('Tokyo'))
 
-    expect(await screen.findByTestId('home-mtr-detail')).toBeInTheDocument()
-    expect(screen.getByTestId('home-mtr-hop-row')).toBeInTheDocument()
-    expect(within(resultPanel).getAllByText('Seoul').length).toBeGreaterThan(0)
+    expect(await screen.findByText('results.mtrDetail')).toBeInTheDocument()
+    expect(screen.getAllByText('10.0.0.1').length).toBeGreaterThan(0)
+    expect(within(getResultsTable()).getAllByText('Seoul').length).toBeGreaterThan(0)
   })
 
   it('limits traceroute to one selected probe and renders route map paths', async () => {
@@ -343,13 +355,16 @@ describe('HomePage', () => {
       route: '/test',
     })
 
-    await user.selectOptions(await screen.findByTestId('home-type-select'), 'traceroute')
-    await user.type(within(screen.getByTestId('home-target')).getByRole('textbox'), 'example.com')
-    expect(screen.getByTestId('home-start')).toBeDisabled()
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'home.type' }),
+      'traceroute'
+    )
+    await user.type(getTargetInput(), 'example.com')
+    expect(getStartButton()).toBeDisabled()
     await user.click(screen.getByText('Berlin'))
-    expect(screen.getByTestId('home-start')).not.toBeDisabled()
+    expect(getStartButton()).not.toBeDisabled()
     await user.click(screen.getByText('Paris'))
-    await user.click(screen.getByTestId('home-start'))
+    await user.click(getStartButton())
 
     await waitFor(() =>
       expect(apiMock.post).toHaveBeenCalledWith(
@@ -357,14 +372,13 @@ describe('HomePage', () => {
         expect.objectContaining({
           task_type: 'traceroute',
           assigned_probes: ['trace-2'],
-        }),
-      ),
+        })
+      )
     )
 
-    const resultPanel = await screen.findByTestId('home-results')
-    await user.click(within(resultPanel).getByText('Paris'))
+    await user.click(within(getResultsTable()).getByText('Paris'))
 
-    expect(await screen.findByTestId('home-traceroute-detail')).toBeInTheDocument()
+    expect(await screen.findByText('results.tracerouteDetail')).toBeInTheDocument()
     expect(screen.getAllByText('edge-router').length).toBeGreaterThan(0)
     expect(screen.getByTestId('world-map')).toHaveTextContent('markers:0;routes:1')
   })
@@ -417,12 +431,14 @@ describe('HomePage', () => {
       route: '/test',
     })
 
-    await user.selectOptions(await screen.findByTestId('home-type-select'), 'http_test')
-    await user.type(within(screen.getByTestId('home-target')).getByRole('textbox'), 'https://example.com')
-    await user.click(screen.getByTestId('home-start'))
+    await user.selectOptions(
+      await screen.findByRole('combobox', { name: 'home.type' }),
+      'http_test'
+    )
+    await user.type(getTargetInput(), 'https://example.com')
+    await user.click(getStartButton())
 
-    const resultPanel = await screen.findByTestId('home-results')
-    await user.click(within(resultPanel).getByText('Sydney'))
+    await user.click(within(getResultsTable()).getByText('Sydney'))
 
     expect(await screen.findByText('results.httpDetail')).toBeInTheDocument()
     expect(screen.getByText('Request Headers')).toBeInTheDocument()
@@ -458,13 +474,13 @@ describe('HomePage', () => {
       route: '/test',
     })
 
-    await user.type(within(screen.getByTestId('home-target')).getByRole('textbox'), 'example.com')
-    await user.click(screen.getByTestId('home-start'))
+    await user.type(getTargetInput(), 'example.com')
+    await user.click(getStartButton())
 
     expect(await screen.findByText('home.noMatchedResults')).toBeInTheDocument()
-    expect(screen.getByTestId('home-stop-test')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'home.stopTest' })).toBeInTheDocument()
 
-    await user.click(screen.getByTestId('home-stop-test'))
+    await user.click(screen.getByRole('button', { name: 'home.stopTest' }))
     await waitFor(() => expect(apiMock.delete).toHaveBeenCalledWith('/tasks/task-running'))
   })
 
@@ -511,11 +527,10 @@ describe('HomePage', () => {
       route: '/test',
     })
 
-    await user.type(within(screen.getByTestId('home-target')).getByRole('textbox'), 'example.com')
-    await user.click(screen.getByTestId('home-start'))
+    await user.type(getTargetInput(), 'example.com')
+    await user.click(getStartButton())
 
-    const resultPanel = await screen.findByTestId('home-results')
-    await user.click(within(resultPanel).getByText('Warsaw'))
+    await user.click(within(getResultsTable()).getByText('Warsaw'))
 
     expect(await screen.findByText('results.autoMtrUnsupported')).toBeInTheDocument()
   })
@@ -546,7 +561,11 @@ describe('HomePage', () => {
             createResult('tcp-only', {
               test_type: 'tcp_ping',
               target: 'example.com:443',
-              summary: { avg_connect_time_ms: 12, min_connect_time_ms: 10, max_connect_time_ms: 14 },
+              summary: {
+                avg_connect_time_ms: 12,
+                min_connect_time_ms: 10,
+                max_connect_time_ms: 14,
+              },
               result_data: {
                 resolved_ip: '1.1.1.1',
                 successful_connections: 1,
@@ -566,12 +585,11 @@ describe('HomePage', () => {
       route: '/test',
     })
 
-    await user.selectOptions(await screen.findByTestId('home-type-select'), 'tcp_ping')
-    await user.type(within(screen.getByTestId('home-target')).getByRole('textbox'), 'example.com:443')
-    await user.click(screen.getByTestId('home-start'))
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'home.type' }), 'tcp_ping')
+    await user.type(getTargetInput(), 'example.com:443')
+    await user.click(getStartButton())
 
-    const resultPanel = await screen.findByTestId('home-results')
-    await user.click(within(resultPanel).getByText('Zurich'))
+    await user.click(within(getResultsTable()).getByText('Zurich'))
 
     expect(screen.queryByText('results.httpDetail')).not.toBeInTheDocument()
     expect(await screen.findByText('results.autoMtrUnsupported')).toBeInTheDocument()
@@ -637,11 +655,10 @@ describe('HomePage', () => {
       route: '/test',
     })
 
-    await user.type(within(screen.getByTestId('home-target')).getByRole('textbox'), 'example.com')
-    await user.click(screen.getByTestId('home-start'))
+    await user.type(getTargetInput(), 'example.com')
+    await user.click(getStartButton())
 
-    const resultPanel = await screen.findByTestId('home-results')
-    await user.click(within(resultPanel).getByText('Prague'))
+    await user.click(within(getResultsTable()).getByText('Prague'))
 
     expect(await screen.findByText('results.noMtrData')).toBeInTheDocument()
   })

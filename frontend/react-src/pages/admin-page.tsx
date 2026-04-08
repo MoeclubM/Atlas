@@ -130,18 +130,8 @@ export function AdminPage() {
       return
     }
 
-    const requestedVersion = globalThis.prompt(String(t('admin.upgradePrompt')), '')?.trim()
-    if (requestedVersion === undefined) return
-
     const confirmed = await confirmAction(
-      requestedVersion
-        ? String(
-            t('admin.upgradeConfirmVersion', {
-              target: probe.name || probe.probe_id,
-              version: requestedVersion,
-            })
-          )
-        : String(t('admin.upgradeConfirmLatest', { target: probe.name || probe.probe_id })),
+      String(t('admin.upgradeConfirmLatest', { target: probe.name || probe.probe_id })),
       { title: String(t('common.confirm')) }
     )
     if (!confirmed) return
@@ -150,18 +140,15 @@ export function AdminPage() {
     try {
       const response = await api.post<{ upgrade?: AdminProbeUpgrade }>(
         `/admin/probes/${probe.probe_id}/upgrade`,
-        requestedVersion ? { version: requestedVersion } : {}
+        {}
       )
       await probesQuery.refetch()
-      const targetVersion = response.upgrade?.target_version || requestedVersion || '-'
-      notify(
-        requestedVersion
-          ? String(t('admin.upgradeQueuedVersion', { version: targetVersion }))
-          : String(t('admin.upgradeQueuedLatest', { version: targetVersion })),
-        'success'
-      )
-    } catch {
-      notify(String(t('admin.upgradeFailed')), 'error')
+      const targetVersion = response.upgrade?.target_version || '-'
+      notify(String(t('admin.upgradeQueuedLatest', { version: targetVersion })), 'success')
+    } catch (error) {
+      if (!isHandledRequestError(error)) {
+        notify(String(t('admin.upgradeFailed')), 'error')
+      }
     } finally {
       setUpgradingIds(current => current.filter(id => id !== probe.probe_id))
     }
@@ -244,22 +231,14 @@ export function AdminPage() {
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
-          <TabsTrigger value="nodes" data-testid="admin-tab-nodes">
-            {t('admin.nodes')}
-          </TabsTrigger>
-          <TabsTrigger value="keys" data-testid="admin-tab-keys">
-            {t('admin.keysTab')}
-          </TabsTrigger>
-          <TabsTrigger value="blocked" data-testid="admin-tab-blocked">
-            {t('admin.blockedTab')}
-          </TabsTrigger>
-          <TabsTrigger value="test" data-testid="admin-tab-test">
-            {t('admin.testTab')}
-          </TabsTrigger>
+          <TabsTrigger value="nodes">{t('admin.nodes')}</TabsTrigger>
+          <TabsTrigger value="keys">{t('admin.keysTab')}</TabsTrigger>
+          <TabsTrigger value="blocked">{t('admin.blockedTab')}</TabsTrigger>
+          <TabsTrigger value="test">{t('admin.testTab')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="nodes" className="mt-5">
-          <div data-testid="admin-nodes-table">
+          <div>
             <DenseTable minWidthClassName="min-w-[1560px]">
               <DenseTableHead>
                 <tr>
@@ -278,7 +257,7 @@ export function AdminPage() {
                   const upgradeDisabledReason = getUpgradeDisabledReason(probe, t)
 
                   return (
-                    <tr key={probe.probe_id} data-testid={`admin-node-row-${probe.probe_id}`}>
+                    <tr key={probe.probe_id}>
                       <DenseCell className="w-[220px]">
                         <div className="font-semibold text-[var(--text)]">
                           {probe.name || probe.probe_id}
@@ -471,21 +450,18 @@ export function AdminPage() {
                 id="ping-max-runs"
                 label={t('admin.pingMaxRuns')}
                 value={config.ping_max_runs}
-                testId="admin-ping-max-runs"
                 onChange={value => setConfig(current => ({ ...current, ping_max_runs: value }))}
               />
               <NumericField
                 id="tcp-ping-max-runs"
                 label={t('admin.tcpPingMaxRuns')}
                 value={config.tcp_ping_max_runs}
-                testId="admin-tcp-ping-max-runs"
                 onChange={value => setConfig(current => ({ ...current, tcp_ping_max_runs: value }))}
               />
               <NumericField
                 id="traceroute-timeout"
                 label={t('admin.tracerouteTimeoutSeconds')}
                 value={config.traceroute_timeout_seconds}
-                testId="admin-traceroute-timeout"
                 onChange={value =>
                   setConfig(current => ({ ...current, traceroute_timeout_seconds: value }))
                 }
@@ -494,13 +470,12 @@ export function AdminPage() {
                 id="mtr-timeout"
                 label={t('admin.mtrTimeoutSeconds')}
                 value={config.mtr_timeout_seconds}
-                testId="admin-mtr-timeout"
                 onChange={value =>
                   setConfig(current => ({ ...current, mtr_timeout_seconds: value }))
                 }
               />
               <div className="md:col-span-2">
-                <Button data-testid="admin-save-test-config" onClick={() => void saveConfig()}>
+                <Button onClick={() => void saveConfig()}>
                   <Save className="mr-2 h-4 w-4" />
                   {t('common.save')}
                 </Button>
@@ -516,6 +491,15 @@ export function AdminPage() {
 function normalizePositiveNumber(value: string | number | undefined, fallback: number) {
   const parsed = typeof value === 'number' ? value : Number(value)
   return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback
+}
+
+function isHandledRequestError(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+
+  const record = error as Record<string, unknown>
+  return Boolean(record['response']) || record['isAxiosError'] === true
 }
 
 function getUpgradeStatusLabel(
@@ -647,26 +631,22 @@ function NumericField({
   label,
   value,
   onChange,
-  testId,
 }: {
   id: string
   label: string
   value: number
   onChange: (value: number) => void
-  testId?: string
 }) {
   return (
     <div>
       <Label htmlFor={id}>{label}</Label>
-      <div data-testid={testId}>
-        <Input
-          id={id}
-          type="number"
-          inputMode="numeric"
-          value={String(value)}
-          onChange={event => onChange(Number(event.target.value))}
-        />
-      </div>
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        value={String(value)}
+        onChange={event => onChange(Number(event.target.value))}
+      />
     </div>
   )
 }

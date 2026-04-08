@@ -41,15 +41,10 @@ export function TopBar() {
           type="button"
           className="flex items-center gap-4 rounded-sm px-1 py-1 text-left outline-none"
           onClick={() => navigate('/test')}
-          data-testid="topbar"
         >
           <div>
-            <div className="text-sm font-semibold tracking-tight text-[var(--text)]">
-              Atlas
-            </div>
-            <div className="text-xs text-[var(--text-2)]">
-              Distributed network tests
-            </div>
+            <div className="text-sm font-semibold tracking-tight text-[var(--text)]">Atlas</div>
+            <div className="text-xs text-[var(--text-2)]">Distributed network tests</div>
           </div>
         </button>
 

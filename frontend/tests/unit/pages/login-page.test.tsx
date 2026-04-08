@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { LoginPage } from '@/pages/login-page'
@@ -56,8 +56,8 @@ describe('LoginPage', () => {
       route: '/login',
     })
 
-    await user.type(within(screen.getByTestId('login-password')).getByLabelText('login.password'), 'atlas-admin')
-    await user.click(screen.getByTestId('login-submit'))
+    await user.type(screen.getByLabelText('login.password'), 'atlas-admin')
+    await user.click(screen.getByRole('button', { name: 'login.login' }))
 
     await screen.findByTestId('route-admin')
 
@@ -80,18 +80,18 @@ describe('LoginPage', () => {
       route: '/login',
     })
 
-    await user.click(screen.getByTestId('login-submit'))
+    await user.click(screen.getByRole('button', { name: 'login.login' }))
     expect(await screen.findByText('login.passwordRequired')).toBeInTheDocument()
     expect(apiMock.post).not.toHaveBeenCalled()
 
-    await user.type(within(screen.getByTestId('login-password')).getByLabelText('login.password'), 'wrong-password')
-    await user.click(screen.getByTestId('login-submit'))
+    await user.type(screen.getByLabelText('login.password'), 'wrong-password')
+    await user.click(screen.getByRole('button', { name: 'login.login' }))
 
     await waitFor(() =>
       expect(getLastToast()).toMatchObject({
         message: 'login.loginFailed',
         type: 'error',
-      }),
+      })
     )
   })
 
@@ -107,14 +107,14 @@ describe('LoginPage', () => {
       route: '/login',
     })
 
-    await user.type(within(screen.getByTestId('login-password')).getByLabelText('login.password'), 'wrong-password')
-    await user.click(screen.getByTestId('login-submit'))
+    await user.type(screen.getByLabelText('login.password'), 'wrong-password')
+    await user.click(screen.getByRole('button', { name: 'login.login' }))
 
     await waitFor(() =>
       expect(getLastToast()).toMatchObject({
         message: 'wrong-password',
         type: 'error',
-      }),
+      })
     )
   })
 })

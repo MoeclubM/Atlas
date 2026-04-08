@@ -51,7 +51,7 @@ export async function waitForAtlasReady(request: APIRequestContext) {
 }
 
 export async function expectSnackbar(page: Page, message: string) {
-  const snackbar = page.getByTestId('ui-snackbar').filter({ hasText: message }).last()
+  const snackbar = page.locator('[role=\"status\"]').filter({ hasText: message }).last()
   await expect(snackbar).toContainText(message)
 }
 

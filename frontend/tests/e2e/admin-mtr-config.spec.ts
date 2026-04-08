@@ -8,18 +8,18 @@ test('logs in and saves mtr timeout config', async ({ page, request }) => {
   await useEnglishLocale(page)
 
   await page.goto('/login')
-  await page.getByTestId('login-password').locator('input').fill(adminPassword)
-  await page.getByTestId('login-submit').click()
+  await page.getByLabel('Password').fill(adminPassword)
+  await page.getByRole('button', { name: 'Login' }).click()
 
   await expect(page).toHaveURL(/\/admin$/)
   await expectSnackbar(page, 'Login success')
 
-  await page.getByTestId('admin-tab-test').click()
+  await page.getByRole('tab', { name: 'Test params' }).click()
 
-  const mtrTimeoutInput = page.getByTestId('admin-mtr-timeout').locator('input')
+  const mtrTimeoutInput = page.getByRole('spinbutton', { name: 'MTR timeout (s)' })
   await expect(mtrTimeoutInput).toBeVisible()
   await mtrTimeoutInput.fill('61')
-  await page.getByTestId('admin-save-test-config').click()
+  await page.getByRole('button', { name: 'Save' }).click()
 
   await expectSnackbar(page, 'Saved')
   await expect(mtrTimeoutInput).toHaveValue('61')

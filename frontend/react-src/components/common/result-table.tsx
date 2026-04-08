@@ -106,24 +106,14 @@ export function TargetNetworkCell({ isp, asn, asName }: TargetNetworkCellProps) 
   return (
     <div className="min-w-0">
       <div className="truncate">{isp || '-'}</div>
-      {secondary ? (
-        <div className="truncate text-xs text-[var(--text-2)]">{secondary}</div>
-      ) : null}
+      {secondary ? <div className="truncate text-xs text-[var(--text-2)]">{secondary}</div> : null}
     </div>
   )
 }
 
-export function DetailBlock({
-  title,
-  children,
-  testId,
-}: {
-  title: string
-  children: ReactNode
-  testId?: string
-}) {
+export function DetailBlock({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <div className="space-y-3" data-testid={testId}>
+    <div className="space-y-3">
       <div className="text-sm font-semibold text-[var(--text)]">{title}</div>
       {children}
     </div>

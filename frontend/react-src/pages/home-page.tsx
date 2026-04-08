@@ -413,51 +413,48 @@ export function HomePage() {
             <SelectField
               value={testType}
               onValueChange={setTestType}
+              ariaLabel={String(t('home.type'))}
               options={[
                 {
                   value: 'icmp_ping',
                   label: String(t('taskTable.typeNames.icmp_ping')),
-                  testId: 'home-type-option-icmp_ping',
                 },
                 {
                   value: 'tcp_ping',
                   label: String(t('taskTable.typeNames.tcp_ping')),
-                  testId: 'home-type-option-tcp_ping',
                 },
                 {
                   value: 'http_test',
                   label: String(t('taskTable.typeNames.http_test')),
-                  testId: 'home-type-option-http_test',
                 },
                 {
                   value: 'traceroute',
                   label: String(t('taskTable.typeNames.traceroute')),
-                  testId: 'home-type-option-traceroute',
                 },
                 {
                   value: 'mtr',
                   label: String(t('taskTable.typeNames.mtr')),
-                  testId: 'home-type-option-mtr',
                 },
               ]}
-              testId="home-type-select"
             />
-            <div data-testid="home-target">
-              <Input value={target} onChange={event => setTarget(event.target.value)} />
-            </div>
+            <Input
+              aria-label={String(t('home.targetPlaceholder'))}
+              placeholder={String(t('home.targetPlaceholder'))}
+              value={target}
+              onChange={event => setTarget(event.target.value)}
+            />
             <SelectField
               value={ipVersion}
               onValueChange={value => setIPVersion(value as 'auto' | 'ipv4' | 'ipv6')}
+              ariaLabel={String(t('home.ip'))}
               options={[
                 { value: 'auto', label: String(t('home.ipAuto')) },
                 { value: 'ipv4', label: String(t('home.ipV4')) },
                 { value: 'ipv6', label: String(t('home.ipV6')) },
               ]}
-              testId="home-ip-select"
             />
             <div className="flex gap-2">
               <Button
-                data-testid="home-start"
                 disabled={
                   testing ||
                   !target.trim() ||
@@ -468,11 +465,7 @@ export function HomePage() {
                 {testing ? t('common.loading') : t('home.startTest')}
               </Button>
               {currentTaskId ? (
-                <Button
-                  variant="danger"
-                  data-testid="home-stop-test"
-                  onClick={() => void stopTask()}
-                >
+                <Button variant="danger" onClick={() => void stopTask()}>
                   {t('home.stopTest')}
                 </Button>
               ) : null}
@@ -520,7 +513,7 @@ export function HomePage() {
       </Card>
 
       {results.length || currentTaskId ? (
-        <Card data-testid="home-results">
+        <Card>
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -571,7 +564,6 @@ export function HomePage() {
                         main={
                           <tr
                             className="cursor-pointer hover:bg-[var(--surface-2)]"
-                            data-testid="home-result-row"
                             onClick={() => {
                               const willExpand = !expandedProbeIds.includes(result.probe_id)
                               setExpandedProbeIds(current =>
@@ -706,7 +698,9 @@ export function HomePage() {
               </div>
             )}
 
-            {(testType === 'traceroute' ? tracerouteMapRoutes.length > 0 : probeMarkers.length > 0) ? (
+            {(
+              testType === 'traceroute' ? tracerouteMapRoutes.length > 0 : probeMarkers.length > 0
+            ) ? (
               <div className="space-y-2">
                 <div className="text-xs uppercase tracking-[0.08em] text-[var(--text-2)]">
                   {t('singleResult.worldMap')}
@@ -741,7 +735,7 @@ function renderTraceroute(
   if (!data?.hops?.length) return null
 
   return (
-    <DetailBlock title={t('results.tracerouteDetail')} testId="home-traceroute-detail">
+    <DetailBlock title={t('results.tracerouteDetail')}>
       <DenseTable minWidthClassName="min-w-[860px]">
         <DenseTableHead>
           <tr>
@@ -793,7 +787,7 @@ function renderMTR(
   if (!data?.hops?.length) return null
 
   return (
-    <DetailBlock title={t('results.mtrDetail')} testId="home-mtr-detail">
+    <DetailBlock title={t('results.mtrDetail')}>
       <DenseTable minWidthClassName="min-w-[1080px]">
         <DenseTableHead>
           <tr>
@@ -809,7 +803,7 @@ function renderMTR(
         </DenseTableHead>
         <tbody>
           {data.hops.map(hop => (
-            <tr key={`mtr-${hop.hop}`} data-testid="home-mtr-hop-row">
+            <tr key={`mtr-${hop.hop}`}>
               <DenseCell>{hop.hop}</DenseCell>
               <DenseCell>
                 <div>{hop.ip || '*'}</div>

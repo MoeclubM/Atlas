@@ -11,17 +11,17 @@ function ToastIcon({ type }: { type: 'success' | 'info' | 'warning' | 'error' })
 }
 
 export function ToastRegion() {
-  const toasts = useAppStore((state) => state.toasts)
-  const dismissToast = useAppStore((state) => state.dismissToast)
+  const toasts = useAppStore(state => state.toasts)
+  const dismissToast = useAppStore(state => state.dismissToast)
 
   return (
     <Toast.Provider swipeDirection="right">
-      {toasts.map((toast) => (
+      {toasts.map(toast => (
         <Toast.Root
           key={toast.id}
           open
           duration={2600}
-          onOpenChange={(open) => {
+          onOpenChange={open => {
             if (!open) dismissToast(toast.id)
           }}
           className={cn(
@@ -33,9 +33,8 @@ export function ToastRegion() {
             toast.type === 'error' &&
               'border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-100',
             toast.type === 'info' &&
-              'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100',
+              'border-sky-200 bg-sky-50 text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100'
           )}
-          data-testid="ui-snackbar"
         >
           <ToastIcon type={toast.type} />
           <Toast.Title className="flex-1 text-sm font-medium">{toast.message}</Toast.Title>

@@ -20,7 +20,7 @@ type LoginForm = z.infer<typeof schema>
 export function LoginPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const notify = useAppStore((state) => state.notify)
+  const notify = useAppStore(state => state.notify)
   const {
     register,
     handleSubmit,
@@ -44,7 +44,7 @@ export function LoginPage() {
         '/admin/login',
         {
           password: values.password,
-        },
+        }
       )
 
       if (response.success && response.token) {
@@ -71,25 +71,18 @@ export function LoginPage() {
           <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
             <div>
               <Label htmlFor="password">{t('login.password')}</Label>
-              <div data-testid="login-password">
-                <Input
-                  id="password"
-                  type="password"
-                  autoComplete="current-password"
-                  placeholder={String(t('login.passwordPlaceholder'))}
-                  {...register('password')}
-                />
-              </div>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder={String(t('login.passwordPlaceholder'))}
+                {...register('password')}
+              />
               {errors.password ? (
                 <p className="mt-2 text-sm text-rose-600">{t('login.passwordRequired')}</p>
               ) : null}
             </div>
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isSubmitting}
-              data-testid="login-submit"
-            >
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
               {isSubmitting ? t('common.loading') : t('login.login')}
             </Button>
           </form>
