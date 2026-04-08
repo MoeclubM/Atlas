@@ -611,7 +611,7 @@ export function HomePage() {
                             </DenseCell>
                             {pageMode === 'continuous' ? (
                               <DenseCell align="right">
-                                {`${result.send_count ?? 0}/${CONTINUOUS_RUNS}`}
+                                {`${samples[result.probe_id]?.length ?? result.send_count ?? 0}/${CONTINUOUS_RUNS}`}
                               </DenseCell>
                             ) : null}
                             <DenseCell
