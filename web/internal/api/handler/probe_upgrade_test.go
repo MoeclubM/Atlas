@@ -1,6 +1,11 @@
 package handler
 
-import "testing"
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+)
 
 func TestNormalizeRequestedUpgradeVersion(t *testing.T) {
 	tests := []struct {
@@ -87,5 +92,50 @@ func TestParseProbeMetadataInfoSystemSupport(t *testing.T) {
 	}
 	if info.SystemSupport.BirdRouteReason == "" {
 		t.Fatal("expected bird route reason")
+	}
+}
+
+func TestResolveLatestProbeVersionFromReleasePage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/MoeclubM/Atlas/releases/latest" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		http.Redirect(w, r, "/MoeclubM/Atlas/releases/tag/v0.1.11", http.StatusFound)
+	}))
+	defer server.Close()
+
+	version, err := resolveLatestProbeVersionFromReleasePage(
+		context.Background(),
+		server.URL+"/MoeclubM/Atlas/releases/latest",
+		server.Client(),
+	)
+	if err != nil {
+		t.Fatalf("resolveLatestProbeVersionFromReleasePage returned error: %v", err)
+	}
+	if version != "v0.1.11" {
+		t.Fatalf("expected v0.1.11, got %q", version)
+	}
+}
+
+func TestResolveLatestProbeVersionFromAPI(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/repos/MoeclubM/Atlas/releases/latest" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"tag_name":"v0.1.11"}`))
+	}))
+	defer server.Close()
+
+	version, err := resolveLatestProbeVersionFromAPI(
+		context.Background(),
+		server.URL+"/repos/MoeclubM/Atlas/releases/latest",
+		server.Client(),
+	)
+	if err != nil {
+		t.Fatalf("resolveLatestProbeVersionFromAPI returned error: %v", err)
+	}
+	if version != "v0.1.11" {
+		t.Fatalf("expected v0.1.11, got %q", version)
 	}
 }

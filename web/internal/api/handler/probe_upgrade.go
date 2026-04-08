@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -69,35 +70,138 @@ func defaultLatestProbeVersionResolver(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("invalid ATLAS_RELEASE_REPO: %q", repo)
 	}
 
+	if pinnedVersion := strings.TrimSpace(os.Getenv("ATLAS_PROBE_LATEST_VERSION")); pinnedVersion != "" {
+		return normalizeRequestedUpgradeVersion(pinnedVersion)
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/releases/latest", strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1]))
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	pageURL := fmt.Sprintf(
+		"https://github.com/%s/%s/releases/latest",
+		strings.TrimSpace(parts[0]),
+		strings.TrimSpace(parts[1]),
+	)
+	if version, err := resolveLatestProbeVersionFromReleasePage(ctx, pageURL, http.DefaultClient); err == nil {
+		return version, nil
+	} else {
+		apiURL := fmt.Sprintf(
+			"https://api.github.com/repos/%s/%s/releases/latest",
+			strings.TrimSpace(parts[0]),
+			strings.TrimSpace(parts[1]),
+		)
+		fallbackVersion, fallbackErr := resolveLatestProbeVersionFromAPI(ctx, apiURL, http.DefaultClient)
+		if fallbackErr == nil {
+			return fallbackVersion, nil
+		}
+		return "", fmt.Errorf(
+			"failed to resolve latest probe release: release page: %v; api: %v",
+			err,
+			fallbackErr,
+		)
+	}
+}
+
+func resolveLatestProbeVersionFromReleasePage(
+	ctx context.Context,
+	latestURL string,
+	baseClient *http.Client,
+) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, latestURL, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Accept", "text/html,application/xhtml+xml")
+	req.Header.Set("User-Agent", "atlas-web")
+
+	resp, err := withoutRedirects(baseClient).Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to query latest release page: %w", err)
+	}
+	defer resp.Body.Close()
+
+	switch {
+	case resp.StatusCode >= http.StatusMultipleChoices && resp.StatusCode < http.StatusBadRequest:
+		location := strings.TrimSpace(resp.Header.Get("Location"))
+		if location == "" {
+			return "", fmt.Errorf("latest release page redirect is missing location")
+		}
+		return normalizeRequestedUpgradeVersionFromURL(latestURL, location)
+	case resp.StatusCode == http.StatusOK:
+		return normalizeRequestedUpgradeVersionFromURL(latestURL, resp.Request.URL.String())
+	default:
+		return "", fmt.Errorf("latest release page lookup failed with status %d", resp.StatusCode)
+	}
+}
+
+func resolveLatestProbeVersionFromAPI(
+	ctx context.Context,
+	apiURL string,
+	client *http.Client,
+) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiURL, nil)
 	if err != nil {
 		return "", err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("User-Agent", "atlas-web")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to query latest probe release: %w", err)
+		return "", fmt.Errorf("failed to query latest probe release api: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("latest probe release lookup failed with status %d", resp.StatusCode)
+		return "", fmt.Errorf("latest probe release api lookup failed with status %d", resp.StatusCode)
 	}
 
 	var payload struct {
 		TagName string `json:"tag_name"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-		return "", fmt.Errorf("failed to decode latest probe release: %w", err)
+		return "", fmt.Errorf("failed to decode latest probe release api response: %w", err)
 	}
 
 	return normalizeRequestedUpgradeVersion(payload.TagName)
+}
+
+func normalizeRequestedUpgradeVersionFromURL(baseURL string, rawTargetURL string) (string, error) {
+	base, err := url.Parse(baseURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid latest release base url: %w", err)
+	}
+
+	target, err := url.Parse(strings.TrimSpace(rawTargetURL))
+	if err != nil {
+		return "", fmt.Errorf("invalid latest release target url: %w", err)
+	}
+
+	resolved := base.ResolveReference(target)
+	path := strings.TrimSpace(resolved.Path)
+	marker := "/releases/tag/"
+	index := strings.Index(path, marker)
+	if index < 0 {
+		return "", fmt.Errorf("latest release page did not resolve to a tagged release")
+	}
+
+	return normalizeRequestedUpgradeVersion(path[index+len(marker):])
+}
+
+func withoutRedirects(baseClient *http.Client) *http.Client {
+	client := &http.Client{
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
+	if baseClient != nil {
+		client.Transport = baseClient.Transport
+		client.Jar = baseClient.Jar
+		client.Timeout = baseClient.Timeout
+	}
+
+	return client
 }
 
 func normalizeRequestedUpgradeVersion(version string) (string, error) {
