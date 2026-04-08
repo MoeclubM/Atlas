@@ -33,7 +33,7 @@ Options:
   --no-start           Install/update files only. Do not enable or start the service
 
 This script:
-  - Installs required packages: iputils-ping, traceroute, mtr-tiny, ca-certificates, curl
+  - Installs required packages: ca-certificates, curl
   - Downloads atlas-probe from GitHub Releases and verifies SHA256 from checksums.txt
   - Creates user atlas-probe and required directories
   - Writes config at /etc/atlas-probe/config.yaml
@@ -54,10 +54,7 @@ apt_install_deps() {
   apt-get update
   apt-get install -y --no-install-recommends \
     ca-certificates \
-    curl \
-    iputils-ping \
-    traceroute \
-    mtr-tiny
+    curl
 }
 
 get_arch() {
@@ -233,9 +230,9 @@ RestartSec=3
 Environment=PROBE_DEPLOY_MODE=systemd
 Environment=ATLAS_UPGRADE_REQUEST_DIR=${DEFAULT_UPGRADE_REQUEST_DIR}
 
-# Capabilities for ping/traceroute/mtr
-AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
-CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+# Capabilities for internal ICMP/traceroute/mtr
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
 NoNewPrivileges=true
 
 # Basic hardening

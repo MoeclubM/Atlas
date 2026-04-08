@@ -90,6 +90,34 @@ func TestResolveRouteProbeIDsRejectsUnsupportedExplicitProbe(t *testing.T) {
 	}
 }
 
+func TestResolveTracerouteProbeIDsRequiresExactlyOneExplicitProbe(t *testing.T) {
+	db := newTaskHandlerTestDB(t)
+	handler := &TaskHandler{db: db}
+
+	seedTaskHandlerProbe(t, db, "probe-trace-1", `["traceroute"]`, "online")
+	seedTaskHandlerProbe(t, db, "probe-trace-2", `["traceroute"]`, "online")
+
+	if _, err := handler.resolveTracerouteProbeIDs(nil); err == nil {
+		t.Fatal("expected explicit single probe requirement error")
+	} else if err.Error() != "traceroute requires exactly one assigned probe" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if _, err := handler.resolveTracerouteProbeIDs([]string{"probe-trace-1", "probe-trace-2"}); err == nil {
+		t.Fatal("expected multiple probe rejection error")
+	} else if err.Error() != "traceroute requires exactly one assigned probe" {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	selected, err := handler.resolveTracerouteProbeIDs([]string{"probe-trace-2"})
+	if err != nil {
+		t.Fatalf("resolveTracerouteProbeIDs returned error: %v", err)
+	}
+	if len(selected) != 1 || selected[0] != "probe-trace-2" {
+		t.Fatalf("expected probe-trace-2, got %v", selected)
+	}
+}
+
 func TestResolveRouteProbeIDsSupportsMTRCapabilityFiltering(t *testing.T) {
 	db := newTaskHandlerTestDB(t)
 	handler := &TaskHandler{db: db}

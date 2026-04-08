@@ -1,105 +1,60 @@
 package manager
 
-import "testing"
+import (
+	"math"
+	"testing"
 
-func TestParseMTRReportJSON(t *testing.T) {
-	raw := []byte(`{
-  "report": {
-    "mtr": {
-      "src": "192.0.2.10",
-      "dst": "1.1.1.1"
-    },
-    "hubs": [
-      {
-        "count": 1,
-        "host": "192.0.2.1",
-        "Loss%": 0,
-        "Snt": 4,
-        "Last": 1.2,
-        "Avg": 1.1,
-        "Best": 0.9,
-        "Wrst": 1.3,
-        "StDev": 0.1
-      },
-      {
-        "count": 2,
-        "host": "1.1.1.1",
-        "Loss%": 25,
-        "Snt": 4,
-        "Last": 12.2,
-        "Avg": 12,
-        "Best": 11.5,
-        "Wrst": 13,
-        "StDev": 0.6
-      }
-    ]
-  }
-}`)
+	"atlas/shared/protocol"
+)
 
-	result, err := parseMTRReportJSON(raw, "example.com", "1.1.1.1")
-	if err != nil {
-		t.Fatalf("parseMTRReportJSON returned error: %v", err)
+func TestBuildMTRResultFromTracerouteHops(t *testing.T) {
+	hops := []protocol.TracerouteHop{
+		{Hop: 1, IP: "192.0.2.1", RTTs: []float64{1.2, 1.1}, Timeout: false},
+		{Hop: 2, IP: "", RTTs: nil, Timeout: true},
+		{Hop: 3, IP: "1.1.1.1", RTTs: []float64{12.3, 12.5, 12.1}, Timeout: false},
 	}
 
+	result := buildMTRResult("example.com", "1.1.1.1", hops, 3)
 	if !result.Success {
-		t.Fatal("expected parsed mtr result to reach the target")
+		t.Fatal("expected mtr result to reach the target")
 	}
-	if result.TotalHops != 2 {
-		t.Fatalf("expected 2 hops, got %d", result.TotalHops)
+	if result.TotalHops != 3 {
+		t.Fatalf("expected 3 hops, got %d", result.TotalHops)
 	}
-	if result.PacketLossPercent != 25 {
-		t.Fatalf("expected packet loss 25, got %v", result.PacketLossPercent)
+	if result.PacketLossPercent != 0 {
+		t.Fatalf("expected final hop loss 0, got %v", result.PacketLossPercent)
 	}
-	if result.AvgRTTMs != 12 {
-		t.Fatalf("expected avg RTT 12, got %v", result.AvgRTTMs)
+
+	firstHop := result.Hops[0]
+	if math.Abs(firstHop.LossPercent-33.3333333) > 0.01 {
+		t.Fatalf("expected first hop partial loss, got %v", firstHop.LossPercent)
 	}
-	if result.Hops[1].IP != "1.1.1.1" {
-		t.Fatalf("expected final hop IP 1.1.1.1, got %q", result.Hops[1].IP)
+
+	timeoutHop := result.Hops[1]
+	if !timeoutHop.Timeout || timeoutHop.LossPercent != 100 {
+		t.Fatalf("expected second hop timeout with 100%% loss, got %+v", timeoutHop)
+	}
+
+	finalHop := result.Hops[2]
+	if finalHop.IP != "1.1.1.1" {
+		t.Fatalf("expected final hop IP 1.1.1.1, got %q", finalHop.IP)
+	}
+	if finalHop.AvgRTTMs <= 0 || finalHop.BestRTTMs != 12.1 || finalHop.WorstRTTMs != 12.5 {
+		t.Fatalf("unexpected final hop stats: %+v", finalHop)
 	}
 }
 
-func TestParseMTRReportJSONMarksUnreachedTargetAsFailedRoute(t *testing.T) {
-	raw := []byte(`{
-  "report": {
-    "hubs": [
-      {
-        "count": 1,
-        "host": "192.0.2.1",
-        "Loss%": 0,
-        "Snt": 4,
-        "Last": 1.2,
-        "Avg": 1.1,
-        "Best": 0.9,
-        "Wrst": 1.3,
-        "StDev": 0.1
-      },
-      {
-        "count": 2,
-        "host": "???",
-        "Loss%": 100,
-        "Snt": 4,
-        "Last": 0,
-        "Avg": 0,
-        "Best": 0,
-        "Wrst": 0,
-        "StDev": 0
-      }
-    ]
-  }
-}`)
-
-	result, err := parseMTRReportJSON(raw, "example.com", "1.1.1.1")
-	if err != nil {
-		t.Fatalf("parseMTRReportJSON returned error: %v", err)
+func TestBuildMTRResultMarksUnreachedTargetAsFailed(t *testing.T) {
+	hops := []protocol.TracerouteHop{
+		{Hop: 1, IP: "192.0.2.1", RTTs: []float64{1.2}, Timeout: false},
+		{Hop: 2, IP: "", RTTs: nil, Timeout: true},
 	}
 
+	result := buildMTRResult("example.com", "1.1.1.1", hops, 1)
 	if result.Success {
-		t.Fatal("expected unreached mtr route to report success=false")
+		t.Fatal("expected unreached route to be marked as failed")
 	}
 	if result.PacketLossPercent != 100 {
 		t.Fatalf("expected packet loss 100, got %v", result.PacketLossPercent)
-	}
-	if len(result.Hops) != 2 || !result.Hops[1].Timeout {
-		t.Fatalf("expected timeout hop, got %+v", result.Hops)
 	}
 }

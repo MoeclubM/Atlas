@@ -9,5 +9,10 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+require (
+	golang.org/x/net v0.52.0
+	golang.org/x/sys v0.42.0 // indirect
+)
+
 // 引用本地 shared 模块
 replace atlas/shared => ../shared

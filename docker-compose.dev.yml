@@ -15,7 +15,6 @@ services:
       - atlas-probe-id:/app/probe-id
     cap_add:
       - NET_RAW
-      - NET_ADMIN
     restart: unless-stopped
     depends_on:
       web:

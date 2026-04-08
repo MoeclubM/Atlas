@@ -198,6 +198,15 @@ func (h *TaskHandler) resolveRouteProbeIDs(taskType string, requested []string) 
 	return requested, nil
 }
 
+func (h *TaskHandler) resolveTracerouteProbeIDs(requested []string) ([]string, error) {
+	requested = normalizeProbeIDs(requested)
+	if len(requested) != 1 {
+		return nil, fmt.Errorf("traceroute requires exactly one assigned probe")
+	}
+
+	return h.resolveRouteProbeIDs("traceroute", requested)
+}
+
 // CreateTask 创建任务
 // POST /api/tasks
 func (h *TaskHandler) CreateTask(c *gin.Context) {
@@ -253,7 +262,16 @@ func (h *TaskHandler) CreateTask(c *gin.Context) {
 		return
 	}
 
-	if req.TaskType == "traceroute" || req.TaskType == "mtr" {
+	if req.TaskType == "traceroute" {
+		resolvedProbeIDs, err := h.resolveTracerouteProbeIDs(req.AssignedProbes)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+		req.AssignedProbes = resolvedProbeIDs
+	}
+
+	if req.TaskType == "mtr" {
 		resolvedProbeIDs, err := h.resolveRouteProbeIDs(req.TaskType, req.AssignedProbes)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
